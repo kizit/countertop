@@ -4,11 +4,11 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
-import sys
 
 
 def docker(*args):
@@ -47,7 +47,7 @@ def ready(container):
         try:
             assert isinstance(json_request(base, "/version")["v"], int)
             return base
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError, ConnectionError):
             if time.monotonic() >= deadline:
                 raise
             time.sleep(0.25)

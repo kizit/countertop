@@ -4,7 +4,7 @@
  * list, location, team, purchase history or camera. Nothing here is read from the owner's files.
  */
 (() => {
-  const now = new Date();
+  const now = window.__DEMO_TIME ? new Date(window.__DEMO_TIME) : new Date();
   const day = n => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
   const p2 = v => String(v).padStart(2, "0");
   const iso = (d, h, m) => { const x = new Date(d); x.setHours(h, m || 0, 0, 0);
@@ -35,10 +35,11 @@
     const H = {time:[], temperature_2m:[], precipitation_probability:[], weather_code:[], is_day:[]};
     for (let i = -30; i < 72; i++){
       const d = new Date(base.getTime() + i * 3600e3), h = d.getHours();
-      const rain = i > 26 && i < 33;
+      const soon = window.__DEMO_RAIN && i >= 1 && i <= 4;
+      const rain = soon || (i > 26 && i < 33);
       H.time.push(iso(d, h).slice(0, 16));
       H.temperature_2m.push(Math.round(49 + 11 * Math.sin((h - 9) / 24 * 2 * Math.PI)));
-      H.precipitation_probability.push(rain ? 60 : (i % 7 === 0 ? 10 : 3));
+      H.precipitation_probability.push(soon ? 85 : rain ? 60 : (i % 7 === 0 ? 10 : 3));
       H.weather_code.push(rain ? 61 : (h > 10 && h < 16 ? 1 : 2));
       H.is_day.push(h >= 7 && h < 17 ? 1 : 0);
     }
@@ -142,7 +143,7 @@
     if (/^\/dinner/.test(p)) return dinner;
     if (/^\/space/.test(p)) return space;
     if (/^\/photos/.test(p)) return photos;
-    if (/^\/radar/.test(p)) return {host:"", past:[], nowcast:[], error:"demo"};
+    if (/^\/radar/.test(p)) return window.__DEMO_RADAR || {host:"", past:[], nowcast:[], error:"demo"};
     if (/^\/cams/.test(p)) return {cams:[]};
     if (/^\/stocks/.test(p)){ const q = (sym, name, price, prev) => ({sym, name, price, prev, spark:[...Array(40)].map((_, i) => +(prev + (price - prev) * i / 39 + Math.sin(i / 3) * prev * .003).toFixed(2))});
       return {stocks:[q("^GSPC", "S&P 500", 5932.1, 5901.4), q("^DJI", "Dow Jones", 43210.5, 43350.2), q("ACME", "Acme Corp", 182.44, 179.9)]}; }
@@ -154,8 +155,9 @@
   window.fetch = function(input, opt){
     const u = typeof input === "string" ? input : input.url;
     const method = (opt && opt.method) || (input && input.method) || "GET";
-    // never save anything back to the server while taking screenshots
-    if (method !== "GET" && /\/(config|sources|notes|report)\b/.test(u)) return Promise.resolve(new Response('{"ok":true}', {headers:{"Content-Type":"application/json"}}));
+    // Only the clock recording saves config, against its own disposable server.
+    const saveDemoDesign = window.__DEMO_SAVE_CONFIG && new URL(u, location.href).pathname === "/config";
+    if (method !== "GET" && /\/(config|sources|notes|report)\b/.test(u) && !saveDemoDesign) return Promise.resolve(new Response('{"ok":true}', {headers:{"Content-Type":"application/json"}}));
     const d = method === "GET" ? route(u) : undefined;
     if (d !== undefined) return Promise.resolve(new Response(JSON.stringify(d), {headers:{"Content-Type":"application/json"}}));
     return realFetch(input, opt);

@@ -1,0 +1,15 @@
+services:
+  countertop:
+    image: ${COUNTERTOP_IMAGE:-ghcr.io/kizit/countertop:latest}
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      TZ: ${TZ:-America/Chicago}
+    ports:
+      - "${COUNTERTOP_PORT:-8090}:8090"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/work
+        bind:
+          create_host_path: false

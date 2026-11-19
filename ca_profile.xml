@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>Countertop is an open-source household dashboard for Echo Show 15 and other browser displays. Find installation instructions and support on GitHub.</Profile>
+  <Icon>https://raw.githubusercontent.com/kizit/countertop/main/docker/unraid/icon.png</Icon>
+  <WebPage>https://github.com/kizit/countertop</WebPage>
+</CommunityApplications>

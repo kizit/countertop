@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>countertop</Name>
+  <Name>Countertop</Name>
   <Repository>ghcr.io/kizit/countertop:latest</Repository>
   <Registry>https://github.com/kizit/countertop/pkgs/container/countertop</Registry>
   <Network>bridge</Network>
@@ -8,11 +8,12 @@
   <Support>https://github.com/kizit/countertop/issues</Support>
   <Project>https://github.com/kizit/countertop</Project>
   <Overview>An ad-free, always-on kitchen dashboard for the Echo Show 15 (or any wall tablet browser): clock, weather, calendars, grocery list, sports, photos and more. Open http://[IP]:[PORT:8090]/dash on the device and http://[IP]:[PORT:8090]/control on a computer to set it up.</Overview>
-  <Category>HomeAutomation: Tools:</Category>
+  <Category>HomeAutomation:Tools:</Category>
   <WebUI>http://[IP]:[PORT:8090]/control</WebUI>
   <Icon>https://raw.githubusercontent.com/kizit/countertop/main/docker/unraid/icon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/kizit/countertop/main/docker/unraid/countertop.xml</TemplateURL>
   <ExtraParams>--user 99:100 --restart unless-stopped</ExtraParams>
   <Config Name="Web port" Target="8090" Default="8090" Mode="tcp" Description="Dashboard, Controls and the phone list page" Type="Port" Display="always" Required="true" Mask="false">8090</Config>
-  <Config Name="Data" Target="/app/work" Default="/mnt/user/appdata/countertop" Mode="rw" Description="Settings, calendar links, grocery list, purchase exports and logs. Keep private." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/countertop</Config>
+  <Config Name="Appdata" Target="/app/work" Default="/mnt/user/appdata/countertop" Mode="rw" Description="Settings, calendar links, grocery list, purchase exports and logs. Create this directory with owner 99:100 before starting. Keep it private." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/countertop</Config>
   <Config Name="Time zone" Target="TZ" Default="America/Chicago" Mode="" Description="Your time zone (calendar times are shown in it)" Type="Variable" Display="always" Required="true" Mask="false">America/Chicago</Config>
 </Container>

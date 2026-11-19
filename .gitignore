@@ -1,5 +1,9 @@
 # Personal data and settings: never commit
 /work/
+/docker/data/
+.env
+.env.*
+!.env.example
 *.log
 
 # Leftovers from development

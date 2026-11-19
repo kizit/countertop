@@ -1,0 +1,79 @@
+name: Countertop container
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke test (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build container
+        run: docker build -f docker/Dockerfile -t countertop:smoke .
+      - name: Test clean install and container replacement
+        run: python3 docker/smoke-test.py countertop:smoke
+
+  publish:
+    if: github.repository == 'kizit/countertop' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/tags/v')
+    needs: smoke
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set image tags
+        id: tags
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "version=ghcr.io/kizit/countertop:$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "latest=ghcr.io/kizit/countertop:latest" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.version }}
+            ${{ steps.tags.outputs.latest }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/kizit/countertop
+            org.opencontainers.image.description=Self-hosted household dashboard for Echo Show and browser displays
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ github.ref_name }}

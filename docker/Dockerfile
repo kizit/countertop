@@ -8,13 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && pip install --no-cache-dir python-dateutil
 
 WORKDIR /app
-# app code (read-only at runtime); everything the server writes goes to /app/work
+# App code is owned by root; persistent data lives in /app/work.
 COPY tools/ /app/tools/
-RUN rm -f /app/tools/*.backup* /app/tools/*backup-*.html \
-    && mkdir -p /app/work && chmod 777 /app/work
+RUN install -d -m 0755 -o 1000 -g 1000 /app/work
 
 ENV TZ=America/Chicago \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+USER 1000:1000
 VOLUME /app/work
 EXPOSE 8090
 

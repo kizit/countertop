@@ -14,7 +14,7 @@ No ads, no rotating promos, just your day.</h2>
 </p>
 
 <p align="center">
-  <img alt="Runs on" src="https://img.shields.io/badge/runs%20on-macOS%20%7C%20Linux%20%7C%20Docker*-555" />
+  <img alt="Runs on" src="https://img.shields.io/badge/runs%20on-macOS%20%7C%20Linux%20%7C%20Docker-555" />
   <img alt="Python" src="https://img.shields.io/badge/python-3%20stdlib%20only-3776AB" />
   <img alt="Device" src="https://img.shields.io/badge/screen-Echo%20Show%2015%20(1920%C3%971080)-00CAFF" />
   <img alt="API keys" src="https://img.shields.io/badge/API%20keys-none-success" />
@@ -211,7 +211,7 @@ It prints the addresses to use, e.g. `http://192.168.1.20:8090/dash` for the Ech
 nohup python3 tools/countertop.py --port 8090 > work/server.log 2>&1 &
 ```
 
-> **Docker / Unraid (coming soon):** draft files are in `docker/` (a `Dockerfile`, `docker-compose.yml` and an Unraid template), not yet released. The server runs unchanged on Linux; mount `work/` as a volume and set `TZ` to your time zone so events and the night page line up. Apple Reminders sync is the one feature that needs a Mac (see below).
+> **Using Docker or Unraid?** See the [Docker and Unraid installation guide](docs/install-docker-unraid.md) for the prebuilt image, persistent storage and manual Unraid setup.
 
 ### 2. Point the Echo at it
 

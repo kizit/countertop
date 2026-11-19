@@ -1,9 +1,16 @@
-work/
-docker/data/
+# The image needs only the Dockerfile and runtime files under tools/.
+**
+!docker/
+!docker/Dockerfile
+!tools/
+!tools/**
+**/.env
+**/.env.*
 **/*.backup*
 **/*backup-*
 **/__pycache__/
+**/*.pyc
+**/*.log
+**/.DS_Store
 tools/menubar/
 tools/tiles-off/
-*.log
-.DS_Store

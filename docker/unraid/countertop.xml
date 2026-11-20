@@ -7,11 +7,19 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/kizit/countertop/issues</Support>
   <Project>https://github.com/kizit/countertop</Project>
-  <Overview>An ad-free, always-on kitchen dashboard for the Echo Show 15 (or any wall tablet browser): clock, weather, calendars, grocery list, sports, photos and more. Open http://[IP]:[PORT:8090]/dash on the device and http://[IP]:[PORT:8090]/control on a computer to set it up.</Overview>
-  <Category>HomeAutomation:Tools:</Category>
+  <Overview>Countertop is a free, self-hosted kitchen dashboard for the Echo Show 15 and other browser displays. Customize your calendar, weather, grocery list, sports, photos, and more. Click WebUI to open Controls. On your display, open the same server address with /dash instead of /control. Use /list for the shared grocery list. Keep Countertop on your trusted home network.</Overview>
+  <Category>HomeAutomation:</Category>
   <WebUI>http://[IP]:[PORT:8090]/control</WebUI>
   <Icon>https://raw.githubusercontent.com/kizit/countertop/main/docker/unraid/icon.png</Icon>
   <TemplateURL>https://raw.githubusercontent.com/kizit/countertop/main/docker/unraid/countertop.xml</TemplateURL>
+  <License>MIT</License>
+  <ReadMe>https://raw.githubusercontent.com/kizit/countertop/main/README.md</ReadMe>
+  <ExtraSearchTerms>echo show alexa silk kitchen dashboard family calendar grocery smart display wall tablet selfhosted</ExtraSearchTerms>
+  <Screenshot>https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/everyday.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/atmospheric.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/minimal.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/editor.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/designer.png</Screenshot>
   <ExtraParams>--user 99:100 --restart unless-stopped</ExtraParams>
   <Config Name="Web port" Target="8090" Default="8090" Mode="tcp" Description="Dashboard, Controls and the phone list page" Type="Port" Display="always" Required="true" Mask="false">8090</Config>
   <Config Name="Appdata" Target="/app/work" Default="/mnt/user/appdata/countertop" Mode="rw" Description="Settings, calendar links, grocery list, purchase exports and logs. Create this directory with owner 99:100 before starting. Keep it private." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/countertop</Config>

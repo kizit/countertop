@@ -1,0 +1,1 @@
+- **Daily list.** A new to-do tile that lives on the dashboard itself (no app to sync): type in the box and tap + to add, tap a line to tick it off, × to delete. Items are kept in work/daily.json, and every day at 00:00 the ticks are cleared automatically while the items stay. A "Untick all" button does the same reset on demand.

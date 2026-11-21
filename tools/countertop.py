@@ -215,7 +215,15 @@ class Handler(BaseHTTPRequestHandler):
         elif p == "/ha/entities":
             self._json(ha_entities(parse_qs(urlparse(self.path).query).get("src", [""])[0]))
         elif p == "/notes":
-            self._json(notes_view())
+            q = parse_qs(urlparse(self.path).query)
+            lid = (q.get("list") or [""])[0].strip()
+            if lid and local_list_source(lid):
+                force = (q.get("daily") or [""])[0]
+                self._json(local_list_view(lid, True if force in ("1", "true", "yes") else None))
+            else:
+                self._json(notes_view())
+        elif p == "/daily":
+            self._json(daily_view())
         elif p == "/list":
             self._send(200, (HERE / "list.html").read_bytes(), "text/html; charset=utf-8")
         elif re.fullmatch(r"/starters/[a-z]+\.jpg", p) and (HERE / p[1:]).is_file():
@@ -264,8 +272,13 @@ class Handler(BaseHTTPRequestHandler):
         elif p == "/lists/push":
             code, out = list_push(body)
             self._json(out, code)
+        elif p == "/daily":
+            self._json(daily_apply(body))
         elif p == "/notes":
-            if pushed_list() and body.get("op") in ("add", "toggle", "remove", "clear_done"):
+            lid = str(body.get("list") or "").strip()
+            if lid and local_list_source(lid):
+                self._json(local_list_apply(lid, body, True if body.get("daily") else None))
+            elif pushed_list() and body.get("op") in ("add", "toggle", "remove", "clear_done"):
                 self._json(notes_view())          # the list is kept in another app: read-only here
             elif reminders_list_name() and body.get("op") in ("add", "toggle", "remove", "clear_done"):
                 self._json(reminders_apply(body))
@@ -359,7 +372,9 @@ SOURCE_KINDS = {
         "fields": {
             "name": {"label": "Name", "type": "text"},
             "kind": {"label": "Kept in", "type": "choice", "choices": ["This dashboard", "Apple Reminders", PUSHED, FROM_URL],
-                     "help": "This dashboard: add items from the phone page at /list. Apple Reminders: mirrors a Reminders list (only when the dashboard server runs on a Mac). " + PUSHED + ": another app sends the list here, e.g. Reminders Sync in the Countertop Mac app (updates within seconds) or an iPhone Shortcut. " + FROM_URL + ": the server reads a list that is published online (plain text, a Markdown checklist, JSON or iCal to-dos) every few minutes. See docs/list-sync.md."},
+                     "help": "This dashboard: add and tick items right in Controls → Lists, on the List tile, or from the phone page at /list. Apple Reminders: mirrors a Reminders list (only when the dashboard server runs on a Mac). " + PUSHED + ": another app sends the list here, e.g. Reminders Sync in the Countertop Mac app (updates within seconds) or an iPhone Shortcut. " + FROM_URL + ": the server reads a list that is published online (plain text, a Markdown checklist, JSON or iCal to-dos) every few minutes. See docs/list-sync.md."},
+            "daily": {"label": "Clear the ticks every day at 00:00", "type": "bool", "when": {"kind": "This dashboard"},
+                      "help": "A daily checklist: the ticks are cleared overnight while the items stay, so the same list is ready every morning."},
             "remName": {"label": "Reminders list name", "type": "text", "help": "Exactly as it appears in the Reminders app", "when": {"kind": "Apple Reminders"}},
             "pushKey": {"label": "Sync key", "type": "text", "when": {"kind": PUSHED},
                         "help": "Made for you when you save. Paste it into Reminders Sync in the Mac app or your Shortcut; anyone on your network with this key can replace the list."},
@@ -472,7 +487,11 @@ def sources_apply(body):
     if kind not in SOURCE_KINDS or op not in ("add", "update", "delete"):
         raise ValueError("expected {kind, op: add|update|delete, item}")
     fields = SOURCE_KINDS[kind]["fields"]
-    clean = {f: str(item[f])[:2000] for f in fields if f in item and item[f] is not None}
+    clean = {}
+    for f, F in fields.items():
+        if f not in item or item[f] is None:
+            continue
+        clean[f] = bool(item[f]) if F.get("type") == "bool" else str(item[f])[:2000]
     for f, v in list(clean.items()):
         ch = fields[f].get("choices")
         if ch and v not in [c[0] if isinstance(c, list) else c for c in ch]:
@@ -939,6 +958,11 @@ def notes_view():
                     error=None if got else "Nothing sent yet. Turn on Reminders Sync in the Mac app or set up a Shortcut with this list's sync key.")
     name = reminders_list_name()
     if not name:
+        # no list from another app: the phone page at /list (which sends no list id) edits the
+        # first list kept on this dashboard, as it always did with the shared grocery list
+        for L in sources_load().get("lists") or []:
+            if (L.get("kind") or LOCAL_LIST) == LOCAL_LIST:
+                return local_list_view(L["id"])
         return d
     with REM_LOCK:
         cutoff = time.time() - 3 * 3600
@@ -982,6 +1006,10 @@ def reminders_apply(body):
 
 
 def notes_apply(body):
+    # no list id (the phone page at /list): edit the first list kept on this dashboard
+    for L in sources_load().get("lists") or []:
+        if (L.get("kind") or LOCAL_LIST) == LOCAL_LIST:
+            return local_list_apply(L["id"], body)
     op = str(body.get("op") or "")
     with NOTES_LOCK:
         d = notes_load()
@@ -1009,6 +1037,180 @@ def notes_apply(body):
         tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1))
         tmp.replace(NOTES)
         return d
+
+
+# ---------- daily to-do list (work/daily.json): kept on this dashboard itself, ticks cleared at midnight ----------
+DAILY = WORK / "daily.json"
+DAILY_LOCK = threading.Lock()
+
+
+def _today():
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _daily_save(d):
+    DAILY.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DAILY.with_suffix(".tmp")
+    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1))
+    tmp.replace(DAILY)
+
+
+def daily_load():
+    """Reads the daily list; when the calendar day has changed since the last save, the ticks are cleared
+    (the items themselves stay) — that's the 00:00 reset."""
+    try:
+        d = json.loads(DAILY.read_text())
+        if not isinstance(d, dict) or not isinstance(d.get("items"), list):
+            d = {"items": []}
+    except Exception:
+        d = {"items": []}
+    d.setdefault("items", [])
+    if d.get("date") != _today():
+        d = {"date": _today(), "updated": int(time.time()),
+             "items": [{"id": i.get("id") or uuid.uuid4().hex[:8], "text": str(i.get("text") or ""), "done": False}
+                       for i in d["items"] if str(i.get("text") or "").strip()]}
+        try:
+            _daily_save(d)
+        except Exception:
+            pass
+    return d
+
+
+def daily_view():
+    with DAILY_LOCK:
+        d = daily_load()
+    return {"date": d.get("date"), "items": d["items"], "updated": d.get("updated", 0)}
+
+
+def daily_apply(body):
+    op = str(body.get("op") or "")
+    with DAILY_LOCK:
+        d = daily_load()
+        items = d["items"]
+        if op == "add":
+            text = " ".join(str(body.get("text") or "").split())[:80]
+            if text and len(items) < 80 and not any(i["text"].lower() == text.lower() and not i.get("done") for i in items):
+                items.append({"id": uuid.uuid4().hex[:8], "text": text, "done": False})
+        elif op == "toggle":
+            for i in items:
+                if i["id"] == body.get("id"):
+                    i["done"] = not i.get("done")
+        elif op == "remove":
+            d["items"] = [i for i in items if i["id"] != body.get("id")]
+        elif op == "reset":                     # clear every tick right now (same as the midnight reset)
+            for i in items:
+                i["done"] = False
+        elif op == "clear":                     # empty the whole list
+            d["items"] = []
+        else:
+            return daily_view()
+        d["updated"] = int(time.time())
+        try:
+            _daily_save(d)
+        except Exception:
+            pass
+        return {"date": d.get("date"), "items": d["items"], "updated": d["updated"]}
+
+
+# ---------- lists kept on this dashboard, one entry per list (work/lists.json) ----------
+# A list set up in Sources as "This dashboard" is edited right on the List tile. Its ticks can be
+# cleared automatically when the day changes (the items stay), so it works as a daily checklist.
+LISTS_FILE = WORK / "lists.json"
+LISTS_LOCK = threading.Lock()
+LOCAL_LIST = "This dashboard"
+
+
+def _lists_load():
+    try:
+        d = json.loads(LISTS_FILE.read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _lists_save(d):
+    LISTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = LISTS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1))
+    tmp.chmod(0o600)
+    tmp.replace(LISTS_FILE)
+
+
+def local_list_source(list_id):
+    """The list set up in Sources as kept on this dashboard, if list_id names one."""
+    for L in sources_load().get("lists") or []:
+        if L.get("id") == list_id and (L.get("kind") or LOCAL_LIST) == LOCAL_LIST:
+            return L
+    return None
+
+
+def _local_list(rec, daily):
+    """The 00:00 reset: on a new calendar day the ticks are cleared, the items stay."""
+    today = _today()
+    rec.setdefault("items", [])
+    rec.setdefault("date", today)
+    if daily and rec.get("date") != today:
+        for i in rec["items"]:
+            i["done"] = False
+        rec["date"] = today
+    return rec
+
+
+def _local_daily(L, daily):
+    """A list can clear its own ticks overnight (Sources: "Clear the ticks every day at 00:00").
+    An explicit True/False from the caller (the daily tile API) overrides that."""
+    return bool(L.get("daily")) if daily is None else bool(daily)
+
+
+def _local_view(L, rec):
+    return {"list": L.get("name") or "List", "source": "local", "date": rec.get("date"),
+            "items": rec["items"], "updated": rec.get("updated", 0), "note": rec.get("note", ""),
+            "daily": bool(L.get("daily")), "readonly": False}
+
+
+def local_list_view(list_id, daily=None):
+    L = local_list_source(list_id) or {"id": list_id, "name": "List"}
+    with LISTS_LOCK:
+        all_ = _lists_load()
+        rec = all_.get(list_id)
+        was = rec.get("date") if isinstance(rec, dict) else None
+        rec = _local_list(rec or {"items": []}, _local_daily(L, daily))
+        if list_id not in all_ or was != rec.get("date"):
+            all_[list_id] = rec
+            _lists_save(all_)
+    return _local_view(L, rec)
+
+
+def local_list_apply(list_id, body, daily=None):
+    op = str(body.get("op") or "")
+    L = local_list_source(list_id) or {"id": list_id, "name": "List"}
+    with LISTS_LOCK:
+        all_ = _lists_load()
+        rec = _local_list(all_.get(list_id) or {"items": []}, _local_daily(L, daily))
+        items = rec["items"]
+        if op == "add":
+            text = " ".join(str(body.get("text") or "").split())[:80]
+            if text and len(items) < 80 and not any(i["text"].lower() == text.lower() and not i.get("done") for i in items):
+                items.append({"id": uuid.uuid4().hex[:8], "text": text, "done": False})
+        elif op == "toggle":
+            for i in items:
+                if i["id"] == body.get("id"):
+                    i["done"] = not i.get("done")
+        elif op == "remove":
+            rec["items"] = [i for i in items if i["id"] != body.get("id")]
+        elif op == "reset":                     # clear every tick now (same as the midnight reset)
+            for i in items:
+                i["done"] = False
+        elif op == "clear_done":
+            rec["items"] = [i for i in items if not i.get("done")]
+        elif op == "clear":                     # empty the whole list
+            rec["items"] = []
+        elif op == "note":
+            rec["note"] = str(body.get("text") or "").strip()[:240]
+        rec["updated"] = int(time.time())
+        all_[list_id] = rec
+        _lists_save(all_)
+    return _local_view(L, rec)
 
 
 # ---------- module platform: config schema, stored settings, team schedule, shared photo album ----------

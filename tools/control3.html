@@ -75,6 +75,13 @@
   .saverow{display:flex;gap:10px;margin-top:16px}
   .saverow button{flex:1;padding:13px;border-radius:12px;background:var(--group);font-weight:600}
   .saverow button.pri{background:var(--accent);color:#06121f}
+  /* a list's items (Controls → Lists) */
+  .lladd{display:flex;gap:8px}
+  .lladd input{flex:1;min-width:0}
+  .lladd button{flex:none;padding:10px 14px;font-size:15px}
+  .ll-x{flex:none;background:none;border:0;color:var(--dim);font-size:24px;line-height:1;padding:4px 10px;cursor:pointer}
+  .ll-x:active{color:var(--bad)}
+  .llb{flex:none;font-size:14px;padding:6px 12px;border-radius:10px;background:var(--group);color:var(--dim);cursor:pointer}
   #pvedit{background:var(--accent);color:#06121f;font-weight:600;border-radius:9px;padding:6px 14px;font-size:14px}
   #pvedit.on{background:#2a313b;color:var(--dim)}
   /* preview */
@@ -590,6 +597,7 @@ function srcItemScreen(k, id){
     const hide = F.when && Object.keys(F.when).some(w => (x[w] || (K.fields[w].choices || [])[0]) !== F.when[w]);
     let inp;
     if (F.type === "color") inp = row({t:F.label, sub:F.help, post:'<input type="color" ' + a + ' value="' + esc(x[f] || "#7cb7ff") + '">'});
+    else if (F.type === "bool") inp = row({t:F.label, sub:F.help, post: sw(!!x[f], a + ' data-swt="1"')});
     else if (F.type === "choice"){
       const ch = F.choices.map(c => Array.isArray(c) ? c : [c, c]), cur = x[f] || ch[0][0];
       inp = '<div class="row col"><div class="t"><b>' + esc(F.label) + '</b></div><select ' + a + '>' + ch.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select>' + help + '</div>';
@@ -600,6 +608,14 @@ function srcItemScreen(k, id){
     rows += '<div data-fw="' + f + '"' + (hide ? " hidden" : "") + '>' + inp + '</div>';
   }
   h += sec("", rows);
+  if (k === "lists" && id !== "new" && (x.kind || "This dashboard") === "This dashboard")
+    h += sec("Items",
+      '<div class="row col"><div class="t"><b>Add an item</b></div>' +
+      '<div class="lladd"><input type="text" id="lladd" maxlength="80" placeholder="Something to do…" autocapitalize="sentences" spellcheck="false">' +
+      '<button class="pri" data-ladd="1" data-sid="' + esc(id) + '">Add</button></div></div>' +
+      '<div id="llitems" data-sid="' + esc(id) + '"><div class="row"><div class="t"><small>Loading…</small></div></div></div>' +
+      '<div class="row" id="llbar" hidden><div class="t"><small id="llcount"></small></div><button class="llb" data-llop="reset" data-sid="' + esc(id) + '">Untick all</button></div>',
+      "The same list as the List tile on the dashboard. " + (x.daily ? "The ticks are cleared every day at 00:00; the items stay." : "Switch on “Clear the ticks every day at 00:00” above to use it as a daily checklist."));
   if (k === "homeassistant") h += sec("", '<button class="btnrow blue" data-sact="test" data-k="' + k + '" data-id="' + id + '">Test connection</button><div class="row" id="hatest" hidden></div>',
     "Checks the address and token without saving. Leave the token blank to test the one already saved.");
   if (k === "recipes") h += sec("", '<button class="btnrow blue" data-sact="test" data-k="' + k + '" data-id="' + id + '">Test the key</button><div class="row" id="hatest" hidden></div>',
@@ -613,7 +629,10 @@ async function srcAction(act, k, id){
   const K = KINDS[k], item = {id: id === "new" ? undefined : id};
   if (act === "test") return srcTest(k, id);
   if (act === "save"){
-    document.querySelectorAll("[data-sf]").forEach(el => { const v = el.value.trim(); if (!(K.fields[el.dataset.sf].secret && !v)) item[el.dataset.sf] = v; });
+    document.querySelectorAll("[data-sf]").forEach(el => {
+      if (el.classList.contains("sw")){ item[el.dataset.sf] = el.classList.contains("on"); return; }
+      const v = el.value.trim(); if (!(K.fields[el.dataset.sf].secret && !v)) item[el.dataset.sf] = v;
+    });
     if (!item.name){ toast("Give it a name first", "bad"); return; }
     const uw = document.querySelector('[data-fw="url"]');
     if (id === "new" && K.fields.url && K.fields.url.secret && !item.url && uw && !uw.hidden){ toast("Paste the link first", "bad"); return; }
@@ -636,6 +655,53 @@ async function srcTest(k, id){
     out.innerHTML = j.ok ? '<div class="t"><b style="color:var(--ok)">✓ Connected</b><small>' + esc(j.detail || (j.name ? j.name + " · " : "") + "Home Assistant " + (j.version || "") + " · " + j.count + " entities") + '</small></div>'
       : '<div class="t"><b style="color:var(--bad)">Didn\'t connect</b><small>' + esc(j.error || "Unknown problem") + '</small></div>';
   }catch(e){ out.innerHTML = '<div class="t"><b style="color:var(--bad)">Didn\'t connect</b><small>' + esc(e.message) + '</small></div>'; }
+}
+
+/* ---------- a list kept on this dashboard: its items, edited right here in Controls → Lists ----------
+   The same storage as the List tile (/notes?list=<id>): add, tick, delete — and when the list is set to
+   clear its ticks every day at 00:00, that reset applies here too. */
+let llBusy = false;
+function llRender(d, sid){
+  const el = document.getElementById("llitems"); if (!el) return;
+  const items = d.items || [];
+  el.innerHTML = items.length ? items.map(i =>
+    '<div class="row"><div class="t"><b' + (i.done ? ' style="text-decoration:line-through;opacity:.5"' : "") + '>' + esc(i.text) + '</b></div>' +
+    sw(!!i.done, 'data-litog="' + esc(i.id) + '" data-sid="' + esc(sid) + '"') +
+    '<button class="ll-x" data-lidel="' + esc(i.id) + '" data-sid="' + esc(sid) + '" aria-label="Delete">×</button></div>').join("")
+    : '<div class="row"><div class="t"><small>Nothing on the list yet</small></div></div>';
+  const bar = document.getElementById("llbar");
+  if (bar){
+    const done = items.filter(i => i.done).length;
+    bar.hidden = !items.length;
+    const c = document.getElementById("llcount");
+    if (c) c.textContent = done + " / " + items.length + " done" + (d.daily ? " · ticks reset at 00:00" : "");
+  }
+}
+async function llCall(sid, body){
+  llBusy = true;                    // a tap always goes through; only the poll steps aside
+  try{
+    const r = await fetch("/notes", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(Object.assign({list:sid}, body))});
+    llRender(await r.json(), sid);
+  }catch(e){}
+  llBusy = false;
+}
+function llAdd(sid){
+  const inp = document.getElementById("lladd");
+  if (!inp || !sid) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = "";
+  llCall(sid, {op:"add", text});
+}
+async function llRefresh(){
+  const el = document.getElementById("llitems"); if (!el || llBusy) return;
+  const sid = el.dataset.sid; if (!sid) return;
+  llBusy = true;
+  try{
+    const d = await (await fetch("/notes?list=" + encodeURIComponent(sid), {cache:"no-store"})).json();
+    if (document.getElementById("llitems") && document.getElementById("llitems").dataset.sid === sid) llRender(d, sid);
+  }catch(e){}
+  llBusy = false;
 }
 let delArm = "";
 function confirmDel(K, id){      // tap Delete twice (no pop-up dialogs: the Echo can't show them reliably)
@@ -783,6 +849,7 @@ function show(){
   else if (cur.startsWith("fx:")){ h = fxScreen(cur.slice(3)); title = (FXLIB.BY[cur.slice(3)] || {}).name || "Effect"; }
   else { const m = cur.slice(4); h = schema[m] ? modScreen(m) : ""; title = schema[m] ? schema[m].title : ""; }
   $("screen").innerHTML = h;
+  if (document.getElementById("llitems")) llRefresh();      // a list's items, ready to edit
   const choice = cur === "newpage" || cur === "starters" ? selectedStarter :
     cur === "wiz" && WIZ.step === 4 ? WIZ.starter || (sameEverydayLayout() ? "everyday" : "") : "";
   $("starterpv").innerHTML = choice && choiceOf(choice) ? starterPreview(choice) : "";
@@ -808,6 +875,7 @@ async function statusLoad(check){
   if (cur === "root" || cur === "status") show();
 }
 setInterval(() => { if (!document.hidden) statusLoad(); }, 60e3);
+setInterval(() => { if (!document.hidden && document.getElementById("llitems")) llRefresh(); }, 10e3);   // a list's items, while its screen is open
 const LVL = {ok:["#4cd27a", "Everything's working"], warn:["#ffc850", "Needs a look"], bad:["#ff6b6b", "Something isn't working"]};
 const ISSUES = "https://github.com/kizit/countertop/issues/new?template=bug_report.yml";
 function agoText(s){
@@ -1004,14 +1072,26 @@ document.addEventListener("pointerdown", e => {
 });
 document.addEventListener("click", e => {
   if (e.target.closest("[data-grip]") || (dragged && performance.now() - dragged < 300)) return;
-  const t = e.target.closest("[data-act],[data-sact],[data-loc],[data-lact],[data-ract],[data-fxon],[data-fxk][data-fxv],[data-fxplay],[data-lk][data-lv],[data-lk][data-lb],[data-nk][data-nv],[data-on],[data-t='bool'],[data-go]"); if (!t) return;
+  const t = e.target.closest("[data-act],[data-sact],[data-loc],[data-lact],[data-ract],[data-fxon],[data-fxk][data-fxv],[data-fxplay],[data-lk][data-lv],[data-lk][data-lb],[data-nk][data-nv],[data-on],[data-t='bool'],[data-swt],[data-ladd],[data-litog],[data-lidel],[data-llop],[data-go]"); if (!t) return;
   if (lookClick(t)) return;
+  if (t.dataset.swt){ const v = !t.classList.contains("on"); t.classList.toggle("on", v); t.setAttribute("aria-checked", v); return; }
+  if (t.dataset.ladd){ llAdd(t.dataset.sid); return; }
+  if (t.dataset.litog){ llCall(t.dataset.sid, {op:"toggle", id:t.dataset.litog}); return; }
+  if (t.dataset.lidel){ llCall(t.dataset.sid, {op:"remove", id:t.dataset.lidel}); return; }
+  if (t.dataset.llop){ llCall(t.dataset.sid, {op:"reset"}); return; }
   if (t.dataset.act){ act(t.dataset.act, t.dataset.id); return; }
   if (t.dataset.sact){ srcAction(t.dataset.sact, t.dataset.k, t.dataset.id); return; }
   if (t.dataset.loc){ Object.assign(mods.general.settings, JSON.parse(t.dataset.loc)); save(); show(); return; }
   if (t.dataset.on){ const m = t.dataset.on; mods[m].on = !mods[m].on; show(); save(); return; }
   if (t.dataset.t === "bool"){ const d = t.dataset, v = !mods[d.m].settings[d.k]; mods[d.m].settings[d.k] = v; t.classList.toggle("on", v); t.setAttribute("aria-checked", v); save(); return; }
   if (t.dataset.go){ go(t.dataset.go); return; }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target && e.target.id === "lladd"){
+    e.preventDefault();
+    const el = document.getElementById("llitems");
+    llAdd(el ? el.dataset.sid : "");
+  }
 });
 document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;

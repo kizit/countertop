@@ -1,0 +1,1 @@
+- **Rename entities on a tile.** The Home and Sensor tiles have a "Rename" setting: one per line-ish, `entity_id = Display name`, separated by `;` — e.g. `sensor.cap_energie_power = Linky power`. The display name replaces Home Assistant's friendly name on that tile only.

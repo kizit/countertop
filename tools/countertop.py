@@ -511,7 +511,42 @@ HA_CACHE = {}             # source id -> {at, states: {entity_id: compact state}
 HA_LOCKS = collections.defaultdict(threading.Lock)
 HA_STATUS = {}            # source id -> {name, at, ok, error, count, version}
 HA_TTL = 4
-HA_TAPS = {"light": "toggle", "switch": "toggle", "fan": "toggle", "input_boolean": "toggle", "scene": "turn_on", "script": "turn_on"}
+# What the dashboard may do to an entity, per domain. The service called is /api/services/<domain>/<action>.
+# A plain tap (no action given) uses HA_DEFAULT.
+HA_ACTIONS = {
+    "light": {"toggle", "turn_on", "turn_off"},
+    "switch": {"toggle", "turn_on", "turn_off"},
+    "fan": {"toggle", "turn_on", "turn_off", "set_percentage"},
+    "input_boolean": {"toggle", "turn_on", "turn_off"},
+    "scene": {"turn_on"},
+    "script": {"turn_on"},
+    "climate": {"toggle", "turn_on", "turn_off", "set_temperature", "set_hvac_mode"},
+    "water_heater": {"toggle", "turn_on", "turn_off", "set_temperature", "set_away_mode", "set_operation_mode"},
+    "cover": {"toggle", "open_cover", "close_cover", "stop_cover", "set_cover_position"},
+    "lock": {"lock", "unlock", "open"},
+    "media_player": {"toggle", "media_play_pause", "media_play", "media_pause", "media_stop",
+                     "media_next_track", "media_previous_track", "volume_set", "volume_up", "volume_down"},
+    "vacuum": {"start", "pause", "stop", "return_to_base", "toggle"},
+    "alarm_control_panel": {"disarm", "arm_home", "arm_away", "arm_night", "arm_vacation"},
+    "number": {"set_value"},
+    "input_number": {"set_value"},
+    "select": {"select_option", "select_next", "select_previous"},
+    "input_select": {"select_option", "select_next", "select_previous"},
+    "text": {"set_value"},
+    "input_text": {"set_value"},
+    "button": {"press"},
+    "input_button": {"press"},
+}
+# refresh any entity (a sensor's reading, a binary sensor's state) — harmless, so allowed for every domain
+HA_REFRESH = "update_entity"
+HA_DEFAULT = {"light": "toggle", "switch": "toggle", "fan": "toggle", "input_boolean": "toggle",
+              "scene": "turn_on", "script": "turn_on", "climate": "toggle", "cover": "toggle",
+              "vacuum": "toggle", "media_player": "media_play_pause", "water_heater": "toggle",
+              "sensor": HA_REFRESH, "binary_sensor": HA_REFRESH, "device_tracker": HA_REFRESH, "person": HA_REFRESH,
+              "button": "press", "input_button": "press"}
+# keys allowed in the optional "data" payload forwarded to Home Assistant (scalars only, nothing else is sent)
+HA_DATA_KEYS = {"temperature", "hvac_mode", "operation_mode", "away_mode", "brightness_pct", "brightness",
+                "percentage", "position", "volume_level", "code", "value", "option"}
 
 
 def ha_source(sid=""):
@@ -563,20 +598,43 @@ def _ha_compact(st):
     o = {"id": eid, "domain": eid.split(".")[0], "state": st.get("state"), "name": a.get("friendly_name") or eid,
          "unit": a.get("unit_of_measurement") or "", "dc": a.get("device_class") or "", "icon": a.get("icon") or "",
          "changed": st.get("last_changed") or ""}
-    if eid.startswith("light.") and a.get("brightness") is not None:
-        o["level"] = round(a["brightness"] / 255 * 100)
+    if eid.startswith("light."):
+        if a.get("brightness") is not None:
+            o["level"] = round(a["brightness"] / 255 * 100)
+            o["min"], o["max"] = 1, 100                      # brightness_pct range
     if eid.startswith("fan.") and a.get("percentage") is not None:
         o["level"] = a["percentage"]
-    if eid.startswith(("climate.", "water_heater.")):
+        o["min"], o["max"] = 0, 100
+    if eid.startswith("climate."):
         o["current"] = a.get("current_temperature")
         o["target"] = a.get("temperature")
+        o["modes"] = a.get("hvac_modes") or []
+        o["min"] = a.get("min_temp")
+        o["max"] = a.get("max_temp")
+    if eid.startswith("water_heater."):
+        o["current"] = a.get("current_temperature")
+        o["target"] = a.get("temperature")
+        o["modes"] = a.get("operation_list") or []
+        o["min"] = a.get("min_temp")
+        o["max"] = a.get("max_temp")
+        o["away"] = bool(a.get("away_mode"))
     if eid.startswith("weather."):
         o["temp"] = a.get("temperature")
         o["unit"] = a.get("temperature_unit") or ""
     if eid.startswith("cover.") and a.get("current_position") is not None:
         o["level"] = a["current_position"]
-    if eid.startswith("media_player.") and a.get("media_title"):
-        o["media"] = " \u00b7 ".join(str(x) for x in (a.get("media_title"), a.get("media_artist")) if x)
+        o["min"], o["max"] = 0, 100
+    if eid.startswith("media_player."):
+        if a.get("media_title"):
+            o["media"] = " \u00b7 ".join(str(x) for x in (a.get("media_title"), a.get("media_artist")) if x)
+        if a.get("volume_level") is not None:
+            o["vol"] = round(a["volume_level"] * 100)
+    if eid.startswith("alarm_control_panel."):
+        o["feats"] = a.get("supported_features") or 0
+    if eid.startswith(("number.", "input_number.")):
+        o["min"] = a.get("min"); o["max"] = a.get("max"); o["step"] = a.get("step") or 1
+    if eid.startswith(("select.", "input_select.")):
+        o["options"] = a.get("options") or []
     return o
 
 
@@ -620,7 +678,8 @@ def ha_entities(sid):
 
 
 def _ha_allowed(sid, entity):
-    """Taps may only switch things a Home tile on the dashboard is set up to switch: anyone on the network can reach this server."""
+    """The dashboard may only control entities a Home or Sensor tile on the dashboard is set up to show:
+    anyone on the network can reach this server."""
     try:
         items = config_load()["modules"]["tiles"]["settings"].get("items") or []
     except Exception:
@@ -628,12 +687,18 @@ def _ha_allowed(sid, entity):
     first = (ha_source("") or {}).get("id")
     for it in items:
         s = it.get("settings") or {}
-        if it.get("type") != "ha" or s.get("taps") is False:
-            continue
-        if (s.get("src") or first) != sid:
-            continue
-        if entity in (s.get("entities") or []):
-            return True
+        if it.get("type") == "ha":
+            if s.get("taps") is False:
+                continue
+            if (s.get("src") or first) != sid:
+                continue
+            if entity in (s.get("entities") or []):
+                return True
+        elif it.get("type") == "hasensor":
+            if (s.get("src") or first) != sid:
+                continue
+            if s.get("entity") == entity or s.get("control") == entity:
+                return True
     return False
 
 
@@ -642,18 +707,37 @@ def ha_call(body):
     entity = str(body.get("entity") or "")
     if not src:
         return 400, {"error": "Home Assistant isn't set up"}
+    if not re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", entity):
+        return 403, {"error": "Bad entity id"}
     dom = entity.split(".")[0]
-    if dom not in HA_TAPS or not re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", entity):
-        return 403, {"error": "That can't be switched from the screen"}
+    action = str(body.get("action") or "").strip() or HA_DEFAULT.get(dom, "")
+    if not re.fullmatch(r"[a-z_]+", action):
+        return 403, {"error": "That action isn't allowed here"}
+    if action == HA_REFRESH:
+        allowed, svc_dom = {HA_REFRESH}, "homeassistant"     # refresh any entity's state
+    else:
+        allowed = HA_ACTIONS.get(dom)
+        if not allowed:
+            return 403, {"error": "That can't be controlled from the screen"}
+        svc_dom = dom
+    if action not in allowed:
+        return 403, {"error": "That action isn't allowed here"}
     if not _ha_allowed(src.get("id"), entity):
-        return 403, {"error": "Add it to a Home tile first"}
+        return 403, {"error": "Add it to a Home or Sensor tile first"}
+    data = body.get("data")
+    payload = {"entity_id": entity}
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k in HA_DATA_KEYS and isinstance(v, (int, float, str, bool)):
+                payload[k] = v
     try:
-        ha_request(src, "POST", "/api/services/%s/%s" % (dom, HA_TAPS[dom]), {"entity_id": entity})
+        ha_request(src, "POST", "/api/services/%s/%s" % (svc_dom, action), payload)
     except Exception as e:
         return 502, {"error": _ha_error(e, src)}
-    log_entry({"t": time.strftime("%H:%M:%S"), "kind": "ha", "task": "tap", "result": entity})
+    log_entry({"t": time.strftime("%H:%M:%S"), "kind": "ha", "task": action, "result": entity,
+               "data": {k: payload[k] for k in payload if k != "entity_id"}})
     c = ha_states(src, force=True)
-    return 200, {"ok": True, "state": c["states"].get(entity)}
+    return 200, {"ok": True, "action": action, "state": c["states"].get(entity)}
 
 
 def ha_test(body):

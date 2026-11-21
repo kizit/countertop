@@ -2662,6 +2662,7 @@ addEventListener("keydown", e => {
 let holdT = null, holdAt = null;
 document.addEventListener("pointerdown", e => {
   if (EDIT.on || SOLO) return;
+  if (e.target.closest("input,textarea,select,button,a,[contenteditable],[data-ha]")) return;   // fields and controls never start edit mode
   const c = e.target.closest("[data-mod],.slot"); if (!c) return;
   holdAt = [e.clientX, e.clientY];
   clearTimeout(holdT); holdT = setTimeout(() => { holdT = null; editEnter(c.dataset.mod || null); }, 700);

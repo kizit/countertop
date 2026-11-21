@@ -1,0 +1,1 @@
+- **Setpoint controls directly under a temperature.** The Sensor tile has a new "Controlled by" setting: point a temperature sensor tile at its thermostat (e.g. sensor.salon_temperature → climate.salon) and the − / + setpoint stepper and the mode chips (off / auto / heat…) appear right under the big temperature, along with a refresh button for the sensor itself.

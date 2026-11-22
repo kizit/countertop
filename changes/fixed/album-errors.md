@@ -1,1 +1,0 @@
-- **Shared photo albums.** A link that is not a shared album's Public Website link, or a network problem reaching Apple, now says what to check instead of showing a raw error.

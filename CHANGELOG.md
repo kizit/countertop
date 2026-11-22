@@ -2,6 +2,16 @@
 
 Each version gets a section here. The newest is on top. Install a version from the [releases page](https://github.com/kizit/countertop/releases); Docker and Unraid use the `ghcr.io/kizit/countertop` image with the same tag.
 
+## v0.6.1 (2026-11-22)
+
+### New
+- **Dashboard name.** Controls → Dashboard name changes the "Kitchen" shown in the browser tab, the screen's top bar and the shopping-list page.
+- **Holidays for your country.** Controls → Language and formats → Holidays: United States, Canada, United Kingdom, Australia, France or None. The clock's countdowns, the week and month tiles, the seasonal greeting and the Thanksgiving effect follow it (for example Canadian Thanksgiving in October). French names show when the language is Français.
+- **Temperature colours on the Sensor tile.** A temperature driven by a thermostat (its "Controlled by" setting) turns orange while it heats, green once it reaches the setpoint and grey when the thermostat is off; cooling is blue. Turn it off with the tile's "Colour by the thermostat" setting.
+
+### Fixed
+- **Shared photo albums.** A link that is not a shared album's Public Website link, or a network problem reaching Apple, now says what to check instead of showing a raw error.
+
 ## v0.6.0 (2026-11-22)
 
 ### New

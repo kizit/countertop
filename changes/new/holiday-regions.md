@@ -1,1 +1,0 @@
-- **Holidays for your country.** Controls → Language and formats → Holidays: United States, Canada, United Kingdom, Australia, France or None. The clock's countdowns, the week and month tiles, the seasonal greeting and the Thanksgiving effect follow it (for example Canadian Thanksgiving in October). French names show when the language is Français.

@@ -4,6 +4,7 @@ tools/dash/index.html and tools/control/index.html hold each page's HTML. A line
 is replaced by that file's text, path relative to tools/: the page's own parts (tools/dash/, tools/control/) and
 code both pages use (tools/shared/). The browser gets one page, just as if it were a single file.
 """
+import html
 import re
 from pathlib import Path
 
@@ -26,3 +27,13 @@ def page(name):
 def page_files(*names):
     """Every file the pages in these folders are made from (and shared/), for noticing a change."""
     return sorted(f for d in names + ("shared",) for f in (TOOLS / d).rglob("*") if f.is_file())
+
+
+def named(body, name):
+    """A page's HTML with the dashboard's own name (Controls → Dashboard name) where it says Kitchen."""
+    name = " ".join(str(name or "").split())[:60] or "Kitchen"
+    if name == "Kitchen":
+        return body
+    esc = html.escape(name, quote=True)
+    text = body.decode("utf-8")
+    return text.replace("Kitchen list", esc + " list").replace("<title>Kitchen</title>", "<title>%s</title>" % esc).encode("utf-8")

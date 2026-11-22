@@ -47,7 +47,7 @@ SOURCE_KINDS = {
             "kind": {"label": "Kept in", "type": "choice", "choices": ["iCloud shared album", "Immich"],
                      "help": "iCloud: turn the shared album's Public Website on and paste the link. Immich: your own server's address, an API key from your account, and the album's name. This server fetches the photos; the screen never talks to Immich and the key is never shown again."},
             "url": {"label": "iCloud shared album link", "type": "text", "when": {"kind": "iCloud shared album"},
-                    "help": "In Photos: open the shared album, tap the people icon, turn on Public Website and copy the link."},
+                    "help": "In Photos: open the shared album, tap the people icon, turn on Public Website and copy the link. A shared Photo Library has no public link and can't be used."},
             "server": {"label": "Immich address", "type": "text", "when": {"kind": "Immich"},
                        "help": "Where you open Immich, e.g. http://192.168.1.20:2283. If Countertop runs in Docker, use the IP address: names ending in .local often don't work there."},
             "apiKey": {"label": "Immich API key", "type": "text", "secret": True, "when": {"kind": "Immich"},

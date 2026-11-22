@@ -1,5 +1,7 @@
 """Shared photo albums."""
 import json
+import re
+import socket
 import time
 from urllib.request import Request, urlopen
 
@@ -76,6 +78,37 @@ def immich_album_photos(src):
     return out
 
 
+WRONG_LINK = ("That isn't a shared album link. In Photos, open the shared album, tap the people icon, turn on Public Website "
+              "and copy the link. A shared Photo Library has no public link, so it can't be shown.")
+
+
+def album_token(link):
+    """The token in an iCloud shared album link (icloud.com/sharedalbum/#TOKEN, or the bare token), else None."""
+    link = (link or "").strip()
+    token = link.split("#")[-1].split(";")[0].strip("/ ") if "#" in link else link
+    if "/" in link and "#" not in link:
+        return None                                  # a link of another kind, e.g. share.icloud.com/photos/...
+    if "#" in link and "icloud.com" not in link.split("#")[0]:
+        return None
+    return token if re.fullmatch(r"[0-9A-Za-z]{8,40}", token) and token[0] in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" else None
+
+
+def album_error(e):
+    """A plain-words reason for a failed album fetch (the technical text goes to the log)."""
+    reason = getattr(e, "reason", e)
+    code = getattr(e, "code", None)
+    if isinstance(e, ValueError) and str(e) == WRONG_LINK:
+        return WRONG_LINK
+    if code in (401, 403, 404):
+        return "Apple says no album is there. Check that Public Website is still on for the shared album."
+    if isinstance(reason, socket.gaierror) or "Name or service not known" in str(reason) or "getaddrinfo" in str(reason):
+        return ("This computer couldn't look up Apple's photo server. Check that it is online and that the album link is a "
+                "shared album's Public Website link. In Docker, check the container's DNS setting.")
+    if isinstance(reason, (socket.timeout, TimeoutError)) or "timed out" in str(reason):
+        return "Apple's photo server didn't answer in time. It will try again shortly."
+    return str(reason)[:200]
+
+
 def album_photos(sid=""):
     A = sources_load().get("albums") or []
     src = next((a for a in A if a.get("id") == sid), A[0] if A else None)
@@ -91,7 +124,9 @@ def album_photos(sid=""):
         return PHOTO_CACHE["data"]
     out = {"photos": [], "error": None, "album": ""}
     try:
-        token = link.split("#")[-1].split(";")[0].strip("/")
+        token = album_token(link)
+        if not token:
+            raise ValueError(WRONG_LINK)
         n = 0
         for ch in (token[1:2] if token[0] == "A" else token[1:3]):
             n = n * 62 + B62.index(ch)
@@ -133,7 +168,8 @@ def album_photos(sid=""):
                                       "date": p.get("dateCreated", ""), "w": int(best.get("width") or 0),
                                       "h": int(best.get("height") or 0)})
     except Exception as e:
-        out["error"] = str(e)[:200]
+        print("shared album %s: %s" % (src.get("name") or "", e), flush=True)
+        out["error"] = album_error(e)
     PHOTO_CACHE.update(at=time.time(), key=link, data=out)
     return out
 

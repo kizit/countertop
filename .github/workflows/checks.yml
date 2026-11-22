@@ -50,6 +50,8 @@ jobs:
         run: node tests/check-js.js
       - name: Check the translations
         run: node tests/check-lang.js
+      - name: Check the holiday regions
+        run: node tests/check-holidays.js
       - name: Install Playwright and Chromium
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0

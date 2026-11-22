@@ -163,21 +163,24 @@ async function dadJoke(){
 function nthWeekday(y, m, wd, n){ const d = new Date(y, m, 1); d.setDate(1 + (wd - d.getDay() + 7) % 7 + 7*(n-1)); return d; }
 function season(now){
   const y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
-  const t0 = new Date(y, m, day).getTime();
-  const tg = nthWeekday(y, 10, 4, 4).getTime();          // 4th Thursday of November
-  const daysTo = Math.round((tg - t0) / 86400e3);
+  const t0 = new Date(y, m, day).getTime(), R = holidayRegion();
+  const tg = R.thanks ? R.thanks(y) : null;
+  const daysTo = tg ? Math.round((tg.getTime() - t0) / 86400e3) : null;       // to Thanksgiving, where there is one
   const xmas = Math.round((new Date(y, 11, 25).getTime() - t0) / 86400e3);
-  if (m === 0 && day === 1) return {accent:"#ffd36e", greet:"🎉 Happy New Year", fun:"newyear"};
-  if (m === 1 && day >= 7 && day <= 14) return {accent:"#ff8fb1", greet: day === 14 ? "💕 Happy Valentine's Day" : "💕", fun:"valentine"};
-  if (m === 2 && day === 17) return {accent:"#5fd38a", greet:"☘️ Happy St. Patrick's Day", fun:"spring"};
-  if (m === 6 && day >= 1 && day <= 4) return {accent:"#ff6b6b", greet: day === 4 ? "🎆 Happy Fourth of July" : "🇺🇸", fun:"july4"};
-  if (m === 9 && day >= 20) return {accent:"#ff9a3c", greet: day === 31 ? "🎃 Happy Halloween" : "🎃", fun:"halloween"};
-  if (daysTo === 0) return {accent:"#f0a050", greet:"🦃 Happy Thanksgiving", fun:"thanks"};
+  if (m === 0 && day === 1) return {accent:"#ffd36e", greet:"🎉 " + tr("Happy New Year"), fun:"newyear"};
+  const nat = (R.national || []).find(n => n.m === m && n.d === day);
+  if (nat) return {accent:nat.accent, greet:nat.greet(), fun:"summer"};
+  if (m === 1 && day >= 7 && day <= 14) return {accent:"#ff8fb1", greet: day === 14 ? "💕 " + tr("Happy Valentine's Day") : "💕", fun:"valentine"};
+  if (m === 2 && day === 17 && R.stPatrick) return {accent:"#5fd38a", greet:"☘️ Happy St. Patrick's Day", fun:"spring"};
+  if (R.july4 && m === 6 && day >= 1 && day <= 4) return {accent:"#ff6b6b", greet: day === 4 ? "🎆 Happy Fourth of July" : "🇺🇸", fun:"july4"};
+  if (m === 9 && day >= 20) return {accent:"#ff9a3c", greet: day === 31 ? "🎃 " + tr("Happy Halloween") : "🎃", fun:"halloween"};
+  if (daysTo === 0) return {accent:"#f0a050", greet:"🦃 " + tr("Happy Thanksgiving"), fun:"thanks"};
   if (daysTo > 0 && daysTo <= 7) return {accent:"#f0a050", greet:"🦃", fun:"thanks"};
-  if (m === 11 && day === 25) return {accent:"#ff6f6f", greet:"🎄 Merry Christmas", fun:"xmas"};
-  if (m === 11 && day === 24) return {accent:"#ff6f6f", greet:"🎅 Christmas Eve", fun:"xmas"};
-  if ((m === 10 && daysTo < 0) || (m === 11 && day < 24)) return {accent:"#7fd1a0", greet:"🎄 " + xmas + " days to Christmas", fun:"xmas"};
-  if (m === 11 && day === 31) return {accent:"#ffd36e", greet:"🥂 New Year's Eve", fun:"newyear"};
+  if (m === 11 && day === 25) return {accent:"#ff6f6f", greet:"🎄 " + tr("Merry Christmas"), fun:"xmas"};
+  if (m === 11 && day === 24) return {accent:"#ff6f6f", greet:"🎅 " + tr("Christmas Eve"), fun:"xmas"};
+  // the Christmas countdown starts after Thanksgiving in the US, and on December 1 elsewhere
+  if ((m === 10 && daysTo < 0 && R.countdownAfterThanks) || (m === 11 && day < 24)) return {accent:"#7fd1a0", greet:"🎄 " + tr("{n} days to Christmas", {n:xmas}), fun:"xmas"};
+  if (m === 11 && day === 31) return {accent:"#ffd36e", greet:"🥂 " + tr("New Year's Eve"), fun:"newyear"};
   if (m === 11) return {accent:"#9fc6ff", greet:"❄️", fun:"winter"};
   if (m === 8 && day >= 22 || m === 9 || m === 10) return {accent:"#ffb27c", greet:"🍂", fun:"fall"};
   if (m === 0 || m === 1) return {accent:"#9fc6ff", greet:"", fun:"winter"};

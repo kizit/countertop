@@ -279,7 +279,7 @@ const FXLIB = (function(){
      desc:"Hearts float slowly up the screen in the week before Valentine's Day."},
     {id:"spring", grp:"Seasons", name:"Spring blossoms", icon:"🌸", layer:"fall", season:[["03-01", "05-31"]], make:falling("spring"),
      desc:"Blossoms drift down and a butterfly flutters by."},
-    {id:"july4", grp:"Seasons", name:"Fourth of July", icon:"🇺🇸", layer:"fall", season:[["07-01", "07-04"]], make:falling("july4"),
+    {id:"july4", grp:"Seasons", name:"Fourth of July", icon:"🇺🇸", layer:"fall", season:[["07-01", "07-04"]], regions:["United States"], make:falling("july4"),
      desc:"Stars and little flags drift down."},
     {id:"summer", grp:"Seasons", name:"Butterflies & bees", icon:"🦋", layer:"fall", season:[["06-01", "08-31"]], make:falling("summer"),
      desc:"A few butterflies and bees wander around the screen."},
@@ -327,8 +327,12 @@ const FXLIB = (function(){
   function nthWeekday(y, m, wd, n){ const d = new Date(y, m, 1); d.setDate(1 + (wd - d.getDay() + 7) % 7 + 7 * (n - 1)); return d; }
   const mdNum = s => { const [m, d] = String(s).split("-").map(Number); return m * 100 + d; };
   const inMd = (d, a, b) => { const k = (d.getMonth() + 1) * 100 + d.getDate(), x = mdNum(a), y = mdNum(b); return x <= y ? k >= x && k <= y : k >= x || k <= y; };
+  // the holiday region (Controls → Language and formats → Holidays) decides when Thanksgiving is, or whether there is one
+  let thanksOn = y => nthWeekday(y, 10, 4, 4), region = "United States";
+  function setRegion(name, thanks){ region = name; thanksOn = thanks || (() => null); }
   function seasonRanges(def, y){
-    if (def.season === "thanks"){ const t = nthWeekday(y, 10, 4, 4), s = new Date(t); s.setDate(t.getDate() - 7);
+    if (def.regions && !def.regions.includes(region)) return [];
+    if (def.season === "thanks"){ const t = thanksOn(y); if (!t) return []; const s = new Date(t); s.setDate(t.getDate() - 7);
       const f = d => (d.getMonth() + 1) + "-" + d.getDate(); return [[f(s), f(t)]]; }
     return def.season || [];
   }
@@ -421,6 +425,6 @@ const FXLIB = (function(){
       size, start
     };
   }
-  return {L, BY, GROUPS, AMT, conf, whenText, timeOk, inSeason, seasonText, wxMode, Runner, mdTxt, MOTIONS, SIZE, SPEED, MD, setMine};
+  return {L, BY, GROUPS, AMT, conf, whenText, timeOk, inSeason, seasonText, wxMode, Runner, mdTxt, MOTIONS, SIZE, SPEED, MD, setMine, setRegion};
 })();
 

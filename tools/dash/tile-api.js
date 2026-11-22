@@ -10,15 +10,6 @@ function teamShort(n){
   const caps = n.split(/\s+/).find(w => w.length >= 3 && w === w.toUpperCase() && /[A-Z]/.test(w));
   return caps || n.split(/\s+/).map(w => w[0]).join("").slice(0, 4).toUpperCase();
 }
-function holidaysIn(y){
-  return [
-    {d:new Date(y, 0, 1), t:"🎉 New Year's Day"}, {d:new Date(y, 1, 14), t:"💕 Valentine's Day"},
-    {d:new Date(y, 2, 17), t:"☘️ St. Patrick's Day"}, {d:new Date(y, 6, 4), t:"🎆 Fourth of July"},
-    {d:new Date(y, 9, 31), t:"🎃 Halloween"}, {d:nthWeekday(y, 10, 4, 4), t:"🦃 Thanksgiving"},
-    {d:new Date(y, 11, 24), t:"🎅 Christmas Eve"}, {d:new Date(y, 11, 25), t:"🎄 Christmas"},
-    {d:new Date(y, 11, 31), t:"🥂 New Year's Eve"}
-  ];
-}
 function holidayOn(d){ const k = dayKey(d); const h = holidaysIn(d.getFullYear()).find(x => dayKey(x.d) === k); return h ? h.t : ""; }
 // collapse repeats (weekly shows) into their next showing, tagged
 function collapseRepeats(list){

@@ -115,6 +115,7 @@ These are the same checks that run on every pull request:
 python3 -m unittest discover -s tests     # server tests
 node tests/check-js.js                    # every script in the pages and tiles parses
 node tests/check-lang.js                  # translations are complete
+node tests/check-holidays.js              # holiday regions give the right dates
 node tests/browser-check.js               # pages open with the demo data and log no errors (needs Playwright)
 node tests/tile-data-check.js             # tile data end to end on a real page (needs Playwright)
 ```

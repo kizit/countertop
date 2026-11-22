@@ -16,6 +16,7 @@ ZONES = ["header-left", "header-right", "strip", "main", "side"]
 # and the dashboard reads the merged values from GET /config.
 SCHEMA = {
     "general": {"title": "Location & units", "desc": "Where you are (for weather, radar, sunrise and things overhead), units, and how dates and times are written.", "global": True, "settings": {
+        "name": {"type": "text", "label": "Dashboard name", "default": "Kitchen"},
         "place": {"type": "text", "label": "Place name", "default": ""},
         "lat": {"type": "number", "label": "Latitude", "default": 0},
         "lon": {"type": "number", "label": "Longitude", "default": 0},

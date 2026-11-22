@@ -1,0 +1,1 @@
+- **Dashboard name.** Controls → Dashboard name changes the "Kitchen" shown in the browser tab, the screen's top bar and the shopping-list page.

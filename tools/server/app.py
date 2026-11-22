@@ -31,6 +31,9 @@ class Handler(BaseHTTPRequestHandler):
         if body:
             self.wfile.write(body)
 
+    def _dash_name(self):
+        return config_load()["modules"]["general"]["settings"].get("name")
+
     def _json(self, obj, code=200):
         self._send(code, json.dumps(obj).encode(), "application/json")
 
@@ -69,9 +72,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, SAMPLE_ICS.encode(), "text/calendar")
         elif p == "/dash":
             # shell page: owns fullscreen + keep-alive, hosts the dashboard in an iframe
-            self._send(200, (HERE / "shell.html").read_bytes(), "text/html; charset=utf-8")
+            self._send(200, named((HERE / "shell.html").read_bytes(), self._dash_name()), "text/html; charset=utf-8")
         elif p in ("/dash/content", "/dashboard"):
-            self._send(200, page("dash"), "text/html; charset=utf-8")
+            self._send(200, named(page("dash"), self._dash_name()), "text/html; charset=utf-8")
         elif p == "/config":
             cfg = config_load()
             tid = parse_qs(urlparse(self.path).query).get("trial", [""])[0]
@@ -172,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._json(notes_view())
         elif p == "/list":
-            self._send(200, (HERE / "list.html").read_bytes(), "text/html; charset=utf-8")
+            self._send(200, named((HERE / "list.html").read_bytes(), self._dash_name()), "text/html; charset=utf-8")
         elif re.fullmatch(r"/starters/[a-z]+\.jpg", p) and (HERE / p[1:]).is_file():
             self._send(200, (HERE / p[1:]).read_bytes(), "image/jpeg")
         elif p == "/keep.js":
@@ -370,7 +373,7 @@ from server.feeds.sky import iss_now, planes_near, radar_frames, space_picture  
 from server.feeds.sports import team_matches  # noqa: E402
 from server.feeds.stocks import stocks  # noqa: E402
 from server.homeassistant import ha_entities, ha_test, ha_view  # noqa: E402
-from server.pages import page, page_files  # noqa: E402
+from server.pages import named, page, page_files  # noqa: E402
 from server.community import community_index  # noqa: E402
 from server.library import trial_add, trial_apply, trial_screen, trial_stop, trial_version  # noqa: E402
 from server.lists import list_push, local_list_apply, local_list_source, local_list_view, notes_apply, notes_view, pushed_list, reminders_apply, reminders_list_name, reminders_loop  # noqa: E402

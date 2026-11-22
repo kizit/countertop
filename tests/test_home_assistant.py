@@ -25,6 +25,8 @@ STATES = {
     "light.kitchen": {"state": "off", "attributes": {"friendly_name": "Kitchen", "brightness": 128}},
     "sensor.outside": {"state": "61.3", "attributes": {"friendly_name": "Outside", "unit_of_measurement": "°F", "device_class": "temperature"}},
     "lock.front_door": {"state": "locked", "attributes": {"friendly_name": "Front door"}},
+    "climate.living": {"state": "heat", "attributes": {"friendly_name": "Living", "current_temperature": 19.4, "temperature": 21,
+                                                       "hvac_action": "heating", "hvac_modes": ["off", "heat"], "min_temp": 7, "max_temp": 35}},
 }
 CALLS = []
 
@@ -132,7 +134,7 @@ class HomeAssistantTest(unittest.TestCase):
         self.assertIn("token", j["error"])
         _, j = self.json("/sources/test", {"kind": "homeassistant", "item": {"url": self.ha_url, "token": TOKEN}})
         self.assertTrue(j["ok"], j)
-        self.assertEqual(j["count"], 3)
+        self.assertEqual(j["count"], 4)
 
     def test_2_flow(self):
         _, j = self.json("/sources", {"kind": "homeassistant", "op": "add", "item": {"name": "Home", "url": self.ha_url, "token": TOKEN}})
@@ -145,8 +147,13 @@ class HomeAssistantTest(unittest.TestCase):
         self.assertEqual([s["state"] for s in j["states"]], ["off", "61.3", "missing"])
         self.assertEqual(j["states"][0]["level"], 50)
 
+        # a thermostat carries what it is doing right now, so a temperature tile can colour itself
+        _, j = self.json("/ha/states?ids=climate.living")
+        th = j["states"][0]
+        self.assertEqual((th["state"], th["action"], th["current"], th["target"]), ("heat", "heating", 19.4, 21))
+
         _, j = self.json("/ha/entities")
-        self.assertEqual(len(j["entities"]), 3)
+        self.assertEqual(len(j["entities"]), 4)
 
         # a tile that isn't on the saved dashboard can't control anything
         code, j = self.act("t_ha", {"entity": "light.kitchen"})

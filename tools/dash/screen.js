@@ -280,7 +280,7 @@ const fxOn = () => FXCFG.any && !FXD.paused;
 const fxEmojiOk = def => !def.emoji || !LOOK.plain;          // with emoji turned off, the emoji effects rest too
 function fxInit(){ if (!FXD.back){ FXD.back = FXLIB.Runner($("fx"), {full:true, fps:22}); FXD.front = FXLIB.Runner($("fun2"), {full:true, fps:30}); } }
 function fxUpdate(){
-  fxInit(); FXLIB.setMine(S("effects").mine);
+  fxInit(); FXLIB.setMine(S("effects").mine); FXLIB.setRegion(holidayRegionName(), holidayRegion().thanks);
   const B = [], F = [], d = new Date();
   if (fxOn()) for (const def of FXLIB.L){
     if (def.layer === "show" || !fxEmojiOk(def)) continue;

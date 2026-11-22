@@ -117,6 +117,7 @@ def _ha_compact(st):
         o["modes"] = a.get("hvac_modes") or []
         o["min"] = a.get("min_temp")
         o["max"] = a.get("max_temp")
+        o["action"] = a.get("hvac_action") or ""      # heating, idle, off... what the thermostat is doing right now
     if eid.startswith("water_heater."):
         o["current"] = a.get("current_temperature")
         o["target"] = a.get("temperature")

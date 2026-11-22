@@ -21,6 +21,7 @@ SCHEMA = {
         "lat": {"type": "number", "label": "Latitude", "default": 0},
         "lon": {"type": "number", "label": "Longitude", "default": 0},
         "lang": {"type": "choice", "label": "Language", "choices": ["Automatic", "English", "Français"], "default": "Automatic"},
+        "holidays": {"type": "choice", "label": "Holidays", "choices": ["United States", "Canada", "United Kingdom", "Australia", "France", "None"], "default": "United States"},
         "units": {"type": "choice", "label": "Temperature", "choices": ["F", "C"], "default": "F"},
         "h24": {"type": "bool", "label": "24-hour time", "default": False},
         "dateFmt": {"type": "choice", "label": "Date format", "choices": ["Wednesday, November 18", "Wed, Nov 18", "18 November", "11/18"], "default": "Wednesday, November 18"},

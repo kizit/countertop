@@ -1,0 +1,1 @@
+- **Temperature colours on the Sensor tile.** A temperature driven by a thermostat (its "Controlled by" setting) turns orange while it heats, green once it reaches the setpoint and grey when the thermostat is off; cooling is blue. Turn it off with the tile's "Colour by the thermostat" setting.

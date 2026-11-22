@@ -24,6 +24,8 @@ Choose **Edit dashboard on screen**, add a tile from the **Home** group, and pic
 
 Doors left open, locks left unlocked and water sensors that are wet are shown in orange.
 
+A temperature driven by a thermostat (the tile's **Controlled by** setting, e.g. a room sensor showing `climate.salon`) is coloured by what the thermostat is doing: orange while it heats, green once the room reaches the setpoint, and grey when it is off. Cooling shows blue. Turn off **Colour by the thermostat** in the tile's settings to keep the number plain.
+
 ## Locks, garage doors and alarms
 
 Locks, alarm panels, and garage doors, gates and doors (covers) are shown on every tile, but a tile can only change them when **Allow locks, garage doors and alarms** is on in its settings. It's off by default, because a kitchen screen is within reach of guests and kids.

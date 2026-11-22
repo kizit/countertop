@@ -267,7 +267,7 @@ function modScreen(m){
   if (s.desc) h += '<p class="intro">' + esc(s.desc) + '</p>';
   if (m === "general"){
     h += sec("", '<button class="btnrow blue" data-act="locate">Find a place by name…</button>', "Or type the latitude and longitude below.");
-    const G = [["Place", ["place", "lat", "lon"]], ["Language and formats", ["lang", "units", "h24", "dateFmt", "weekStart"]], ["Icons", ["emoji", "swap"]], ["Screen", ["gear"]]];
+    const G = [["Place", ["place", "lat", "lon"]], ["Language and formats", ["lang", "holidays", "units", "h24", "dateFmt", "weekStart"]], ["Icons", ["emoji", "swap"]], ["Screen", ["gear"]]];
     G.forEach(([g, keys]) => { const K = keys.filter(k => s.settings[k]); if (!K.length) return;
       if (g === "Icons"){ h += emojiPicker(c.settings.emoji, c.settings.swap); return; }
       h += sec(g, K.map(k => field(m, k, s.settings[k], c.settings[k])).join("")); });
@@ -278,10 +278,10 @@ function modScreen(m){
   return h;
 }
 // Settings: the general module, one screen per group
-const GEN = {name:["Dashboard name", ["name"]], place:["Location", ["place", "lat", "lon"]], lang:["Language and formats", ["lang", "units", "h24", "dateFmt", "weekStart"]], icons:["Icons and emoji", ["emoji", "swap"]]};
+const GEN = {name:["Dashboard name", ["name"]], place:["Location", ["place", "lat", "lon"]], lang:["Language and formats", ["lang", "holidays", "units", "h24", "dateFmt", "weekStart"]], icons:["Icons and emoji", ["emoji", "swap"]]};
 function langSummary(){
   const g = mods.general ? mods.general.settings : {};
-  return [g.lang && g.lang !== "Automatic" ? g.lang : "Language: automatic", "°" + (g.units || "F"), g.h24 ? "24-hour" : "12-hour", (g.weekStart || "Sunday") + " first"].join(" · ");
+  return [g.lang && g.lang !== "Automatic" ? g.lang : "Language: automatic", "°" + (g.units || "F"), g.h24 ? "24-hour" : "12-hour", (g.weekStart || "Sunday") + " first", g.holidays && g.holidays !== "United States" ? "Holidays: " + g.holidays : ""].filter(Boolean).join(" · ");
 }
 function genScreen(k){
   const s = schema.general, c = mods.general, G = GEN[k]; if (!G) return "";

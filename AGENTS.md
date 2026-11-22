@@ -17,6 +17,7 @@ python3 tools/countertop.py --port 8091     # dev server; data in work/ (git-ign
 python3 -m unittest discover -s tests
 node tests/check-js.js
 node tests/check-lang.js
+node tests/check-holidays.js
 node tests/browser-check.js                 # needs Playwright + Chromium
 node tests/tile-data-check.js               # needs Playwright + Chromium
 ```

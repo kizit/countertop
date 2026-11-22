@@ -4,7 +4,7 @@
 Tile("hasensor", {
   title:"Sensor", cat:"Home", size:[6, 6, 4, 4], every:5, needs:"homeassistant",
   takeover:"Take over the box when it needs a look (a door left open, a lock left unlocked, water on the floor)",
-  desc:"One reading from Home Assistant in big type: the temperature outside, whether the garage door is open, the dryer's power. Doors left open and locks left unlocked turn orange. Pick a \"controlled by\" entity (a thermostat, a light, a switch...) and its controls appear right under the value; plain sensors get a refresh button.",
+  desc:"One reading from Home Assistant in big type: the temperature outside, whether the garage door is open, the dryer's power. Doors left open and locks left unlocked turn orange. Pick a \"controlled by\" entity (a thermostat, a light, a switch...) and its controls appear right under the value; plain sensors get a refresh button. A temperature driven by a thermostat turns orange while it heats, green at the setpoint and grey when it is off.",
   settings:{
     src:{type:"source", kind:"homeassistant", label:"Home Assistant", default:""},
     entity:{type:"entity", label:"What to show", default:""},
@@ -14,7 +14,8 @@ Tile("hasensor", {
     taps:{type:"bool", label:"Let the screen control this thing", default:true},
     secure:{type:"bool", label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
     confirm:{type:"choice", label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"},
-    names:{type:"text", label:"Rename", help:"Just a name to rename what is shown (e.g. Énergie), or entity_id = Display name per ; — e.g. sensor.salon_temperature = Salon", default:""}
+    names:{type:"text", label:"Rename", help:"Just a name to rename what is shown (e.g. Énergie), or entity_id = Display name per ; — e.g. sensor.salon_temperature = Salon", default:""},
+    tcolor:{type:"bool", label:"Colour by the thermostat", default:true, help:"Orange while it heats, green at the setpoint, grey when it is off"}
   },
   css:`.m-hasensor{display:flex;flex-direction:column}
     .m-hasensor .bv{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;min-height:0}
@@ -24,6 +25,13 @@ Tile("hasensor", {
     .m-hasensor .n{font-size:24px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
     .m-hasensor .n small{display:block;font-size:17px}
     .m-hasensor.alert .v{color:#ffb74d}
+    .m-hasensor .bv.heat .v,.m-hasensor .bv.heat .ic{color:#ffb74d}
+    .m-hasensor .bv.ok .v,.m-hasensor .bv.ok .ic{color:#63c98a}
+    .m-hasensor .bv.cool .v,.m-hasensor .bv.cool .ic{color:#6fb6ff}
+    .m-hasensor .bv.off .v,.m-hasensor .bv.off .ic{color:var(--dim)}
+    html.light .m-hasensor .bv.heat .v,html.light .m-hasensor .bv.heat .ic{color:#c46a00}
+    html.light .m-hasensor .bv.ok .v,html.light .m-hasensor .bv.ok .ic{color:#1f8a4c}
+    html.light .m-hasensor .bv.cool .v,html.light .m-hasensor .bv.cool .ic{color:#1f6fbf}
     .m-hasensor.gone .v{opacity:.45}
     .m-hasensor .msg{font-size:16px;color:#ffb74d;text-align:center}
     .m-hasensor .msg.ask{font-size:20px;color:#fff;background:var(--accent);border-radius:12px;padding:6px 12px}
@@ -47,6 +55,26 @@ Tile("hasensor", {
   has(){ return true; },
   state(){ const d = this._fd && this._fd.data; return d && (d.states || [])[0]; },
   urgent(){ const o = this.state(); return !!(o && HA.alert(o)); },
+  // the big value's colour when a thermostat drives the reading: heating, at the setpoint, or off
+  tone(o, c){
+    const isTh = x => !!x && (x.domain === "climate" || x.domain === "water_heater" || /^(climate|water_heater)\./.test(x.id || ""));
+    const th = isTh(c) ? c : isTh(o) ? o : null;
+    if (!th || !(o.dc === "temperature" || /°/.test(o.unit || "") || isTh(o))) return "";
+    if (th.state === "off") return "off";
+    const act = String(th.action || "");
+    if (act === "heating" || act === "preheating") return "heat";
+    if (act === "cooling") return "cool";
+    if (act === "idle") return "ok";
+    // no hvac_action from this thermostat: compare the reading with the setpoint, knowing the mode
+    const t = parseFloat(isTh(o) ? o.current : o.state), tgt = parseFloat(th.target);
+    if (!isFinite(t) || !isFinite(tgt)) return "";
+    const d = t - tgt, tol = /°F/.test(o.unit || "") ? 0.5 : 0.3, mode = String(th.state || "");
+    if (Math.abs(d) <= tol) return "ok";
+    if (mode === "cool") return d > 0 ? "cool" : "ok";
+    if (mode === "heat") return d < 0 ? "heat" : "ok";
+    if (mode === "heat_cool" || mode === "auto") return d < 0 ? "heat" : "cool";
+    return "";
+  },
   render(el){
     const s = this.s;
     if (HA.setup(this)){ el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="empty">Set up Home Assistant in Controls → Setup</div>'; return; }
@@ -59,6 +87,7 @@ Tile("hasensor", {
     const opt = this._opt = this._opt || {}, now = Date.now();
     const withPatch = o => { const p = opt[o.id]; return p && p.until > now ? Object.assign({}, o, p.patch || {state:p.state}) : o; };
     const o = withPatch(o0), c = c0 ? withPatch(c0) : null;
+    const tone = s.tcolor === false ? "" : this.tone(o, c);
     const v = HA.text(o) || HA.cap(o.state), ago = s.changed !== false && o.changed ? HA.ago(o.changed) : "", nm = HA.namemap(s, s.entity);
     const taps = s.taps !== false, gone = o.state === "unavailable" || o.state === "missing";
     el.classList.toggle("alert", HA.alert(o)); el.classList.toggle("gone", gone);
@@ -73,7 +102,7 @@ Tile("hasensor", {
       if (tgt !== o && /^(sensor|binary_sensor)$/.test(o.domain)) ctl = '<span class="ctl"><span class="cbtn" data-ha="' + esc(o.id) + '" data-act="refresh" title="Refresh now">🔄</span></span>' + ctl;
     }
     const tapId = tgt && !HA.held(tgt, s) && HA.TAP[tgt.domain] ? tgt.id : (taps && !HA.held(o, s) && HA.TAP[o.domain] ? o.id : null);
-    el.innerHTML = '<div class="bv">' + (s.icon !== false ? '<div class="ic">' + HA.icon(o) + '</div>' : "") + '<div class="v' + (v.length > 9 ? " long" : "") + '">' + esc(v) + '</div>' +
+    el.innerHTML = '<div class="bv' + (tone ? " " + tone : "") + '">' + (s.icon !== false ? '<div class="ic">' + HA.icon(o) + '</div>' : "") + '<div class="v' + (v.length > 9 ? " long" : "") + '">' + esc(v) + '</div>' +
       '<div class="n">' + esc(nm[o0.id] || this.it.name || o.name) + (ago ? '<small>' + esc(ago) + '</small>' : "") + '</div></div>' +
       (modes ? '<div class="modes">' + modes + '</div>' : "") +
       (ctl ? '<div class="ctl"' + (tapId ? ' data-ha="' + esc(tapId) + '"' : "") + '>' + ctl + '</div>' : "") +

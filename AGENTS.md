@@ -19,10 +19,12 @@ node tests/check-js.js
 node tests/check-lang.js
 node tests/check-holidays.js
 node tests/browser-check.js                 # needs Playwright + Chromium
+node tests/tiles-check.js                   # needs Playwright + Chromium
 node tests/tile-data-check.js               # needs Playwright + Chromium
 node tests/sandbox-check.js                 # needs Playwright + Chromium
 node tests/control-check.js                 # needs Playwright + Chromium
 node tests/touch-check.js                   # needs Playwright + Chromium
+node tests/controls-ux-check.js             # needs Playwright + Chromium
 node tests/key-check.js                     # needs Playwright + Chromium
 ```
 

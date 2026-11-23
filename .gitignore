@@ -13,6 +13,7 @@ __pycache__/
 *.pyc
 .DS_Store
 node_modules/
+test-results/
 
 # Private notes about my own setup (device IPs, feeds)
 DASHBOARD_HANDOFF.md

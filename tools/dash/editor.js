@@ -576,6 +576,7 @@ function edDown(e){
   const [c, r] = cellAt(e.clientX, e.clientY), g = RG(s, pg);
   if (t.dataset.h) EDIT.drag = {k:"rs", s, dir:t.dataset.h, orig:{x:g.x, y:g.y, w:g.w, h:g.h}, snap:JSON.stringify(CFG)};
   else EDIT.drag = {k:"pend", s, x0:e.clientX, y0:e.clientY, dc:c - g.x, dr:r - g.y};
+  try{ $("edl").setPointerCapture(e.pointerId); }catch(err){}      // edPaint replaces .eslot; keep touch capture on the stable editor layer
   edPaint(true);
 }
 function boxAct(a, el){

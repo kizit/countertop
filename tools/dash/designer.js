@@ -186,6 +186,7 @@ function designDown(e){
   e.preventDefault(); e.stopPropagation();
   const id = (r || h).dataset.dzr || (r || h).dataset.dzp, o = dzP(id);
   const newSel = EDIT.focus.sel !== id;
+  try{ $("edfocus").setPointerCapture(e.pointerId); }catch(err){}      // designPaint replaces .fh handles; keep touch capture on #edfocus
   if (newSel){ EDIT.focus.sel = id; edPaint(true); }
   const box = h.getBoundingClientRect();
   remember();

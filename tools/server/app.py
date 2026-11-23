@@ -132,8 +132,11 @@ class Handler(BaseHTTPRequestHandler):
         elif p == "/tile-fetch":
             self._tile_fetch()
         elif re.fullmatch(r"/tile-frame/[a-z][a-z0-9-]{1,39}", p):
-            code, body, headers = sandbox.tile_frame_page(p.split("/")[2])
+            code, body, headers = sandbox.tile_frame_page(p.split("/")[2], self.headers.get("Host") or "")
             self._send(code, body, "text/html; charset=utf-8", headers)
+        elif re.fullmatch(r"/tile-frame/[a-z][a-z0-9-]{1,39}/runtime\.js", p):
+            code, body = sandbox.tile_frame_runtime(p.split("/")[2])
+            self._send(code, body, "application/javascript; charset=utf-8", {"X-Content-Type-Options": "nosniff"})
         elif re.fullmatch(r"/tile-frame/[a-z][a-z0-9-]{1,39}/tile\.js", p):
             code, body = sandbox.tile_frame_code(p.split("/")[2])
             self._send(code, body, "application/javascript; charset=utf-8", {"X-Content-Type-Options": "nosniff"})

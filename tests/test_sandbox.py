@@ -27,7 +27,7 @@ spec.loader.exec_module(ct)
 sbx, tf = ct.sandbox, ct.tilefetch
 FIXTURES = ROOT / "tests" / "fixtures" / "community-tiles"
 
-POLICY = ("sandbox allow-scripts; default-src 'none'; script-src 'nonce-%s'; style-src 'unsafe-inline'; img-src data: blob:; "
+POLICY = ("sandbox allow-scripts; default-src 'none'; script-src %s; style-src 'unsafe-inline'; img-src data: blob:; "
           "font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; "
           "worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'")
 
@@ -101,25 +101,30 @@ class TileFiles(Base):
 
 
 class FramePage(Base):
-    def test_policy_nonce_and_code(self):
+    def test_policy_and_code(self):
         install("moon-facts")
-        code, html1, h1 = sbx.tile_frame_page("moon-facts")
-        _, html2, h2 = sbx.tile_frame_page("moon-facts")
+        code, html1, h1 = sbx.tile_frame_page("moon-facts", "kitchen.local:8090")
         self.assertEqual(code, 200)
-        n1 = re.search(r"'nonce-([0-9a-f]{32})'", h1["Content-Security-Policy"]).group(1)
-        n2 = re.search(r"'nonce-([0-9a-f]{32})'", h2["Content-Security-Policy"]).group(1)
-        self.assertNotEqual(n1, n2)
-        self.assertEqual(h1["Content-Security-Policy"], POLICY % n1)
+        # scripts by their exact address, never a nonce: tile code can read a nonce and load a script from anywhere with it
+        self.assertEqual(h1["Content-Security-Policy"], POLICY % (
+            "http://kitchen.local:8090/tile-frame/moon-facts/runtime.js http://kitchen.local:8090/tile-frame/moon-facts/tile.js"))
+        self.assertNotIn("nonce", h1["Content-Security-Policy"] + html1.decode())
         text = html1.decode()
-        self.assertEqual(text.count('nonce="%s"' % n1), 2)
         self.assertIn('src="/tile-frame/moon-facts/tile.js?v=1"', text)
+        self.assertRegex(text, r'src="/tile-frame/moon-facts/runtime\.js\?v=\d+"')
         self.assertNotIn("__", re.sub(r"__proto__", "", text))
         self.assertNotIn('Tile("moon-facts"', text)            # the code comes as its own script, never pasted into the page
-        self.assertLess(text.index("stripRTC(W)"), text.index("tile.js?v=1"))
+        self.assertLess(text.index("runtime.js"), text.index("tile.js?v=1"))
         self.assertEqual(sbx.tile_frame_code("moon-facts"), (200, fixture("moon-facts")["code"].encode()))
+        self.assertIn(b"stripRTC(W)", sbx.tile_frame_runtime("moon-facts")[1])
         self.assertEqual(sbx.tile_frame_page("nope")[0], 404)
         self.assertEqual(sbx.tile_frame_page("../etc")[0], 404)
         self.assertEqual(sbx.tile_frame_code("nope")[0], 404)
+        self.assertEqual(sbx.tile_frame_runtime("nope")[0], 404)
+        # a Host that could break out of the policy isn't used
+        for bad in ("", "a b", "x; script-src *", "evil.com/x", None):
+            self.assertEqual(sbx.tile_frame_page("moon-facts", bad)[0], 400, bad)
+        self.assertEqual(sbx.tile_frame_page("moon-facts", "[::1]:8090")[0], 200)
 
     def test_safe_mode_serves_nothing(self):
         install("moon-facts")

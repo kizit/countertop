@@ -16,7 +16,6 @@ community tiles on it and nothing changed in between.
 import collections
 import json
 import re
-import secrets
 import threading
 import time
 import zlib
@@ -43,7 +42,9 @@ SBX_SLOT_RE = re.compile(r"^[a-z][a-z0-9_]{0,19}$")
 SBX_MAX_DEVICES, SBX_MAX_CONTROLS = 8, 12
 SBX_SECURE_DOMAINS = ("lock", "alarm_control_panel", "cover")    # can hold a lock, an alarm or a garage door
 
-SBX_FRAME_POLICY = ("sandbox allow-scripts; default-src 'none'; script-src 'nonce-%s'; style-src 'unsafe-inline'; "
+# Scripts are allowed by their exact address on this server, never by a nonce: a tile's code can read its own script's
+# nonce, and a script with that nonce may load from anywhere, which would be a way out.
+SBX_FRAME_POLICY = ("sandbox allow-scripts; default-src 'none'; script-src %s; style-src 'unsafe-inline'; "
                 "img-src data: blob:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; "
                 "frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'")
 SBX_OFF_POLICY = "sandbox; default-src 'none'; style-src 'unsafe-inline'"
@@ -267,8 +268,12 @@ def _sbx_read(name):
     return (RUNTIME_DIR / name).read_text(encoding="utf-8")
 
 
-def tile_frame_page(tid):
-    """(status, html, headers) for /tile-frame/<id>: the runtime, then the tile's code, both allowed by a fresh nonce."""
+SBX_HOST_RE = re.compile(r"^(?:[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*|\[[0-9A-Fa-f:.]{2,45}\])(?::\d{1,5})?$")
+
+
+def tile_frame_page(tid, host="localhost"):
+    """(status, html, headers) for /tile-frame/<id>: the runtime, then the tile's code, each allowed by its exact address.
+    `host` is the Host the screen asked for (the frame's scripts come from the same place)."""
     t = community_tile(tid) if isinstance(tid, str) and SBX_ID_RE.match(tid) else None
     if not t:
         return 404, b"no such tile", {}
@@ -276,12 +281,23 @@ def tile_frame_page(tid):
         body = '<!doctype html><meta charset="utf-8"><style>body{margin:0;color:#ccc;font:16px sans-serif}</style><p>Off: %s.</p>' % (
             "safe mode is on" if safe_mode()["on"] else "taken down from the community gallery")
         return 200, body.encode("utf-8"), {"Content-Security-Policy": SBX_OFF_POLICY}
-    nonce = secrets.token_hex(16)
-    html = (_sbx_read("frame.html").replace("__RUNTIME__", _sbx_read("runtime.js"))
-            .replace("__CODE__", "/tile-frame/%s/tile.js?v=%d" % (t["id"], t["version"]))
-            .replace("__NONCE__", nonce))
-    return 200, html.encode("utf-8"), {"Content-Security-Policy": SBX_FRAME_POLICY % nonce, "X-Content-Type-Options": "nosniff",
+    if not isinstance(host, str) or not SBX_HOST_RE.match(host):
+        return 400, b"bad host", {}
+    base = "/tile-frame/%s/" % t["id"]
+    html = (_sbx_read("frame.html").replace("__RUNTIME__", base + "runtime.js?v=%d" % zlib.crc32(_sbx_read("runtime.js").encode()))
+            .replace("__CODE__", base + "tile.js?v=%d" % t["version"]))
+    # http:// also matches the same address over https:// (a screen behind a proxy that adds HTTPS)
+    src = " ".join("http://%s%s%s" % (host, base, f) for f in ("runtime.js", "tile.js"))
+    return 200, html.encode("utf-8"), {"Content-Security-Policy": SBX_FRAME_POLICY % src, "X-Content-Type-Options": "nosniff",
                                        "Referrer-Policy": "no-referrer"}
+
+
+def tile_frame_runtime(tid):
+    """(status, js) for /tile-frame/<id>/runtime.js: the same runtime for every tile, served beside its code."""
+    t = community_tile(tid) if isinstance(tid, str) and SBX_ID_RE.match(tid) else None
+    if not tile_runs(t):
+        return 404, b"// off"
+    return 200, _sbx_read("runtime.js").encode("utf-8")
 
 
 def tile_frame_code(tid):

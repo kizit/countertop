@@ -103,7 +103,7 @@ Repeating calendar events use python-dateutil when it's installed and a built-in
 - **Escape checks** loads one frame and tries to reach the server by `fetch`, a `POST /config`, an image, a prefetch link, `window.open` and top-level navigation, all of which must fail. Leaving the frame's own page for the server must work, and the page sees a second load. It also notes whether WebRTC exists and how many candidates it gathers.
 - **Loop test** starts an endless loop in one frame after a 5-second countdown. The page shows a ticking clock and sends the server a beat each second, so the result shows whether the page froze, for how long, and whether it recovered. Don't run it in automated tests.
 
-The frame is `/bench/frame`, served with the same kind of policy header a community tile's frame will use (`sandbox allow-scripts`, `connect-src 'none'`, and a fresh nonce for its one script) inside `<iframe sandbox="allow-scripts">`. Results (numbers and yes/no answers only, never settings) are saved to `bench.json` in the data folder, read at `/bench/results`, and shown under Status in Controls once there are any. `tests/browser-check.js` runs the 1-frame test and the escape checks in headless Chromium.
+The frame is `/bench/frame`, served with the same kind of policy header a community tile's frame will use (`sandbox allow-scripts`, `connect-src 'none'`) inside `<iframe sandbox="allow-scripts">`. Results (numbers and yes/no answers only, never settings) are saved to `bench.json` in the data folder, read at `/bench/results`, and shown under Status in Controls once there are any. `tests/browser-check.js` runs the 1-frame test and the escape checks in headless Chromium.
 
 ## Your settings are backed up
 

@@ -19,7 +19,9 @@ async function main() {
       { id: "themes/calm", kind: "theme", name: "Calm", description: "", author: "someone", version: 1, updated: "2026-11-22",
         item: { countertop: "theme", format: 1, name: "Calm", values: { accent: "#ff9f5a", tiles: "See-through" } } },
       { id: "effects/hearts", kind: "effect", name: "Hearts", description: "", author: "someone", version: 1, updated: "2026-11-22",
-        item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } }] }));
+        item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } },
+      { id: "tiles/hello-there", kind: "tile", name: "Hello there", description: "", author: "someone", version: 1, updated: "2026-11-23",
+        item: JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "community-tiles", "hello-there.json"), "utf8")) }] }));
     const srv = await startServer(data, { COUNTERTOP_GALLERY_URL: pathToFileURL(gallery).href });
     onCleanup(() => srv.stop());
     const base = srv.base;

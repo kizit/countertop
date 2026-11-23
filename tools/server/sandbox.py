@@ -292,7 +292,9 @@ def _names(v):
 
 
 def sandbox_beat(body, ip, version, now=None):
-    """A check-in from a dashboard: {"session", "showing": [names], "gap": ms, "boot": bool, "notes": [...]}.
+    """A check-in from a dashboard: {"session", "showing": [names], "gap": ms, "boot": bool, "clean": bool, "notes": [...]}.
+    A page that closes normally (to Controls, or reloading after a settings change) checks in once more showing
+    nothing, so its silence afterwards isn't taken for a freeze, and the next start says `clean`: not a restart.
     `gap` is the longest pause the page's own timers saw since the last check-in, so a page that was stuck can be told
     from a network that dropped for a while."""
     now = time.time() if now is None else now
@@ -305,7 +307,7 @@ def sandbox_beat(body, ip, version, now=None):
         for n in [str(x)[:200] for x in body.get("notes")[:5]] if isinstance(body.get("notes"), list) else []:
             if not any(x["text"] == n for x in SBX_NOTES):
                 SBX_NOTES.append({"at": now, "text": n})
-        if body.get("boot"):
+        if body.get("boot") and not body.get("clean"):        # a start after the last page closed normally isn't a restart
             SBX_BOOTS.append((now, version))
     s = safe_mode()
     if prev and prev.get("tripped") and s["on"] and s["why"] == "froze" and s["by"] == sid:
@@ -317,7 +319,7 @@ def sandbox_beat(body, ip, version, now=None):
             # the same page is back, and its timers never stopped: the connection dropped, the screen didn't freeze
             s = set_safe_mode(False)
             SBX_NOTES.append({"at": now, "text": "A screen stopped checking in for a while, but it hadn't frozen, so community tiles were turned back on."})
-    if body.get("boot") and not s["on"]:
+    if body.get("boot") and not body.get("clean") and not s["on"]:
         with SBX_LOCK:
             same = [t for t, v in SBX_BOOTS if now - t < SBX_RELOAD_WINDOW and v == version]
         if len(same) >= SBX_RELOADS:

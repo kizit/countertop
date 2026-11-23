@@ -129,6 +129,38 @@ async function main() {
     await page.evaluate(() => { EDIT.on = false; render(); });
     console.log("✓ the buttons are off while the screen is being edited");
 
+    // --- holding a finger on a tile that takes taps starts editing, with that tile picked ---
+    const fb2 = await tile.locator("iframe").boundingBox();
+    await page.mouse.move(fb2.x + 30, fb2.y + 30);
+    await page.mouse.down();
+    await sleep(1000);
+    await page.mouse.up();
+    await until(() => page.evaluate(() => EDIT.on && EDIT.tile === "porch_a"), "the editor to open with the tile picked");
+    await page.evaluate(() => editExit(false));
+    console.log("✓ holding the tile opens the editor with it picked");
+
+    // --- leaving the page says goodbye, so the quiet after it isn't a freeze, and coming back isn't a restart ---
+    const status = async () => (await (await fetch(base + "/status")).json()).sandbox;
+    await until(async () => (await status()).showing.includes("Front porch"), "the screen to check in");
+    for (let i = 0; i < 3; i++) {
+      await page.goto(base + "/control?echo=1");
+      await until(async () => !(await status()).showing.length, "the goodbye when the dashboard closes");
+      await page.goto(base + "/dash/content");
+      await until(async () => (await status()).showing.length, "the screen to check in again");
+    }
+    assert.equal((await status()).safe, false, "three trips to Controls and back don't turn community tiles off");
+    console.log("✓ going to Controls and back three times leaves community tiles on");
+
+    // --- the same inside the Echo's shell, where the dashboard is a frame and isn't hidden when it goes: the gear
+    // opens Controls in that frame, and a page that's left there for more than 30 seconds used to look frozen ---
+    await page.goto(base + "/dash");
+    const dash = () => page.frames().find(f => /\/dash\/content/.test(f.url()));
+    await until(async () => (await status()).showing.length, "the screen in the shell to check in");
+    await (await until(dash, "the dashboard frame")).evaluate(() => document.getElementById("gear").click());
+    await until(() => page.frames().some(f => /\/control/.test(f.url())), "Controls in the shell");
+    await until(async () => !(await status()).showing.length, "the goodbye from the dashboard frame");
+    console.log("✓ in the Echo's shell, opening Controls says goodbye, so its quiet isn't taken for a freeze");
+
     assert.deepEqual(errors, []);
     console.log("✓ no page errors");
   } finally {

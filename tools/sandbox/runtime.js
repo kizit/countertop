@@ -236,6 +236,19 @@
       soon();
     }
   });
+  // holding a finger on the tile starts editing the screen, as it does on any other tile: the dashboard can't see
+  // touches inside this frame, so it's told. (A tile could send this by itself; all it would do is open the editor,
+  // and the dashboard takes it at most once every 10 seconds)
+  var holdT = null, holdAt = null, held = false;
+  function holdStop() { clearTimeout(holdT); holdT = null; }
+  D.addEventListener("pointerdown", function (e) {
+    held = false; holdAt = [e.clientX, e.clientY]; holdStop();
+    holdT = setTimeout(function () { holdT = null; held = true; post({ ct: "hold" }); }, 700);
+  }, true);
+  D.addEventListener("pointermove", function (e) { if (holdT && Math.abs(e.clientX - holdAt[0]) + Math.abs(e.clientY - holdAt[1]) > 12) holdStop(); }, true);
+  ["pointerup", "pointercancel"].forEach(function (n) { D.addEventListener(n, holdStop, true); });
+  // the tap that ends a hold isn't a tap
+  D.addEventListener("click", function (e) { if (held) { held = false; e.stopPropagation(); e.preventDefault(); } }, true);
   // taps and form submits, only for tiles that said they take taps, and never while the screen is being edited
   ROOT.addEventListener("click", function (e) { if (ME && TAPS && !QUIET && DEF.tap) { try { DEF.tap.call(ME, e, ROOT); } catch (x) { post({ ct: "error", msg: String(x.message || x) }); } } });
   ROOT.addEventListener("submit", function (e) {

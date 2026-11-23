@@ -230,7 +230,10 @@ window.addEventListener("message", e => {
   }
   else if (d.ct === "fetch" && typeof d.url === "string" && d.url.length <= 2000) sbxFetch(rec, d.url, Math.min(3600, Math.max(30, +d.maxAge || 300)));
   else if (d.ct === "store" && tileUsesStore(m) && sbxOk(d.ops)) tileWrite(m.id, sbxPlain(d.ops), d.unless && typeof d.unless === "object" ? sbxPlain(d.unless) : undefined);
-  else if (d.ct === "error") reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200));
+  else if (d.ct === "hold"){      // a finger held on a tile that takes taps: start editing with it, like any tile
+    if (!EDIT.on && !SOLO && !PREVIEW && m.taps && now - (SBX.heldAt || 0) > 10e3){ SBX.heldAt = now; editEnter(m.id); }
+  }
+    else if (d.ct === "error") reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200));
 });
 // every second (from tick): frames for tiles that came into view, frames for tiles gone for a minute dropped
 function sbxTick(){
@@ -263,11 +266,26 @@ function sbxBeat(force, extra){
       if (j && j.safe && !SBX.safe){ SBX.safe = true; for (const id of [...SBX.frames.keys()]) sbxDrop(id); render(); }
     }).catch(() => {});
 }
-// at start: a screen that keeps restarting with community tiles on it turns them off (sandbox.py, 3 times in 10 minutes)
+// at start: a screen that keeps restarting with community tiles on it turns them off (sandbox.py, 3 times in 10 minutes).
+// A start after this page closed normally (going to Controls and back, a reload after a settings change) isn't one:
+// the page that left said so in sessionStorage, which a tile's frame can't reach
 function sbxBoot(){
   const onPage = Object.keys(MOUNTED).filter(id => MODULES[id] && MODULES[id].community).map(id => MODULES[id].name);
-  if (onPage.length && !SBX.safe) sbxBeat(true, {boot:true, onPage});
+  let clean = false;
+  try{ clean = Date.now() - (+sessionStorage.getItem("sbxLeft") || 0) < 3600e3; sessionStorage.removeItem("sbxLeft"); }catch(e){}
+  if (onPage.length && !SBX.safe) sbxBeat(true, {boot:true, onPage, clean});
 }
+// leaving the page (Controls, a reload, the shell swapping in a new dashboard): say goodbye, so the server doesn't
+// take the quiet that follows for a frozen screen. A frozen page can't get here
+function sbxLeave(){
+  try{ sessionStorage.setItem("sbxLeft", String(Date.now())); }catch(e){}
+  if (!sbxReports() || !SBX.wasShowing) return;
+  SBX.wasShowing = false;
+  const body = JSON.stringify({session:SBX.session, showing:[], gap:0, bye:true});
+  try{ if (navigator.sendBeacon && navigator.sendBeacon("/sandbox/beat", new Blob([body], {type:"application/json"}))) return; }catch(e){}
+  try{ fetch("/sandbox/beat", {method:"POST", headers:{"Content-Type":"application/json"}, body, keepalive:true}); }catch(e){}
+}
+window.addEventListener("pagehide", sbxLeave);
 document.addEventListener("visibilitychange", () => { if (document.hidden && SBX.wasShowing){ SBX.frames.forEach(r => { r.gone = r.gone || Date.now(); }); sbxBeat(true, {showing:[]}); SBX.wasShowing = false; } });
 
 /* ---------- control tiles: buttons the dashboard draws for a tile, outside its frame ----------

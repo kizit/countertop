@@ -99,6 +99,13 @@ class CalendarTests:
         ev = self.parse(ics(["UID:dd", "SUMMARY:Walk", "DTSTART:" + dt(at), "RRULE:FREQ=DAILY;UNTIL=" + dt(until) + "Z"]))
         self.assertEqual(starts(ev, "Walk"), [(at + timedelta(days=i)).isoformat() for i in range(3)])
 
+    def test_daily_until_in_utc_evening(self):
+        # 19:00 Chicago is 00:00 or 01:00 UTC the next day, so a 23:00Z end stops before the third evening
+        at = MONDAY + timedelta(hours=19)
+        until = (MONDAY + timedelta(days=2, hours=23)).replace(tzinfo=None)
+        ev = self.parse(ics(["UID:de", "SUMMARY:Dinner", "DTSTART:" + dt(at), "RRULE:FREQ=DAILY;UNTIL=" + dt(until) + "Z"]))
+        self.assertEqual(starts(ev, "Dinner"), [(at + timedelta(days=i)).isoformat() for i in range(2)])
+
     def test_every_other_week(self):
         at = MONDAY + timedelta(hours=8)
         ev = self.parse(ics(["UID:o", "SUMMARY:Recycling", "DTSTART:" + dt(at), "RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=3"]))

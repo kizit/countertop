@@ -18,6 +18,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function main() {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), "countertop-check-"));
   for (const f of fs.readdirSync(path.join(root, "demo", "work"))) fs.copyFileSync(path.join(root, "demo", "work", f), path.join(data, f));
+  {     // the night page takes over 22:00-04:00 and would hide the main page, so runs at those hours failed
+    const f = path.join(data, "dashboard.json"), d = JSON.parse(fs.readFileSync(f, "utf8"));
+    d.modules.night.on = false;
+    fs.writeFileSync(f, JSON.stringify(d));
+  }
   const gallery = path.join(data, "gallery-index.json");        // Library > Community reads this instead of the real gallery
   fs.writeFileSync(gallery, JSON.stringify({ countertop: "gallery", format: 1, updated: "2026-11-22", revoked: [], items: [
     { id: "themes/calm", kind: "theme", name: "Calm", description: "", author: "someone", version: 1, updated: "2026-11-22",

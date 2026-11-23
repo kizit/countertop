@@ -56,6 +56,14 @@ function statusScreen(){
   const L = S.list;
   if (L && L.name){ const SRCN = {dashboard:"This dashboard", reminders:"Apple Reminders", pushed:"Sent from another app", url:"A web address"};
     h += sec("List", row({t:L.name, sub:(SRCN[L.source] || L.source) + (L.error ? " · " + L.error : ""), v:L.count + (L.count === 1 ? " item" : " items")})); }
+  const B = S.bench;      // only once the /bench test page has saved something
+  if (B){ const perf = Object.keys(B.perf || {}).map(n => n + " frame" + (n === "1" ? "" : "s") + ": " + (B.perf[n].fps == null ? "?" : Math.round(B.perf[n].fps)) + " fps").join(" · ");
+    const lp = B.loop;
+    h += sec("Sandbox test", row({t:"Busy frames", v: perf || "Not run"}) +
+      row({t:"Escape checks", v: B.escape ? B.escape.passed + " of " + B.escape.total + " as expected" : "Not run"}) +
+      row({t:"Endless loop", sub: lp ? "Longest silence from the page: " + lp.longestSilence + " s" : "", v: !lp ? "Not run" : lp.heartbeatsStopped ? (lp.stillSilent ? "Page stopped" : "Page froze, then recovered") : "Page kept running"}),
+      "Measurements from the test page at /bench on the screen. Nothing else is saved.");
+  }
   h += sec("Server", row({t:"Version", v:"v" + S.version}) + row({t:"Running on", v:S.server.where}) + row({t:"Running for", v:agoText(S.server.startedAgo).replace(" ago", "").replace("Just now", "A minute")}) +
     row({t:"Time zone", v:S.server.tz}));
   const lt = S.latest || {};

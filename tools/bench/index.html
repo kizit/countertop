@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sandbox test</title>
+<style>
+  body { margin: 0; background: #0d1620; color: #fff; font: 18px sans-serif; padding: 10px 14px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p { margin: 4px 0; opacity: .8; font-size: 15px; }
+  button { font-size: 20px; padding: 14px 18px; margin: 6px 6px 6px 0; border-radius: 10px; border: 0; background: #2b6cb0; color: #fff; }
+  button.warn { background: #b03a2b; }
+  #pad { height: 56px; overflow-x: scroll; overflow-y: hidden; background: #1c2b3b; border-radius: 10px; margin: 6px 0; }
+  #pad div { width: 3000px; height: 56px; line-height: 56px; font-size: 15px; background: repeating-linear-gradient(90deg, #264057 0 60px, #1c2b3b 60px 120px); }
+  #stage { display: grid; gap: 4px; height: 46vh; margin: 8px 0; }
+  #stage iframe { width: 100%; height: 100%; border: 1px solid #345; background: #000; }
+  #clock { font-size: 34px; font-variant-numeric: tabular-nums; }
+  #out { white-space: pre-wrap; font: 15px/1.35 monospace; background: #0a1118; padding: 8px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Sandbox test</h1>
+<p>Measures how many sandboxed frames this screen can hold, which ways out of a frame are blocked, and what an endless loop does. Nothing leaves this computer, and only numbers are saved.</p>
+<div id="clock"></div>
+<div id="pad"><div>swipe here and tap anywhere on this page during a run</div></div>
+<div>
+  <button data-run="1">Run 1</button><button data-run="6">Run 6</button><button data-run="12">Run 12</button>
+  <button id="esc">Escape checks</button><button id="loop" class="warn">Loop test</button><button id="clear">Remove frames</button>
+</div>
+<div id="status"></div>
+<div id="stage"></div>
+<div id="out"></div>
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var RUN = String(Date.now()), SECS = +new URLSearchParams(location.search).get("secs") || 30;
+var stage = $("stage"), frames = [], frameFps = {}, busyNow = false, loads = 0;
+
+function say(t) { $("status").textContent = t; }
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function beat(via, extra) { return fetch("/bench/hit?via=" + via + "&run=" + RUN + (extra || ""), { cache: "no-store" }).catch(function () {}); }
+
+function build(n, mode, tag) {
+  stage.innerHTML = ""; frames = []; frameFps = {}; loads = 0;
+  var cols = n <= 1 ? 1 : n <= 2 ? 2 : n <= 6 ? 3 : 4;
+  stage.style.gridTemplateColumns = "repeat(" + cols + ",1fr)";
+  stage.style.gridTemplateRows = "repeat(" + Math.ceil(n / cols) + ",1fr)";
+  for (var i = 0; i < n; i++) {
+    var f = document.createElement("iframe");
+    f.setAttribute("sandbox", "allow-scripts");
+    f.addEventListener("load", function () { loads++; });
+    f.src = "/bench/frame?mode=" + (typeof mode === "function" ? mode(i) : mode) + "&i=" + i + "&run=" + RUN + "-" + tag;
+    stage.appendChild(f); frames.push(f);
+  }
+}
+window.addEventListener("message", function (e) {
+  var d = e.data;
+  if (!d || typeof d !== "object" || !d.bench) return;
+  if (!frames.some(function (f) { return f.contentWindow === e.source; })) return;
+  if (d.bench === "fps") frameFps[d.i] = d.fps;
+  if (d.bench === "escape" && escapeDone) escapeDone(d);
+});
+
+// the screen's own smoothness while the frames run: frame times, long tasks, memory, and how fast a tap is answered
+async function perf(n) {
+  if (busyNow) return; busyNow = true;
+  build(n, "busy", "perf" + n);
+  say("Starting " + n + " frame" + (n === 1 ? "" : "s") + "…");
+  for (var w = 0; w < 40 && loads < n; w++) await sleep(250);
+  await sleep(1000);
+  var frameCount = 0, slow = 0, worst = 0, last = 0, taps = [], longTasks = 0, longMs = 0, over = false, po = null;
+  try { po = new PerformanceObserver(function (l) { l.getEntries().forEach(function (t) { longTasks++; longMs += t.duration; }); }); po.observe({ entryTypes: ["longtask"] }); } catch (e) { longTasks = null; po = null; }
+  function raf(t) {
+    if (last) { var d = t - last; if (d > 50) slow++; if (d > worst) worst = d; }
+    last = t; frameCount++;
+    if (!over) requestAnimationFrame(raf);
+  }
+  function tap(e) { var at = e.timeStamp; requestAnimationFrame(function () { taps.push(performance.now() - at); }); }
+  document.addEventListener("pointerdown", tap, true);
+  var t0 = performance.now();
+  requestAnimationFrame(raf);
+  while (performance.now() - t0 < SECS * 1000) { say("Running " + n + " frame" + (n === 1 ? "" : "s") + ": " + Math.max(0, Math.round(SECS - (performance.now() - t0) / 1000)) + " s left. Swipe the bar and tap."); await sleep(500); }
+  var secs = (performance.now() - t0) / 1000;
+  over = true; document.removeEventListener("pointerdown", tap, true);
+  await sleep(100);
+  if (po) po.disconnect();
+  taps.sort(function (a, b) { return a - b; });
+  var fv = Object.keys(frameFps).map(function (k) { return frameFps[k]; });
+  var res = { kind: "perf", frames: n, secs: Math.round(secs), fps: frameCount / secs, slowFrames: slow, worstFrameMs: worst,
+    longTasks: longTasks, longTaskMs: longMs, memoryMB: performance.memory ? performance.memory.usedJSHeapSize / 1e6 : null,
+    taps: taps.length, tapMedianMs: taps.length ? taps[taps.length >> 1] : null, tapMaxMs: taps.length ? taps[taps.length - 1] : null,
+    frameFpsMean: fv.length ? fv.reduce(function (a, b) { return a + b; }, 0) / fv.length : null, frameFpsMin: fv.length ? Math.min.apply(null, fv) : null,
+    screen: innerWidth + "x" + innerHeight, browser: navigator.userAgent.slice(0, 140) };
+  await save(res);
+  busyNow = false;
+  say("Done: " + n + " frame" + (n === 1 ? "" : "s") + ".");
+  show();
+  return res;
+}
+
+var escapeDone = null;
+async function escapes() {
+  if (busyNow) return; busyNow = true;
+  build(1, "escape", "esc");
+  say("Escape checks running (about 8 seconds)…");
+  var got = await new Promise(function (ok) { escapeDone = ok; setTimeout(function () { ok(null); }, 15000); });
+  escapeDone = null;
+  var r = got && got.result || {};
+  for (var w = 0; w < 24 && loads < 2; w++) await sleep(250);       // the frame leaves its page at the end: that is the second load
+  await sleep(500);
+  var hits = (await (await fetch("/bench/results", { cache: "no-store" })).json()).hits.filter(function (h) { return String(h.run).indexOf(RUN + "-esc") === 0; }).map(function (h) { return h.via; });
+  var seen = function (v) { return hits.indexOf(v) >= 0; };
+  var vio = (got && got.violations || []).join(" | ");
+  var checks = {
+    origin: { ok: r.origin === "null", note: "frame origin " + r.origin },
+    fetch: { ok: String(r.fetch).indexOf("blocked") === 0 && !seen("fetch"), note: r.fetch + (seen("fetch") ? ", server saw it" : "") },
+    post: { ok: (String(r.post).indexOf("blocked") === 0 || String(r.post).indexOf("refused") === 0), note: r.post },
+    img: { ok: r.img !== "loaded" && !seen("img"), note: r.img + (seen("img") ? ", server saw it" : "") },
+    prefetch: { ok: !seen("prefetch"), note: seen("prefetch") ? "server saw it" : "no request" },
+    open: { ok: r.open === "blocked" && !seen("open"), note: r.open + (seen("open") ? ", server saw it" : "") },
+    top: { ok: !seen("top") && location.pathname === "/bench", note: (r.top || "?") + (seen("top") ? ", server saw it" : "") },
+    nav: { ok: seen("nav") && loads >= 2, note: (seen("nav") ? "arrived" : "never arrived") + ", " + loads + " loads" }
+  };
+  var passed = 0, total = 0;
+  Object.keys(checks).forEach(function (k) { total++; if (checks[k].ok) passed++; });
+  var rtc = r.rtc || { present: false, candidates: 0 };
+  var res = { kind: "escape", got: !!got, passed: passed, total: total, checks: checks, rtcPresent: !!rtc.present, rtcCandidates: rtc.candidates || 0,
+    rtcKinds: rtc.kinds || {}, rtcError: rtc.error || "", violations: vio, browser: navigator.userAgent.slice(0, 140) };
+  window.lastEscape = res;
+  await save(res);
+  busyNow = false;
+  say("Escape checks done: " + passed + " of " + total + " as expected.");
+  show();
+  return res;
+}
+
+// one frame loops forever (after a countdown) while the page keeps a clock and sends the server a beat every second
+async function loopTest() {
+  if (busyNow) return; busyNow = true;
+  build(2, "busy", "loop");
+  setInterval(function () { beat("beat"); }, 1000);
+  for (var w = 0; w < 40 && loads < 2; w++) await sleep(250);
+  for (var s = 5; s > 0; s--) { say("Endless loop starts in " + s + " s. Watch the clock at the top."); await sleep(1000); }
+  await beat("loopstart");
+  say("Loop started in one frame. If the clock keeps ticking, the page is fine. Wait a minute, then tap Remove frames or reload this page.");
+  frames[1].contentWindow.postMessage({ cmd: "loop" }, "*");
+}
+
+async function save(res) {
+  try { await fetch("/bench/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(res) }); } catch (e) { /* shown on the next refresh */ }
+}
+
+function f1(v) { return v == null ? "?" : (Math.round(v * 10) / 10); }
+async function show() {
+  var d;
+  try { d = await (await fetch("/bench/results", { cache: "no-store" })).json(); } catch (e) { return; }
+  var s = d.stored || {}, t = [];
+  Object.keys(s.perf || {}).sort(function (a, b) { return a - b; }).forEach(function (k) {
+    var p = s.perf[k];
+    t.push(k + " frame" + (k === "1" ? "" : "s") + ": " + f1(p.fps) + " fps on the page (slowest " + Math.round(p.worstFrameMs) + " ms, " + p.slowFrames + " slow), frames " + f1(p.frameFpsMean) + " fps each, long tasks " +
+      (p.longTasks == null ? "n/a" : p.longTasks + " (" + Math.round(p.longTaskMs) + " ms)") + ", tap " + f1(p.tapMedianMs) + " ms (worst " + f1(p.tapMaxMs) + "), memory " + (p.memoryMB == null ? "n/a" : Math.round(p.memoryMB) + " MB"));
+  });
+  var e = s.escape;
+  if (e) {
+    t.push("Escape checks: " + e.passed + " of " + e.total + " as expected");
+    Object.keys(e.checks || {}).forEach(function (k) { t.push("  " + (e.checks[k].ok ? "ok  " : "FAIL") + " " + k + ": " + e.checks[k].note); });
+    t.push("  WebRTC: " + (e.rtcPresent ? "present, " + e.rtcCandidates + " candidates " + JSON.stringify(e.rtcKinds) : "absent") + (e.rtcError ? " (" + e.rtcError + ")" : ""));
+    if (e.violations) t.push("  policy reports: " + e.violations);
+  }
+  (d.loops || []).forEach(function (l) {
+    t.push("Loop test " + new Date(l.started * 1000).toLocaleTimeString() + ": " + (l.heartbeatsStopped ? "page beats stopped, longest silence " + l.longestSilence + " s" + (l.stillSilent ? " (still silent)" : " (then recovered)") : "page kept beating") +
+      ", " + l.beatsAfter + " beats after, " + l.stalls + " stalls reported");
+  });
+  $("out").textContent = t.length ? t.join("\n") : "No results yet.";
+}
+
+// the page notices when it was stuck, and says so once it can
+var lastTick = Date.now();
+setInterval(function () { var n = Date.now(), gap = n - lastTick; lastTick = n; if (gap > 2000) beat("stall", "&ms=" + gap); }, 250);
+setInterval(function () { $("clock").textContent = new Date().toLocaleTimeString() + "." + String(Date.now() % 1000).padStart(3, "0"); }, 50);
+document.querySelectorAll("[data-run]").forEach(function (b) { b.addEventListener("click", function () { perf(+b.dataset.run); }); });
+$("esc").addEventListener("click", escapes);
+$("loop").addEventListener("click", loopTest);
+$("clear").addEventListener("click", function () { stage.innerHTML = ""; frames = []; busyNow = false; say("Frames removed."); show(); });
+window.bench = { perf: perf, escapes: escapes, show: show };
+show();
+</script>
+</body>
+</html>

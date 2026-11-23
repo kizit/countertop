@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
-from server import tiledata
+from server import bench, tiledata
 from server.core import VERSION
 
 
@@ -137,6 +137,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(purchases_library())
             else:
                 self._json(sales_view())
+        elif p == "/bench":
+            self._send(200, bench.index_page(), "text/html; charset=utf-8")
+        elif p == "/bench/frame":
+            body, headers = bench.frame_page()
+            self._send(200, body, "text/html; charset=utf-8", headers)
+        elif p == "/bench/hit":
+            q = parse_qs(urlparse(self.path).query)
+            via = (q.get("via") or [""])[0]
+            bench.hit(via, (q.get("run") or [""])[0], self.client_address[0])
+            if via == "nav":
+                self._send(200, b"<!doctype html><title>bench</title>navigated", "text/html; charset=utf-8")
+            else:
+                self._send(200, b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;", "image/gif")
+        elif p == "/bench/results":
+            self._json(bench.results())
         elif p == "/version":
             # the shell polls this and reloads the iframe when the dashboard page, a tile file, the settings or Setup change
             v = 0
@@ -207,6 +222,11 @@ class Handler(BaseHTTPRequestHandler):
             elif body.get("task") == "js-error":
                 SCREEN["errors"].append({"at": time.time(), "error": str(body.get("error") or "")[:300]})
             self._send(204)
+        elif p == "/bench/save":
+            try:
+                self._json(bench.save(body))
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
         elif p == "/config":
             try:
                 self._json(config_save(body))

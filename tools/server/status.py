@@ -148,6 +148,7 @@ def status_view():
         "server": {"startedAgo": int(now - SERVER_START), "where": _where(), "git": (HERE.parent / ".git").exists(), "python": platform.python_version(),
                    "tz": time.strftime("%Z"), "writable": writable},
         "screen": {"seenAgo": _ago(seen), "fullscreen": beat.get("fs"), "wxAgo": int(now - feeds["wx"] / 1000) if feeds.get("wx") else None},
+        "bench": bench.summary(),
         "calendars": [dict(c, ago=_ago(c["at"])) for c in cals],
         "homeassistant": [dict(h, ago=_ago(h["at"])) for h in homes],
         "recipes": [dict(r, ago=_ago(r["at"])) for r in recipes],
@@ -301,6 +302,7 @@ def diagnostics_zip():
 
 
 # names used only inside functions: imported last, so these modules can use each other
+from server import bench  # noqa: E402
 from server.config import CONFIG_PROBLEM, SERVER_START, config_load  # noqa: E402
 from server.core import CAL_STATUS, CONSOLE, HERE, LOG, REPO, SCREEN, VERSION, WORK  # noqa: E402
 from server.feeds.meals import MEAL_STATUS  # noqa: E402

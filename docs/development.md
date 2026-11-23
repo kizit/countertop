@@ -64,6 +64,7 @@ Only one Countertop app can run at a time, and both use port 8090. On a Mac wher
 | `community.py` | The Community gallery's list ([sharing](sharing-layouts.md#the-community-gallery)) |
 | `pages.py` | Puts the dashboard and Controls pages together from their parts (below) |
 | `status.py` | Controls > Status, update notice, diagnostics |
+| `bench.py` | The `/bench` sandbox test page (below) |
 | `feeds/` | Data for built-in tiles: calendar, sports, sky (radar, space, ISS, planes), stocks, meals, sales, cams, photos |
 
 A module imports the names it needs at load time at the top, and names it only uses inside functions at the bottom, so modules can use each other without import loops. `tools/countertop.py` re-exports every name, so `countertop.config_load()` and friends still work in tests and scripts. To swap a function out in a test, use `countertop.patch_everywhere(name, value)`, which replaces it in every file that uses it.
@@ -92,6 +93,16 @@ node tests/tile-data-check.js            # two Daily to-do tiles keep separate l
 ```
 
 Repeating calendar events use python-dateutil when it's installed and a built-in expander when it isn't, so the calendar tests run against both. When you change how settings are stored, add a step to `CONFIG_UPGRADES` in `tools/server/upgrades.py`, bump `CONFIG_SCHEMA` in `tools/server/config.py`, and add a test with a settings file in the old shape.
+
+## The sandbox test page
+
+`/bench` is a page for trying sandboxed frames on a real screen. Nothing links to it. Open `http://<server-ip>:8090/bench` in Silk (or any browser), then:
+
+- **Run 1 / Run 6 / Run 12** put that many busy frames on the page (a canvas animation, a clock and DOM updates each) for 30 seconds and measure the page's frame rate, slow frames, long tasks, memory where the browser reports it, and how quickly a tap is answered. Swipe the bar and tap during a run. Add `?secs=5` to the address for a shorter run.
+- **Escape checks** loads one frame and tries to reach the server by `fetch`, a `POST /config`, an image, a prefetch link, `window.open` and top-level navigation, all of which must fail. Leaving the frame's own page for the server must work, and the page sees a second load. It also notes whether WebRTC exists and how many candidates it gathers.
+- **Loop test** starts an endless loop in one frame after a 5-second countdown. The page shows a ticking clock and sends the server a beat each second, so the result shows whether the page froze, for how long, and whether it recovered. Don't run it in automated tests.
+
+The frame is `/bench/frame`, served with the same kind of policy header a community tile's frame will use (`sandbox allow-scripts`, `connect-src 'none'`, and a fresh nonce for its one script) inside `<iframe sandbox="allow-scripts">`. Results (numbers and yes/no answers only, never settings) are saved to `bench.json` in the data folder, read at `/bench/results`, and shown under Status in Controls once there are any. `tests/browser-check.js` runs the 1-frame test and the escape checks in headless Chromium.
 
 ## Your settings are backed up
 

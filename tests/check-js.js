@@ -12,7 +12,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "countertop-js-"));
 const jobs = [];
 // the dashboard and Controls are put together from their parts by the server (tools/server/pages.py): check them whole
 const fill = (text, depth = 0) => text.replace(/^<!--#include ([\w./-]+)-->\n/gm, (m, f) => fill(fs.readFileSync(path.join(tools, f), "utf8"), depth + 1));
-const pages = fs.readdirSync(tools).filter(f => f.endsWith(".html")).sort()
+const pages = fs.readdirSync(tools).filter(f => f.endsWith(".html")).sort().concat(fs.readdirSync(path.join(tools, "bench")).map(f => "bench/" + f))
   .concat(["dash", "control"].map(d => d + "/index.html"));
 for (const f of pages) {
   const html = fill(fs.readFileSync(path.join(tools, f), "utf8"));

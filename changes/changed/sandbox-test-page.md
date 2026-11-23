@@ -1,0 +1,1 @@
+- **Sandbox test page.** A page at /bench measures how many sandboxed tile frames the screen can hold and what a frame can't get out of, ready for community tiles. Nothing changes in the dashboard, and results show under Status once it has been used.

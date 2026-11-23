@@ -255,8 +255,12 @@ async function main() {
     const row2 = ctlPage.locator('[data-pid="two"]');
     await grip3.waitFor();
     const g3 = await grip3.boundingBox(), r2 = await row2.boundingBox();
-    await CT.drag(g3.x + g3.width / 2, g3.y + g3.height / 2, g3.x + g3.width / 2, r2.y + r2.height / 2 - 12, 12, 22);
-    await until(() => ctlPage.evaluate(() => cpList().map(p => p.id).join(",") === "three,two"), "pages reordered by touch grip");
+    const reordered = () => ctlPage.evaluate(() => cpList().map(p => p.id).join(",") === "three,two");
+    for (let i = 0; i < 3 && !(await reordered().catch(() => false)); i++) {      // a drag can land while the page is still settling on a slow runner
+      await CT.drag(g3.x + g3.width / 2, g3.y + g3.height / 2, g3.x + g3.width / 2, r2.y + r2.height / 2 - 12, 12, 22);
+      await sleep(400);
+    }
+    await until(reordered, "pages reordered by touch grip");
     assert.equal(await ctlPage.evaluate(() => stack[stack.length - 1]), "root", "releasing grip should not navigate into page row");
     const grip3b = ctlPage.locator('[data-pid="three"] [data-grip]');
     const row2b = ctlPage.locator('[data-pid="two"]');

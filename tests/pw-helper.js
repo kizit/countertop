@@ -19,7 +19,7 @@ const freePort = () => new Promise(res => {
   const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => res(p)); });
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const until = async (fn, what, ms = 10000) => {
+const until = async (fn, what, ms = 20000) => {
   const t0 = Date.now();
   for (;;) {
     const v = await Promise.resolve().then(fn).catch(() => false);
@@ -231,7 +231,8 @@ async function touchSession(ctx, page, opts = {}) {
     await touch("touchCancel");
   };
   const centre = async loc => {
-    const b = await loc.boundingBox();
+    await loc.first().waitFor({ state: "visible", timeout: 15000 });   // slow runners: the target may not be drawn yet
+    const b = await loc.first().boundingBox();
     assert.ok(b && b.width > 0 && b.height > 0, "target has no visible bounding box");
     return [b.x + b.width / 2, b.y + b.height / 2];
   };

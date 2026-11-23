@@ -335,6 +335,7 @@ function field(m, k, d){
       '<div class="kv col"><button class="wide" data-act="ai">Copy instructions for ChatGPT</button><small>Paste them into ChatGPT (or any AI chat) with a sentence about what you want, then paste the code it gives you above.</small></div>';
     case "source": return srcField(m, k, d, v, lab);
     case "entity": return entField(m, k, d, v, lab);
+    case "secret": return sbxKeyField(m, k, d, lab);
   }
   return "";
 }
@@ -590,6 +591,7 @@ function boxAct(a, el){
   else if (a === "add"){ EDIT.panel = "add"; EDIT.addTo = s ? s.id : null; edPaint(true); }
   else if (a === "setup") openSetup(el.dataset.kind);
   else if (a.startsWith("ent")) entAct(a, el);
+  else if (a === "tksave" || a === "tkrm") sbxKeyAct(a, el);
   else if (a === "minerun"){ const m = MODULES[EDIT.tile]; if (m && m.it.review){ remember(); delete m.it.review; render(m.id); edPaint(true); } }
   else if (a === "ai"){ const m = MODULES[EDIT.tile]; copyText(aiPrompt(m && m.s.ask)); }
   else if (a === "fit" && s && RG(s)){ const pg = curPg(), g = RG(s, pg), [dw, dh] = tsize(EDIT.tile || s.mod).map((v, i) => Math.min(v, i ? GR : GC)), R = {x:Math.min(g.x, GC - dw), y:Math.min(g.y, GR - dh), w:dw, h:dh};

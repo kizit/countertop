@@ -68,3 +68,5 @@ jobs:
         run: node tests/control-check.js
       - name: Check touch and tap behaviour
         run: node tests/touch-check.js
+      - name: Check community tiles' API keys
+        run: node tests/key-check.js

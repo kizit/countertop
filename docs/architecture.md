@@ -52,6 +52,7 @@ One file per area, in `tools/server/`:
 | `community.py` | The Community gallery's list for Library → Community. Downloads are checked again like any imported file |
 | `sandbox.py` | Community tiles: reading their files, the sandboxed frame page each one runs in, and safe mode |
 | `tilefetch.py` | Web addresses read for tiles (`/tile-fetch`): only https, only the sites a tile declares, never the home network |
+| `tilekeys.py` | Community tiles' API keys (`POST /tile-key`): kept on the server, added by `/tile-fetch` only to the one site each is for |
 | `pages.py` | Puts the dashboard and Controls pages together from their parts |
 | `status.py` | Status, the update notice, diagnostics |
 | `feeds/` | Data for built-in tiles: calendar, sports, sky (radar, space, ISS, planes), meals, sales, cams, photos |
@@ -114,6 +115,7 @@ Everything the server saves is in one data folder: `work/` next to `tools/` by d
 | --- | --- | --- |
 | `dashboard.json` | **Settings**: pages, boxes, tiles and their settings, looks | Yes, except settings marked `share:false` |
 | `sources.json` | **Sources**: calendar links, lists, Home Assistant, recipe and other connections, including tokens and keys | Never |
+| `tile-keys.json` | **API keys** typed into community tiles' settings | Never |
 | `tiles/<tile id>.json` | **Tile data**: what a tile has saved with `this.store` | Never |
 | `notes.json`, `pushed_lists.json` | Lists kept on the server, and lists sent from the Mac app or a phone shortcut | Never |
 | `backups/` | Recent copies of the settings and tile data | |
@@ -152,7 +154,7 @@ Countertop is meant to run on a home network for one household.
 
 - **Anyone on the home network can open Controls and change settings, without a password.** This is intentional: the people in the house are the users, and a kitchen screen shouldn't need a login. Don't expose Countertop to the internet, and don't add features that assume it is.
 - **Requests from other websites are a separate concern.** Open access on the LAN doesn't mean a web page someone visits in a browser at home should be able to change settings or trigger actions. This is a known area to think about: it's welcome as a [private vulnerability report](../SECURITY.md) or, for a design discussion, an issue. A change here needs discussion first because it touches every route.
-- **Secrets stay on the server.** Tokens and keys live in `sources.json`. Secret fields are write-only: the server never sends them back to a page, and diagnostics remove them. New code must keep them out of logs and error messages too.
+- **Secrets stay on the server.** Tokens and keys live in `sources.json`, and community tiles' API keys in `tile-keys.json`. Secret fields are write-only: the server never sends them back to a page, and diagnostics remove them. New code must keep them out of logs and error messages too.
 - **Actions in the home need care.** Turning on a light is fine with one tap. Locks, garage doors and alarms are opt-in per tile and can require two taps, and the server, not the page, enforces both.
 - **Shared layouts, themes, effects and gallery downloads are untrusted input.** Everything is checked again when it's imported or downloaded, layouts carry no secrets or personal data, and effects contain no code. Community tiles run sandboxed, get only the data they declare, and can't reach addresses on the home network.
 

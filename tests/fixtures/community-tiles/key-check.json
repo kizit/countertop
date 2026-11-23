@@ -1,0 +1,39 @@
+{
+ "countertop": "tile",
+ "id": "key-check",
+ "version": 1,
+ "name": "Key check",
+ "author": "countertop tests",
+ "description": "Tries a tile's API keys: they reach httpbin.org only, never postman-echo.com or a redirect there, and the tile never sees them.",
+ "size": [
+  20,
+  12,
+  14,
+  8
+ ],
+ "uses": [
+  "fetch"
+ ],
+ "hosts": [
+  "httpbin.org",
+  "postman-echo.com"
+ ],
+ "every": 60,
+ "settings": {
+  "key": {
+   "type": "secret",
+   "label": "Test key (sent in a header)",
+   "help": "Type anything at least 6 characters long, like test-key-123.",
+   "host": "httpbin.org",
+   "header": "X-Api-Key"
+  },
+  "token": {
+   "type": "secret",
+   "label": "Test key (sent in the address)",
+   "help": "Type anything at least 6 characters long, like test-token-456.",
+   "host": "httpbin.org",
+   "query": "token"
+  }
+ },
+ "code": "Tile(\"key-check\", {\n  css: \".kc{font-size:20px;line-height:1.35} .kc h3{margin:0 0 6px} .kc .ok{color:#7fd67f} .kc .bad{color:#ff7a7a} .kc small{color:var(--dim)}\",\n  cls: \"kc\",\n  render(el){\n    const A = \"https://httpbin.org/anything?from=countertop\", B = \"https://postman-echo.com/get?from=countertop\",\n      R = \"https://httpbin.org/redirect-to?url=\" + encodeURIComponent(B + \"&via=redirect\");\n    const a = this.fetch(A, 60), b = this.fetch(B, 60), r = this.fetch(R, 60);\n    const head = (j, name) => { const h = (j && j.headers) || {}; for (const k in h) if (k.toLowerCase() === name) return h[k]; return undefined; };\n    // what the site saw: the key arrived but the tile only sees it blanked out, or it never arrived\n    const got = v => v === undefined ? \"not sent\" : v === \"********\" ? \"arrived, hidden from the tile\" : \"VISIBLE TO THE TILE: \" + v;\n    const good = (v, want) => (want ? v === \"********\" : v === undefined) ? \"ok\" : \"bad\";\n    const row = (label, url, j, want) => {\n      if (!j) return \"<div>\" + this.esc(label) + \": <small>\" + this.esc(this.fetchError(url) || \"loading…\") + \"</small></div>\";\n      const h = head(j, \"x-api-key\"), q = (j.args || {}).token;\n      return \"<div class=\" + (good(h, want) === \"ok\" && good(q, want) === \"ok\" ? \"ok\" : \"bad\") + \">\" + this.esc(label) +\n        \": header key \" + this.esc(got(h)) + \"; address key \" + this.esc(got(q)) + \"</div>\";\n    };\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3>\" +\n      \"<div>Header key saved: <b>\" + (this.s.key === true ? \"yes\" : \"no\") + \"</b>, address key saved: <b>\" + (this.s.token === true ? \"yes\" : \"no\") + \"</b></div>\" +\n      \"<div><small>What this tile's code sees for the keys: \" + this.esc(JSON.stringify([this.s.key, this.s.token])) + \"</small></div>\" +\n      row(\"httpbin.org (the keys' site)\", A, a, true) + row(\"postman-echo.com (another site)\", B, b, false) + row(\"redirect to postman-echo.com\", R, r, false);\n  }\n});\n"
+}

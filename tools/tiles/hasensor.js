@@ -12,9 +12,9 @@ Tile("hasensor", {
     icon:{type:"bool", label:"Show an icon", default:true},
     changed:{type:"bool", label:"Show how long ago it changed", default:true},
     taps:{type:"bool", label:"Let the screen control this thing", default:true},
-    secure:{type:"bool", label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
-    confirm:{type:"choice", label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"},
-    names:{type:"text", label:"Rename", help:"Just a name to rename what is shown (e.g. Énergie), or entity_id = Display name per ; — e.g. sensor.salon_temperature = Salon", default:""},
+    secure:{type:"bool", share:false, label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
+    confirm:{type:"choice", share:false, label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"},
+    names:{type:"text", share:false, label:"Rename", help:"Just a name to rename what is shown (e.g. Énergie), or entity_id = Display name per ; — e.g. sensor.salon_temperature = Salon", default:""},
     tcolor:{type:"bool", label:"Colour by the thermostat", default:true, help:"Orange while it heats, green at the setpoint, grey when it is off"}
   },
   css:`.m-hasensor{display:flex;flex-direction:column}

@@ -169,3 +169,22 @@ A community tile can work lights, switches, locks and other things in Home Assis
 - The state of the house is personal data, so a control tile gets no `hosts`.
 
 The settings the dashboard adds for this start with `@` (`@src`, `@secure`, `@<slot>`). A tile's own settings can't use those names, and they're never shared in a layout. To try one without real devices, run the stand-in Home Assistant in `tests/fake_ha.py`.
+
+### API keys
+
+A community tile that reads a site needing a key asks for it with a `secret` setting. The server keeps the key and adds it to the tile's requests; the tile's code never sees it.
+
+```json
+"settings": {
+  "key": {"type": "secret", "label": "API key", "help": "From your account page on example.com",
+          "host": "api.example.com", "header": "X-Api-Key"}
+}
+```
+
+- `host` is the one site the key is sent to: one of the tile's `hosts`, written out in full (no `*.`).
+- `header` sends it in that request header, after an optional `prefix` like `"Bearer "`. Or use `"query": "appid"` to add it to the address as `appid=<key>`, in place of any `appid` the tile wrote there. Headers the server sets itself (like `Host`, `Cookie` or `User-Agent`) can't be used.
+- At most 3 keys per tile. A tile that reads personal data has no sites, so it can't have keys.
+- The person types the key in the tile's settings and taps **Save key**. It's saved on the server in `tile-keys.json` in the data folder, never in the settings, so it's never part of a shared layout, a settings backup or Diagnostics. Every copy of the tile on the screens uses the same key.
+- In the frame, `this.s.key` is `true` when a key is saved and `false` when not, so the tile can ask for one. The key itself never reaches any page.
+- `/tile-fetch` adds the key only to requests to exactly `host`. A redirect to another site never carries it, and is refused if its address holds the key. Wherever the site's answer repeats the key, it's blanked out (`********`) before the tile gets it.
+- If an update to the tile sends a key to another site or in another way, the saved key isn't used until the person types it again.

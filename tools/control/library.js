@@ -209,9 +209,10 @@ function libPack(p, look, name, desc){
         const d = S[k];
         if (k === "design"){ s.design = t.settings.design; continue; }
         if (!d || k[0] === "@") continue;          // a control tile's devices are this home's own
+        if (d.type === "secret") continue;       // an API key is kept by the server; never in a layout
         if (d.type === "source"){ flags.add("src"); continue; }
         if (d.type === "entity"){ flags.add("ha"); continue; }
-        if (d.share === false){ flags.add("own"); continue; }
+        if (d.share === false){ if (d.type === "text" || d.type === "list") flags.add("own"); continue; }
         if (d.type === "code" && t.settings[k]) flags.add("code");
         s[k] = t.settings[k];
       }
@@ -242,7 +243,7 @@ function libShare(){
   let h = '<h2 class="ltitle">Share a layout</h2><p class="ldesc">Make a small file of a layout to send to a friend or keep as a backup. They open it in Library › Import a file.</p>';
   h += '<div class="ldet"><div><div class="lbig">' + pagePic(T.p, Object.assign(lookVals(curLook()), T.look), "page") + '</div>' +
     '<div class="lpanel"><h3>Left out automatically</h3>' +
-    [["Which calendars, lists and teams it uses", "Whoever opens it picks their own", flags.has("src")], ["Your own text", "Notes, countdown dates and picture links", flags.has("own")],
+    [["Which calendars, lists and teams it uses", "Whoever opens it picks their own", flags.has("src")], ["Your own text", "Notes, countdown dates, picture links and Home Assistant names", flags.has("own")],
       ["Home Assistant devices", "They're different in every home", flags.has("ha")], ["Calendar links, list items, photos", "Never part of a layout", true]]
       .filter(x => x[2]).map(([t, s]) => '<div class="lrow"><span class="lok">✓</span><div class="t">' + t + '<small>' + s + '</small></div></div>').join("") +
     (flags.has("code") ? '<div class="lrow"><span class="lok warn">!</span><div class="t">A Your own tile\'s code is included<small>Read it over if it holds anything private</small></div></div>' : "") + '</div></div><div>' +

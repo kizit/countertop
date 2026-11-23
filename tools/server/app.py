@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
-from server import bench, sandbox, tiledata, tilefetch
+from server import bench, sandbox, tiledata, tilefetch, tilekeys
 from server.core import VERSION
 
 
@@ -226,6 +226,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(sandbox.sandbox_beat(body, self.client_address[0], dash_version()))
             except ValueError as e:
                 self._json({"error": str(e)}, 400)
+        elif p == "/tile-key":
+            # an API key for a community tile, typed in its settings: saved on the server, never sent back
+            t = sandbox.community_tile(str(body.get("type") or ""))
+            try:
+                if not t:
+                    raise ValueError("No such community tile")
+                self._json({"keys": tilekeys.save_key(t, str(body.get("name") or ""), None if body.get("remove") is True else body.get("value"))})
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
         elif p == "/sandbox/safe":
             sandbox.set_safe_mode(body.get("on") is True, "person")
             self._json({"safe": sandbox.safe_mode()["on"]})
@@ -292,7 +301,8 @@ class Handler(BaseHTTPRequestHandler):
         if not hosts:
             return self._send(403, json.dumps({"error": "This tile can't reach the internet."}).encode(), "application/json", inert)
         try:
-            res = tilefetch.cached_fetch(url, hosts, (q.get("maxAge") or ["300"])[0])
+            # a community tile's API keys are added by the server, only for the one site each is for (tilekeys.py)
+            res = tilefetch.cached_fetch(url, hosts, (q.get("maxAge") or ["300"])[0], tilekeys.fetch_keys(sandbox.community_tile(typ)), typ)
         except tilefetch.FetchError as e:
             return self._send(e.code, json.dumps({"error": str(e)}).encode(), "application/json", inert)
         ctype = "application/json" if "json" in res["type"] else "text/plain; charset=utf-8"

@@ -284,8 +284,9 @@ const HA = {
   },
   // the two settings every tile that controls Home Assistant has for locks, alarms and garage doors
   SECURE:{
-    secure:{type:"bool", label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
-    confirm:{type:"choice", label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"}
+    // share:false: a shared layout never carries these, so an imported one can't arrive with locks already allowed
+    secure:{type:"bool", share:false, label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
+    confirm:{type:"choice", share:false, label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"}
   }
 };
 
@@ -298,7 +299,7 @@ Tile("ha", {
     taps:{type:"bool", label:"Let the screen control these things", default:true},
     secure:HA.SECURE.secure, confirm:HA.SECURE.confirm,
     changed:{type:"bool", label:"Show how long ago doors and sensors changed", default:true},
-    names:{type:"text", label:"Rename things", help:"entity_id = Display name, separated by ; — e.g. sensor.cap_energie_power = Linky power", default:""}
+    names:{type:"text", share:false, label:"Rename things", help:"entity_id = Display name, separated by ; — e.g. sensor.cap_energie_power = Linky power", default:""}
   },
   css:`.m-ha .hl{display:grid;grid-template-columns:1fr;gap:0 28px;align-content:start}
     .slot:not(.narrow) > .m-ha.wide .hl{grid-template-columns:1fr 1fr}

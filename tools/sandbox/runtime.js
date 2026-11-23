@@ -164,7 +164,10 @@
       var list = ask("events", { cals: Array.isArray(o.cals) ? o.cals.map(String) : [], once: !!o.once }, []);
       return list.map(function (e) { return Object.assign({}, e, { date: new Date(e.date) }); });
     },
-    act: function () { return Promise.reject(new Error("A community tile can't send actions.")); }
+    // a control tile: the state of each device the person picked for it, by the slot names in its file ({} until known,
+    // null for a slot not picked yet). The tile shows state; its buttons are drawn by the dashboard, outside this frame
+    devices: function () { return ask("devices", null, {}); },
+    act: function () { return Promise.reject(new Error("A community tile can't send actions. Its buttons are drawn by the dashboard.")); }
   };
 
   function report() {

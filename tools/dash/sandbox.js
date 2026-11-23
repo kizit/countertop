@@ -4,7 +4,8 @@
    `hosts`, read by the server. A message is matched to its frame by where it came from, never by anything it says.
    Frames run only for tiles on the page that's showing, at most SBX.max at once. A frame that loads a second time
    has navigated away and is removed. While a frame runs, this page checks in with the server every few seconds: an
-   endless loop in a frame freezes the whole page on the Echo, and the server turns on safe mode when it goes quiet. */
+   endless loop in a frame freezes the whole page on the Echo, and the server turns on safe mode when it goes quiet.
+   A control tile's buttons are drawn here, below its frame, never by its code (sbxControls). */
 const SBX = {safe:false, max:6, beat:5, tiles:{}, frames:new Map(), has:{}, paused:{}, notes:[],
   session:Date.now().toString(36) + Math.random().toString(36).slice(2, 8), gap:0, lastTick:0, lastBeat:0, wasShowing:false};
 // this.feed(name) names → the dashboard's feed keys, and where each one's data lives in STATE
@@ -18,15 +19,41 @@ function sbxSetup(cfg){
   SBX.safe = !!cfg.safe; SBX.max = +cfg.max || 6; SBX.beat = +cfg.beat || 5; SBX.tiles = cfg.tiles || {};
   for (const t of Object.values(SBX.tiles)){
     if (TYPES[t.type] && !TYPES[t.type].community) continue;          // never replaces a built-in tile
-    Tile(t.type, {title:t.title, desc:t.desc, cat:"Community", size:t.size, settings:t.settings || {}, feeds:t.feeds || [], uses:t.uses || [],
+    Tile(t.type, {title:t.title, desc:t.desc, cat:"Community", size:t.size, feeds:t.feeds || [], uses:t.uses || [],
       every:t.every || 0, demo:t.demo || {}, demoData:t.demoData || {}, lang:t.lang || {}, hosts:t.hosts || [], taps:!!t.taps, version:t.version,
+      devices:t.devices || {}, controls:t.controls || [],
       author:t.author, personal:t.personal || [], community:true, api:1, card:true, noFit:true, cls:"m-sbx",
+      settings:Object.assign(sbxGrantDefs(t), t.settings || {}),
       render(el){ sbxRender(this, el); },
       has(){ return sbxHas(this); },
       urgent(){ return !!(SBX.has[this.id] || {}).urgent; },
-      hide(){ /* the frame stays a minute in case the tile comes back (sbxTick) */ }});
+      hide(){ /* the frame stays a minute in case the tile comes back (sbxTick) */ },
+      editNote(){ return sbxEditNote(this); }});
   }
 }
+// a control tile's own settings, added by the dashboard: which Home Assistant, which real device fills each of the
+// tile's device slots, and the switch for locks, garage doors and alarms. They start with "@", which a tile's own
+// settings can't, are never sent into the frame, and the server reads them when a button is tapped (server/controls.py)
+function sbxGrantDefs(t){
+  const D = {}, devs = t.devices || {};
+  if (!Object.keys(devs).length) return D;
+  D["@src"] = {type:"source", kind:"homeassistant", label:"Home Assistant", default:""};
+  for (const k in devs) D["@" + k] = {type:"entity", src:"@src", domains:devs[k].domains, label:devs[k].label,
+    help:tr("Which one this tile works. It can only use what you pick here."), default:"", grant:true};
+  if (Object.values(devs).some(d => d.secure)) D["@secure"] = {type:"bool", label:"Allow locks, garage doors and alarms",
+    help:"Off: their buttons do nothing. On: each tap asks you to confirm on the screen first", default:false, grant:true};
+  return D;
+}
+// at the top of a community tile's settings in the editor: who made it, what it can see and do
+function sbxEditNote(m){
+  const L = [];
+  if (m.author) L.push(tr("Community tile by {who}.", {who:m.author}));
+  if ((m.controls || []).length) L.push(tr("Its buttons are drawn by Countertop below the tile, and work only the devices you pick here. The tile's own code can show them but never press them."));
+  if ((m.personal || []).length) L.push(tr("Reviewed and contained, not sealed. Silk lets a tile's code send one request by navigating its own frame, and may allow other ways out. Only turn on tiles from authors you trust."));
+  return L.length ? '<p class="pd">' + L.map(esc).join(" ") + '</p>' : "";
+}
+// the settings the tile's own code sees: not the ones the dashboard added
+function sbxS(m){ const o = {}; for (const k in m.s) if (k[0] !== "@") o[k] = m.s[k]; return o; }
 // what a box says instead of running its tile. (Notes for Controls → Status stay in English, like the rest of Status.)
 function sbxSay(el, text){
   if (el._sbxSaid === text && el.querySelector(".sbxmsg")) return;
@@ -79,10 +106,12 @@ function sbxStart(m, el){
   f.setAttribute("sandbox", "allow-scripts");
   f.setAttribute("referrerpolicy", "no-referrer");
   f.className = "sbxf"; f.title = m.name;
-  const cs = getComputedStyle(el);
-  f.style.cssText = "top:" + cs.paddingTop + ";right:" + cs.paddingRight + ";bottom:" + cs.paddingBottom + ";left:" + cs.paddingLeft +
-    ";width:calc(100% - " + cs.paddingLeft + " - " + cs.paddingRight + ");height:calc(100% - " + cs.paddingTop + " - " + cs.paddingBottom + ")";
+  const cs = getComputedStyle(el), lay = sbxStripLayout(m, el, cs), strip = lay.h;
+  const bottom = strip ? "calc(" + cs.paddingBottom + " + " + strip + "px)" : cs.paddingBottom;
+  f.style.cssText = "top:" + cs.paddingTop + ";right:" + cs.paddingRight + ";bottom:" + bottom + ";left:" + cs.paddingLeft +
+    ";width:calc(100% - " + cs.paddingLeft + " - " + cs.paddingRight + ");height:calc(100% - " + cs.paddingTop + " - " + cs.paddingBottom + (strip ? " - " + strip + "px" : "") + ")";
   const rec = {id:m.id, m, el, f, loads:0, ready:false, gone:0, asks:new Map(), sent:{}, msgs:0, msgT:Date.now()};
+  if (strip) sbxControls(rec, cs, lay);
   // the first load is the tile's page; any later one means the frame went somewhere else
   f.addEventListener("load", () => { rec.loads++; if (rec.loads > 1) sbxEscaped(rec); });
   f.src = "/tile-frame/" + encodeURIComponent(m.type) + "?v=" + (m.version || 1);
@@ -96,6 +125,8 @@ function sbxDrop(id){
   SBX.frames.delete(id);
   try{ rec.f.src = "about:blank"; }catch(e){}
   rec.f.remove();
+  if (rec.c) rec.c.remove();           // its buttons and any confirm go with it
+  if (rec.conf) rec.conf.remove();
 }
 function sbxEscaped(rec){
   const m = rec.m;
@@ -124,29 +155,31 @@ function sbxAnswer(m, what, arg){
   }
   if (what === "sources") return feeds.includes(SBX_SOURCES[arg]) ? m.sources(arg) : [];
   if (what === "feed"){ const k = SBX_FEED[arg]; return k && feeds.includes(k) ? sbxPlain(STATE[SBX_STATE[k]]) : null; }
+  if (what === "devices") return sbxDevices(m);
   return null;
 }
 // send the frame whatever changed since last time, and ask it to draw
 function sbxUpdate(rec, draw){
   if (!rec.ready) return;
   const m = rec.m, msg = {ct:"update", draw:!!draw}, put = (k, v) => { const j = JSON.stringify(v); if (rec.sent[k] !== j){ rec.sent[k] = j; msg[k] = v; } };
-  put("s", m.s); put("name", m.name); put("quiet", tileQuiet()); put("taps", !!m.taps && !tileQuiet());
+  put("s", sbxS(m)); put("name", m.name); put("quiet", tileQuiet()); put("taps", !!m.taps && !tileQuiet());
   if (tileUsesStore(m)) put("store", {data:m.store.get(), ready:m.store.ready});
   const answers = {};
   for (const [key, a] of rec.asks){ const v = sbxAnswer(m, a.what, a.arg), j = JSON.stringify(v); if (a.j !== j){ a.j = j; answers[key] = v; } }
   if (Object.keys(answers).length) msg.answers = answers;
   rec.f.style.pointerEvents = m.taps && !tileQuiet() ? "auto" : "none";
+  if (rec.c) sbxControlsDraw(rec);
   sbxPost(rec, msg);
 }
 function sbxInit(rec){
   const m = rec.m, fetched = {};
   for (const [u, c] of Object.entries(m._sf || {})) if (c.at) fetched[u] = {data:c.data, error:c.error, at:c.at};
   rec.ready = true;
-  rec.sent = {s:JSON.stringify(m.s), name:JSON.stringify(m.name), quiet:JSON.stringify(tileQuiet()), taps:JSON.stringify(!!m.taps && !tileQuiet())};
+  rec.sent = {s:JSON.stringify(sbxS(m)), name:JSON.stringify(m.name), quiet:JSON.stringify(tileQuiet()), taps:JSON.stringify(!!m.taps && !tileQuiet())};
   const store = tileUsesStore(m) ? {data:m.store.get(), ready:m.store.ready} : {data:{}, ready:true};
   rec.sent.store = JSON.stringify(store);
   rec.f.style.pointerEvents = m.taps && !tileQuiet() ? "auto" : "none";
-  sbxPost(rec, {ct:"init", id:m.id, s:m.s, name:m.name, quiet:tileQuiet(), taps:!!m.taps && !tileQuiet(), store, fetched,
+  sbxPost(rec, {ct:"init", id:m.id, s:sbxS(m), name:m.name, quiet:tileQuiet(), taps:!!m.taps && !tileQuiet(), store, fetched,
     lang:I18N.lang, words:I18N.lang === "en" ? {} : I18N.words, locale:I18N.locale || null, theme:sbxTheme(rec.el)});
 }
 // a web address, read by the server (GET /tile-fetch) for a site the tile declared; kept per tile, so a new frame starts with it
@@ -190,7 +223,7 @@ window.addEventListener("message", e => {
     SBX.has[m.id] = {has, urgent, at:now};
     if (was.has !== has || !!was.urgent !== urgent){ stackTick(); const el = MOUNTED[m.id]; if (el && !el.parentNode.classList.contains("stack")){ el.hidden = !has && !EDIT.on; portraitFlow(el.closest(".cgrid")); } }
   }
-  else if (d.ct === "ask" && ["events", "sources", "feed"].includes(d.what) && rec.asks.size < 50){
+  else if (d.ct === "ask" && ["events", "sources", "feed", "devices"].includes(d.what) && rec.asks.size < 50){
     const arg = sbxPlain(d.arg), key = d.what + ":" + JSON.stringify(arg);
     if (!rec.asks.has(key)) rec.asks.set(key, {what:d.what, arg, j:null});
     sbxUpdate(rec, true);
@@ -211,6 +244,7 @@ function sbxTick(){
     const rec = SBX.frames.get(id), want = sbxWanted(el);
     if (want && (!rec || rec.el !== el)) sbxRender(m, el);
   }
+  for (const rec of SBX.frames.values()) if (rec.ready && !rec.gone && Object.keys(rec.m.devices || {}).length) sbxDevicesLoad(rec);
   for (const rec of [...SBX.frames.values()]){
     if (!document.contains(rec.el) || (rec.gone && now - rec.gone > 60e3)){ sbxDrop(rec.id); if (document.contains(rec.el)) sbxSay(rec.el, ""); }
   }
@@ -235,3 +269,117 @@ function sbxBoot(){
   if (onPage.length && !SBX.safe) sbxBeat(true, {boot:true, onPage});
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden && SBX.wasShowing){ SBX.frames.forEach(r => { r.gone = r.gone || Date.now(); }); sbxBeat(true, {showing:[]}); SBX.wasShowing = false; } });
+
+/* ---------- control tiles: buttons the dashboard draws for a tile, outside its frame ----------
+   The tile file lists its device slots and one button per thing it can do. The buttons are made here, from that list
+   alone, and labelled from the action and the device the person picked, never from anything the tile's code says.
+   A tap only counts when it's a real one (isTrusted), one at a time, and never while editing or previewing. The
+   server checks it again against the saved grant (server/controls.py). Locks, garage doors and alarms always come
+   back with a confirm, drawn here over the tile, that needs a second real tap. */
+const SBX_ROW = 56, SBX_MIN_W = 120;      // a row of buttons below the frame, each at least this wide
+// as many buttons in a row as fit, in one or two rows (more than that scroll sideways)
+function sbxStripLayout(m, el, cs){
+  const n = (m.controls || []).length;
+  if (!n) return {h:0};
+  const w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const per = Math.max(1, Math.floor((w + 8) / SBX_MIN_W)), rows = n > per ? 2 : 1;
+  return {h:rows * SBX_ROW + (rows - 1) * 8 + 8, rows, cols:rows === 1 ? n : Math.max(per, Math.ceil(n / 2))};
+}
+const SBX_VERB = {turn_on:"Turn on", turn_off:"Turn off", toggle:"Switch", lock:"Lock", unlock:"Unlock", open:"Open",
+  open_cover:"Open", close_cover:"Close", stop_cover:"Stop", press:"Press", media_play_pause:"Play or pause", media_play:"Play",
+  media_pause:"Pause", media_stop:"Stop", media_next_track:"Next", media_previous_track:"Previous", volume_up:"Louder",
+  volume_down:"Quieter", start:"Start", pause:"Pause", stop:"Stop", return_to_base:"Send home", disarm:"Disarm",
+  arm_home:"Arm (home)", arm_away:"Arm (away)", arm_night:"Arm (night)", arm_vacation:"Arm (vacation)",
+  select_next:"Next", select_previous:"Previous"};
+function sbxVerb(c){
+  const vals = Object.values(c.data || {}).map(String).join(" ");
+  if (SBX_VERB[c.action]) return tr(SBX_VERB[c.action]) + (vals ? " " + vals : "");
+  return tr("Set") + (vals ? " " + vals : "");
+}
+// {slot: Home Assistant entity id} for the slots the person filled, each of a kind the slot allows
+function sbxGrants(m){
+  const out = {};
+  for (const [k, d] of Object.entries(m.devices || {})){
+    const e = m.s["@" + k];
+    if (typeof e === "string" && d.domains.includes(e.split(".")[0])) out[k] = e;
+  }
+  return out;
+}
+// what this.devices() answers inside the frame: the state of each picked device, by slot (demo states in previews)
+function sbxDevices(m){
+  if (SOLO || PREVIEW || STILL || TRIAL_ID) return sbxPlain((m.demoData || {}).devices || {});
+  const c = m._dv || {}, S = c.states || {}, out = {};
+  for (const [k, e] of Object.entries(sbxGrants(m))) out[k] = S[e] ? sbxPlain(S[e]) : null;
+  return out;
+}
+function sbxDevicesLoad(rec){
+  const m = rec.m, g = sbxGrants(m), ids = Object.values(g), c = m._dv = m._dv || {at:0, busy:false, states:{}};
+  if (SOLO || PREVIEW || STILL || TRIAL_ID || !ids.length || c.busy || Date.now() - c.at < 5000) return;
+  c.busy = true;
+  getJSON("/ha/states?src=" + encodeURIComponent(m.s["@src"] || "") + "&ids=" + encodeURIComponent(ids.join(",")))
+    .then(j => { const S = {}; for (const o of j.states || []) S[o.id] = o; c.states = S; c.error = j.error || ""; }, e => { c.error = String(e.message || e); })
+    .finally(() => { c.busy = false; c.at = Date.now(); const r = SBX.frames.get(m.id); if (r) sbxUpdate(r, true); });
+}
+function sbxControls(rec, cs, lay){
+  const c = document.createElement("div");
+  c.className = "sbxc";
+  c.style.cssText = "left:" + cs.paddingLeft + ";right:" + cs.paddingRight + ";bottom:" + cs.paddingBottom + ";height:" + (lay.h - 8) + "px" +
+    ";grid-template-columns:repeat(" + lay.cols + ",minmax(" + (lay.cols * SBX_MIN_W > rec.el.clientWidth ? SBX_MIN_W + "px" : "0") + ",1fr))";
+  c.addEventListener("click", e => sbxControlTap(rec, e));
+  rec.c = c; rec.busy = false;
+  rec.el.appendChild(c);
+  sbxControlsDraw(rec);
+}
+function sbxControlsDraw(rec){
+  const m = rec.m, g = sbxGrants(m), S = (m._dv || {}).states || {}, many = Object.keys(m.devices || {}).length > 1;
+  const name = slot => { const e = g[slot]; return (e && S[e] && S[e].name) || (e ? e : m.devices[slot].label); };
+  const h = (m.controls || []).map(c => '<button data-sbxc="' + esc(c.id) + '"' + (g[c.device] ? "" : ' class="off"') + '>' + esc(sbxVerb(c)) +
+    (many ? '<small>' + esc(name(c.device)) + '</small>' : "") + '</button>').join("") +
+    (rec.say ? '<span class="sbxcmsg">' + esc(rec.say) + '</span>' : "");
+  if (rec.c._h !== h){ rec.c._h = h; rec.c.innerHTML = h; }
+  rec.c.style.pointerEvents = tileQuiet() ? "none" : "auto";
+}
+function sbxControlSay(rec, text, ms){
+  rec.say = text; sbxControlsDraw(rec);
+  clearTimeout(rec.sayT);
+  if (text) rec.sayT = setTimeout(() => { rec.say = ""; if (rec.c) sbxControlsDraw(rec); }, ms || 5000);
+}
+async function sbxControlSend(rec, id, confirm){
+  if (rec.busy) return;
+  rec.busy = true;
+  try{
+    const r = await fetch("/tile-act/" + encodeURIComponent(rec.m.id), {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"tile.control", args:confirm ? {control:id, confirm} : {control:id}})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.error) throw new Error(j.error || ("error " + r.status));
+    if (j.confirm) return sbxConfirm(rec, id, j);
+    sbxControlSay(rec, "");
+    if (rec.m._dv) rec.m._dv.at = 0;           // show the new state soon
+  }catch(e){ sbxControlSay(rec, tr("Didn't work: {why}", {why:String(e.message || e).slice(0, 120)}), 6000); }
+  finally{ rec.busy = false; }
+}
+function sbxControlTap(rec, e){
+  const b = e.target.closest("[data-sbxc]");
+  if (!b || !e.isTrusted || tileQuiet() || SBX.frames.get(rec.id) !== rec) return;
+  e.stopPropagation();
+  sbxControlSend(rec, b.dataset.sbxc);
+}
+// the second tap for a lock, a garage door or an alarm, drawn by the dashboard over the whole tile
+function sbxConfirm(rec, id, j){
+  const c = (rec.m.controls || []).find(x => x.id === id); if (!c) return;
+  const box = document.createElement("div"), secs = Math.max(2, Math.min(15, +j.seconds || 6));
+  box.className = "sbxconf";
+  box.innerHTML = '<p>' + esc(tr("{verb} {name}?", {verb:sbxVerb(c), name:String(j.name || "")})) + '</p><div><button class="yes">' + esc(sbxVerb(c)) +
+    '</button><button class="no">' + esc(tr("Cancel")) + '</button></div>';
+  const done = () => { clearTimeout(t); box.remove(); };
+  const t = setTimeout(done, secs * 1000);
+  box.addEventListener("click", e => {
+    e.stopPropagation();
+    if (!e.isTrusted) return;
+    if (e.target.closest(".yes")){ done(); if (SBX.frames.get(rec.id) === rec && !tileQuiet()) sbxControlSend(rec, id, j.confirm); }
+    else if (e.target.closest(".no")) done();
+  });
+  if (rec.conf) rec.conf.remove();
+  rec.conf = box;
+  rec.el.appendChild(box);
+}

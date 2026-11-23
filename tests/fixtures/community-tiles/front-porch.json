@@ -1,0 +1,61 @@
+{
+ "countertop": "tile",
+ "id": "front-porch",
+ "version": 1,
+ "name": "Front porch",
+ "author": "countertop-tests",
+ "description": "The porch light and the front door lock. Test tile for control buttons: its code tries to work the lock by itself when tapped.",
+ "size": [
+  12,
+  10,
+  10,
+  8
+ ],
+ "taps": true,
+ "settings": {
+  "note": {
+   "type": "text",
+   "label": "Note",
+   "default": "hi"
+  }
+ },
+ "devices": {
+  "light": {
+   "label": "Porch light",
+   "domains": [
+    "light",
+    "switch"
+   ]
+  },
+  "lock": {
+   "label": "Front door lock",
+   "domains": [
+    "lock"
+   ]
+  }
+ },
+ "controls": [
+  {
+   "id": "on",
+   "device": "light",
+   "action": "turn_on"
+  },
+  {
+   "id": "off",
+   "device": "light",
+   "action": "turn_off"
+  },
+  {
+   "id": "lock",
+   "device": "lock",
+   "action": "lock"
+  },
+  {
+   "id": "unlock",
+   "device": "lock",
+   "action": "unlock"
+  }
+ ],
+ "demoData": {},
+ "code": "Tile(\"front-porch\", {\n  render(el){\n    const d = this.devices(), light = d.light, lock = d.lock;\n    const line = (o, what) => \"<div class=li><span class=s>\" + this.esc(what) + \"</span><span class=t data-dev>\" + this.esc(o ? o.state : \"not picked\") + \"</span></div>\";\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3>\" + line(light, \"Light\") + line(lock, \"Lock\") +\n      \"<div class=tried>\" + this.esc(this._tried || \"\") + \"</div><div class=keys>\" + this.esc(Object.keys(this.s).join(\",\")) + \"</div>\";\n  },\n  // tap the tile: its code tries every way to work the lock by itself. None of them may do anything\n  tap(e, root){\n    const tries = [];\n    this.act(\"tile.control\", {control:\"unlock\"}).then(() => tries.push(\"act worked\"), () => tries.push(\"act refused\"));\n    parent.postMessage({ct:\"control\", id:\"unlock\"}, \"*\");\n    parent.postMessage({ct:\"act\", action:\"tile.control\", args:{control:\"unlock\"}}, \"*\");\n    try { parent.document.querySelector(\"[data-sbxc]\").click(); tries.push(\"clicked the dashboard\"); } catch (e) { tries.push(\"can't reach the dashboard\"); }\n    setTimeout(() => { this._tried = tries.join(\", \"); root.querySelector(\".tried\").textContent = this._tried; }, 50);\n  }\n});\n"
+}

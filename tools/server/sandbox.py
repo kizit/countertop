@@ -36,6 +36,9 @@ SBX_PERSONAL = ("events", "notes", "photos", "sales")      # what a household wo
 SBX_SETTING_TYPES = ("bool", "int", "number", "text", "list", "choice", "color", "source")
 SBX_SOURCE_KINDS = {"calendars": "events", "teams": "team", "lists": "notes", "albums": "photos"}
 SBX_ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,39}$")
+SBX_SLOT_RE = re.compile(r"^[a-z][a-z0-9_]{0,19}$")
+SBX_MAX_DEVICES, SBX_MAX_CONTROLS = 8, 12
+SBX_SECURE_DOMAINS = ("lock", "alarm_control_panel", "cover")    # can hold a lock, an alarm or a garage door
 
 SBX_FRAME_POLICY = ("sandbox allow-scripts; default-src 'none'; script-src 'nonce-%s'; style-src 'unsafe-inline'; "
                 "img-src data: blob:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; "
@@ -110,7 +113,9 @@ def clean_tile(raw, builtins=None):
             raise ValueError("setting %s picks %s, which needs the matching data in feeds" % (k, str(s.get("kind"))[:20]))
         settings[k] = _sbx_plain(s)
     every = raw.get("every")
-    personal = [f for f in feeds if f in SBX_PERSONAL]
+    devices, controls = clean_controls(raw)
+    # the state of things in the house is personal data too
+    personal = [f for f in feeds if f in SBX_PERSONAL] + (["devices"] if devices else [])
     return {
         "id": tid, "type": tid, "version": version,
         "title": str(raw.get("name") or raw.get("title") or tid)[:60],
@@ -121,12 +126,52 @@ def clean_tile(raw, builtins=None):
         # personal data or the internet, never both: a tile that reads personal data gets no sites
         "hosts": [] if personal else hosts, "hostsDropped": bool(personal and hosts), "personal": personal,
         "taps": raw.get("taps") is True,
+        "devices": devices, "controls": controls,
         "every": every if isinstance(every, int) and not isinstance(every, bool) and 1 <= every <= 86400 else 0,
         "demo": _sbx_plain(raw.get("demo")) if isinstance(raw.get("demo"), dict) else {},
         "demoData": _sbx_plain(raw.get("demoData")) if isinstance(raw.get("demoData"), dict) else {},
         "lang": _sbx_plain(raw.get("lang")) if isinstance(raw.get("lang"), dict) else {},
         "code": code,
     }
+
+
+def clean_controls(raw):
+    """A control tile's `devices` (the kinds of thing it can work: {slot: {label, domains}}) and `controls` (one
+    button each: [{id, device, action, data}]), checked. The tile's code never sends an action: the dashboard draws
+    these buttons outside the frame, and the person picks which real device fills each slot (server/controls.py)."""
+    from server.homeassistant import HA_ACTIONS, HA_DATA_KEYS
+    rd, rc = raw.get("devices"), raw.get("controls")
+    if rd is None and rc is None:
+        return {}, []
+    if not isinstance(rd, dict) or not rd or len(rd) > SBX_MAX_DEVICES:
+        raise ValueError("its devices must list 1 to %d kinds of thing it controls" % SBX_MAX_DEVICES)
+    devices = {}
+    for k, d in rd.items():
+        if not SBX_SLOT_RE.match(str(k)) or not isinstance(d, dict):
+            raise ValueError("device %s needs a short lower-case name" % str(k)[:20])
+        doms = d.get("domains")
+        if not isinstance(doms, list) or not doms or not all(isinstance(x, str) and x in HA_ACTIONS for x in doms):
+            raise ValueError("device %s must list the Home Assistant kinds it works with, like light or switch" % k)
+        devices[k] = {"label": str(d.get("label") or k)[:40], "domains": sorted(set(doms)),
+                      "secure": any(x in SBX_SECURE_DOMAINS for x in doms)}
+    if not isinstance(rc, list) or not rc or len(rc) > SBX_MAX_CONTROLS:
+        raise ValueError("its controls must list 1 to %d buttons" % SBX_MAX_CONTROLS)
+    controls, seen = [], set()
+    for c in rc:
+        if not isinstance(c, dict) or not SBX_SLOT_RE.match(str(c.get("id") or "")) or c["id"] in seen:
+            raise ValueError("each control needs its own short lower-case id")
+        seen.add(c["id"])
+        dev = devices.get(str(c.get("device") or ""))
+        if not dev:
+            raise ValueError("control %s names a device the tile doesn't list" % c["id"])
+        action = c.get("action")
+        if not isinstance(action, str) or not all(action in HA_ACTIONS[x] for x in dev["domains"]):
+            raise ValueError("control %s: %s isn't something every kind of thing in its device can do" % (c["id"], str(action)[:30]))
+        data = c.get("data") if c.get("data") is not None else {}
+        if not isinstance(data, dict) or any(k not in HA_DATA_KEYS or k == "code" or not isinstance(v, (int, float, str, bool)) or (isinstance(v, str) and len(v) > 60) for k, v in data.items()):
+            raise ValueError("control %s sends data Countertop doesn't pass on" % c["id"])
+        controls.append({"id": c["id"], "device": c["device"], "action": action, "data": dict(data)})
+    return devices, controls
 
 
 def community_installed():

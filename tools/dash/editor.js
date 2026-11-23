@@ -145,7 +145,10 @@ async function editExit(save){
       try{ window.parent.dashSaved && window.parent.dashSaved(); }catch(e){}
     }catch(e){ $("edhint").textContent = "Didn't save: " + e.message; return; }
   }
-  location.reload();          // a clean start; also what the screen does when the saved layout changes
+  // a clean start, on the page that was being edited; also what the screen does when the saved layout changes
+  const u = new URL(location.href);
+  u.searchParams.delete("edit"); u.searchParams.set("page", EDIT.page || "main");
+  location.replace(u.href);
 }
 window.dashEdit = (on, tile) => on ? editEnter(tile) : editExit(false);
 window.dashEditing = () => EDIT.on;

@@ -247,6 +247,17 @@
   }, true);
   D.addEventListener("pointermove", function (e) { if (holdT && Math.abs(e.clientX - holdAt[0]) + Math.abs(e.clientY - holdAt[1]) > 12) holdStop(); }, true);
   ["pointerup", "pointercancel"].forEach(function (n) { D.addEventListener(n, holdStop, true); });
+  // a swipe across the tile turns the page, as it does anywhere else on the screen
+  var sw = null;
+  function swEnd(x, y) {
+    if (!sw) return;
+    var dx = x - sw[0], dy = y - sw[1]; sw = null;
+    if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.3) { holdStop(); post({ ct: "swipe", dir: dx < 0 ? 1 : -1 }); }
+  }
+  D.addEventListener("touchstart", function (e) { var t = e.touches[0]; if (t) sw = [t.clientX, t.clientY]; }, { passive: true, capture: true });
+  D.addEventListener("touchend", function (e) { var t = e.changedTouches[0]; if (t) swEnd(t.clientX, t.clientY); }, true);
+  D.addEventListener("pointerdown", function (e) { if (e.pointerType !== "touch") sw = [e.clientX, e.clientY]; }, true);
+  D.addEventListener("pointerup", function (e) { if (e.pointerType !== "touch") swEnd(e.clientX, e.clientY); }, true);
   // the tap that ends a hold isn't a tap
   D.addEventListener("click", function (e) { if (held) { held = false; e.stopPropagation(); e.preventDefault(); } }, true);
   // taps and form submits, only for tiles that said they take taps, and never while the screen is being edited

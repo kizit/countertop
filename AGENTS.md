@@ -22,6 +22,7 @@ node tests/browser-check.js                 # needs Playwright + Chromium
 node tests/tile-data-check.js               # needs Playwright + Chromium
 node tests/sandbox-check.js                 # needs Playwright + Chromium
 node tests/control-check.js                 # needs Playwright + Chromium
+node tests/touch-check.js                   # needs Playwright + Chromium
 ```
 
 Restart the server after editing Python. Run the checks before you finish.

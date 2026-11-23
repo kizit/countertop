@@ -201,6 +201,13 @@ class SafeMode(Base):
         self.assertFalse(sbx.safe_freeze_check(now=1100))
         self.assertFalse(sbx.safe_mode()["on"])
 
+    def test_a_check_in_that_arrives_after_the_goodbye_is_ignored(self):
+        sbx.sandbox_beat({"session": "leaving2", "showing": ["Moon facts"]}, "x", 7, now=1000)
+        sbx.sandbox_beat({"session": "leaving2", "showing": [], "bye": True}, "x", 7, now=1004)
+        sbx.sandbox_beat({"session": "leaving2", "showing": ["Moon facts"]}, "x", 7, now=1005)      # sent before it, arrived after
+        self.assertFalse(sbx.safe_freeze_check(now=1100))
+        self.assertFalse(sbx.safe_mode()["on"])
+
     def test_restarts_spread_out_dont_count(self):
         for i, t in enumerate((1000, 1700, 2400, 3100)):
             self.assertEqual(sbx.sandbox_beat({"session": "boot%d" % i, "boot": True}, "x", 7, now=t), {"safe": False})

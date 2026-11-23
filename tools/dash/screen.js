@@ -195,6 +195,8 @@ function pagesXform(){       // in edit mode the page shrinks into the editor ca
     P.style.clipPath = "inset(0 calc(var(--page-w) * " + (n - PAGE - 1) + ") 0 calc(var(--page-w) * " + PAGE + ") round 10px)";
   } else { P.style.transform = offset; P.style.clipPath = ""; P.style.transformOrigin = ""; }
 }
+// the page showing, for the shell: a new dashboard it swaps in starts on the same page
+window.dashPage = () => pageList()[PAGE] || "main";
 function showPage(n){
   const L = pageList();
   PAGE = Math.max(0, Math.min(L.length - 1, n));

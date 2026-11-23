@@ -120,6 +120,7 @@ node tests/browser-check.js               # pages open with the demo data and lo
 node tests/tile-data-check.js             # tile data end to end on a real page (needs Playwright)
 node tests/sandbox-check.js               # community tiles in their sandbox (needs Playwright)
 node tests/control-check.js               # control tile buttons, with a stand-in Home Assistant (needs Playwright)
+node tests/touch-check.js                 # holding, swiping, editing and Settings round trips with real touches (needs Playwright)
 ```
 
 To install Playwright for the browser checks:

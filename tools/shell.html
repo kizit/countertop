@@ -136,7 +136,9 @@
     nf.className = "loading";
     nf.title = frame.title;
     nf.setAttribute("allow", "fullscreen; autoplay");
-    nf.src = "/dash/content?r=" + Date.now();
+    var pg = "";
+    try{ pg = frame.contentWindow.dashPage ? frame.contentWindow.dashPage() : ""; }catch(e){}
+    nf.src = "/dash/content?r=" + Date.now() + (pg && pg !== "main" ? "&page=" + encodeURIComponent(pg) : "");
     var done = false;
     function finish(){
       if (done) return; done = true;

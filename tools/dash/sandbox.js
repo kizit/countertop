@@ -230,6 +230,11 @@ window.addEventListener("message", e => {
   }
   else if (d.ct === "fetch" && typeof d.url === "string" && d.url.length <= 2000) sbxFetch(rec, d.url, Math.min(3600, Math.max(30, +d.maxAge || 300)));
   else if (d.ct === "store" && tileUsesStore(m) && sbxOk(d.ops)) tileWrite(m.id, sbxPlain(d.ops), d.unless && typeof d.unless === "object" ? sbxPlain(d.unless) : undefined);
+  else if (d.ct === "swipe" && (d.dir === 1 || d.dir === -1)){      // a swipe across a tile that takes taps turns the page
+    if (!EDIT.on && !SOLO && !PREVIEW && m.taps && NIGHT.mode !== "night" && now - (SBX.swipedAt || 0) > 1500){
+      SBX.swipedAt = now; showPage(Math.max(0, Math.min(dayCount() - 1, PAGE + d.dir)));
+    }
+  }
   else if (d.ct === "hold"){      // a finger held on a tile that takes taps: start editing with it, like any tile
     if (!EDIT.on && !SOLO && !PREVIEW && m.taps && now - (SBX.heldAt || 0) > 10e3){ SBX.heldAt = now; editEnter(m.id); }
   }
@@ -271,14 +276,20 @@ function sbxBeat(force, extra){
 // the page that left said so in sessionStorage, which a tile's frame can't reach
 function sbxBoot(){
   const onPage = Object.keys(MOUNTED).filter(id => MODULES[id] && MODULES[id].community).map(id => MODULES[id].name);
-  let clean = false;
-  try{ clean = Date.now() - (+sessionStorage.getItem("sbxLeft") || 0) < 3600e3; sessionStorage.removeItem("sbxLeft"); }catch(e){}
+  let left = null;
+  try{ left = JSON.parse(sessionStorage.getItem("sbxLeft") || "null"); sessionStorage.removeItem("sbxLeft"); }catch(e){}
+  const clean = !!left && Date.now() - (+left.at || 0) < 3600e3;
+  if (clean && left.session) sbxBye(left.session);       // in case the page's own goodbye was lost on the way out
   if (onPage.length && !SBX.safe) sbxBeat(true, {boot:true, onPage, clean});
+}
+function sbxBye(session){
+  if (!sbxReports()) return;
+  try{ fetch("/sandbox/beat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({session, showing:[], gap:0, bye:true}), keepalive:true}).catch(() => {}); }catch(e){}
 }
 // leaving the page (Controls, a reload, the shell swapping in a new dashboard): say goodbye, so the server doesn't
 // take the quiet that follows for a frozen screen. A frozen page can't get here
 function sbxLeave(){
-  try{ sessionStorage.setItem("sbxLeft", String(Date.now())); }catch(e){}
+  try{ sessionStorage.setItem("sbxLeft", JSON.stringify({at:Date.now(), session:SBX.wasShowing ? SBX.session : ""})); }catch(e){}
   if (!sbxReports() || !SBX.wasShowing) return;
   SBX.wasShowing = false;
   const body = JSON.stringify({session:SBX.session, showing:[], gap:0, bye:true});

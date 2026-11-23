@@ -303,7 +303,11 @@ def sandbox_beat(body, ip, version, now=None):
     sid = body["session"]
     with SBX_LOCK:
         prev = SBX_SESSIONS.get(sid)
-        SBX_SESSIONS[sid] = {"at": now, "showing": _names(body.get("showing")), "ip": ip, "tripped": False}
+        if prev and prev.get("bye"):
+            # a check-in still on its way when the page closed: the goodbye already came, the page is gone
+            return {"safe": safe_mode()["on"]}
+        SBX_SESSIONS[sid] = {"at": now, "showing": [] if body.get("bye") else _names(body.get("showing")), "ip": ip, "tripped": False,
+                             "bye": body.get("bye") is True}
         for n in [str(x)[:200] for x in body.get("notes")[:5]] if isinstance(body.get("notes"), list) else []:
             if not any(x["text"] == n for x in SBX_NOTES):
                 SBX_NOTES.append({"at": now, "text": n})

@@ -1,1 +1,2 @@
 - **Community tiles stay on after trips to Controls.** Going to Controls and back counted as the screen restarting, so three trips in ten minutes turned community tiles off. Holding a finger on a community tile that takes taps now starts editing, like any other tile.
+- **Editing from Settings stays on your page.** On the Echo, Settings → Edit the screen (and Done) now come back to the page you were on, instead of the main page.

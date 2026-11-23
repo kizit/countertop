@@ -39,7 +39,9 @@ async function main() {
   const main = m.pages.settings.items.find(p => p.id === "main");
   m.night.on = false;
   main.slots = [{ id: "b1", mod: "porch_a", x: 0, y: 0, w: 16, h: 16 }];
-  m.pages.settings.items = m.pages.settings.items.filter(p => p.id === "main" || p.id === "night");
+  m.pages.settings.items = m.pages.settings.items.filter(p => p.id === "main" || p.id === "night")
+    .concat([{ id: "two", name: "Two", on: true, slots: [{ id: "n1", mod: "note_a", x: 0, y: 0, w: 12, h: 8 }] }]);
+  m.tiles.settings.items.push({ id: "note_a", type: "note", settings: { text: ["Second page"] } });
   fs.writeFileSync(cfgFile, JSON.stringify(cfg));
 
   const port = await freePort(), base = "http://127.0.0.1:" + port;
@@ -160,6 +162,17 @@ async function main() {
     await until(() => page.frames().some(f => /\/control/.test(f.url())), "Controls in the shell");
     await until(async () => !(await status()).showing.length, "the goodbye from the dashboard frame");
     console.log("✓ in the Echo's shell, opening Controls says goodbye, so its quiet isn't taken for a freeze");
+
+    // --- Settings → Edit the screen comes back to the page the screen was on ---
+    await page.goto(base + "/dash/content");
+    await until(() => page.evaluate(() => pageList().includes("c:two")).catch(() => false), "the dashboard to start");
+    await page.evaluate(() => showPage(pageList().indexOf("c:two")));
+    await page.evaluate(() => document.getElementById("gear").click());
+    await page.waitForURL(/\/control\?echo=1&page=c%3Atwo/);
+    await page.locator('[data-act="echoedit"]').first().click();
+    const inner = () => page.frames().find(f => /\/dash\/content/.test(f.url())) || page.mainFrame();
+    await until(() => inner().evaluate(() => typeof EDIT !== "undefined" && EDIT.on && pageList()[PAGE] === "c:two" && EDIT.page === "c:two").catch(() => false), "the editor on the second page");
+    console.log("✓ Settings → Edit the screen opens the editor on the page the screen was on");
 
     assert.deepEqual(errors, []);
     console.log("✓ no page errors");

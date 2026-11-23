@@ -113,12 +113,16 @@
   var swapping = false;
   window.contentTick = function(){ lastTick = Date.now(); };
   window.SHELL_V = 4;
-  var url = new URL(location.href), edit = url.searchParams.get("edit") === "1";
-  if (edit){
-    url.searchParams.delete("edit");
+  // ?edit=1 and ?page=<name> (back from Controls) are for the dashboard inside, once
+  var url = new URL(location.href), edit = url.searchParams.get("edit") === "1", page = url.searchParams.get("page");
+  if (edit || page){
+    url.searchParams.delete("edit"); url.searchParams.delete("page");
     history.replaceState(history.state, "", url);
   }
-  frame.src = "/dash/content" + (edit ? "?edit=1" : "");
+  var q = [];
+  if (edit) q.push("edit=1");
+  if (page) q.push("page=" + encodeURIComponent(page));
+  frame.src = "/dash/content" + (q.length ? "?" + q.join("&") : "");
   // the page in the frame says when it must not be swapped out (the editor is open, or Controls)
   function busy(){ try{ var w = frame.contentWindow; return !!(w && w.shellBusy && w.shellBusy()); }catch(e){ return false; } }
 

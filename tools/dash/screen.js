@@ -351,7 +351,8 @@ document.addEventListener("keydown", e => {
   if (e.target && e.target.closest && e.target.closest("input,textarea,select,button,a[href],[contenteditable]")) return;
   armScreen();
 });
-$("gear").addEventListener("click", () => { location.href = "/control?echo=1"; });
+// Controls remembers the page you were on, so Done and "Edit the screen" come back to it
+$("gear").addEventListener("click", () => { location.href = "/control?echo=1&page=" + encodeURIComponent(pageList()[PAGE] || "main"); });
 if (!FRAMED && !PREVIEW){
   const ks = document.createElement("script"); ks.src = "/keep.js"; document.body.appendChild(ks);
   document.addEventListener("fullscreenchange", () => document.body.classList.toggle("fs", !!document.fullscreenElement));
@@ -401,6 +402,10 @@ async function boot(){
     document.documentElement.classList.add("still");
   }, 3500);
   FEEDS.forEach(([f, every]) => setInterval(f, every * 1000));
-  // ?edit=1 (Controls' "Edit the screen" on the Echo): open the editor once the tiles have drawn
-  if (/[?&]edit=1/.test(location.search) && !PREVIEW){ history.replaceState(null, "", location.pathname); setTimeout(() => editEnter(null), 900); }
+  // ?page=<name>: back from Controls on the page you left. ?edit=1 (Controls' "Edit the screen" on the Echo): open the
+  // editor on that page once the tiles have drawn
+  const back = new URLSearchParams(location.search).get("page"), bi = back ? pageList().indexOf(back) : -1;
+  if (bi > 0 && !PREVIEW) showPage(bi);
+  if (/[?&]edit=1/.test(location.search) && !PREVIEW) setTimeout(() => editEnter(null), 900);
+  if (back || /[?&]edit=1/.test(location.search)) history.replaceState(null, "", location.pathname);
 }

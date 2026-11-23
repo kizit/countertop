@@ -22,6 +22,8 @@ $("done").href = displayHref();
 function displayHref(edit){
   const url = new URL(SHELL ? "/dash/content" : "/dash", location.origin);
   if (edit) url.searchParams.set("edit", "1");
+  const page = new URLSearchParams(location.search).get("page");      // the page the screen was on (the ⚙ button sends it)
+  if (page) url.searchParams.set("page", page);
   return url.href;
 }
 function applyDisplayMode(mode){

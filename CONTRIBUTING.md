@@ -118,6 +118,7 @@ node tests/check-lang.js                  # translations are complete
 node tests/check-holidays.js              # holiday regions give the right dates
 node tests/browser-check.js               # pages open with the demo data and log no errors (needs Playwright)
 node tests/tile-data-check.js             # tile data end to end on a real page (needs Playwright)
+node tests/sandbox-check.js               # community tiles in their sandbox (needs Playwright)
 ```
 
 To install Playwright for the browser checks:
@@ -135,6 +136,7 @@ Where tests go:
 | Calendar parsing | `tests/test_calendar.py`. It runs with and without `python-dateutil` in CI, so make sure both paths pass |
 | How settings are stored | `tests/test_settings.py`, with an old-shape settings file |
 | A tile's stored data | `tests/test_tiledata.py`, and `tests/tile-data-check.js` for on-screen behavior |
+| Community tiles, `/tile-fetch`, safe mode | `tests/test_sandbox.py`, `tests/test_tilefetch.py`, and `tests/sandbox-check.js` in a browser |
 | A page or tile | It must load in `browser-check.js` without console errors. New pieces of a page go in the page's `index.html` |
 
 ## Open a pull request

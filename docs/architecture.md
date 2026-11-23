@@ -50,9 +50,11 @@ One file per area, in `tools/server/`:
 | `actions.py` | Tile actions (`TILE_ACTIONS`) and the two-tap confirmation |
 | `library.py` | Previewing and trying layouts |
 | `community.py` | The Community gallery's list for Library → Community. Downloads are checked again like any imported file |
+| `sandbox.py` | Community tiles: reading their files, the sandboxed frame page each one runs in, and safe mode |
+| `tilefetch.py` | Web addresses read for tiles (`/tile-fetch`): only https, only the sites a tile declares, never the home network |
 | `pages.py` | Puts the dashboard and Controls pages together from their parts |
 | `status.py` | Status, the update notice, diagnostics |
-| `feeds/` | Data for built-in tiles: calendar, sports, sky (radar, space, ISS, planes), stocks, meals, sales, cams, photos |
+| `feeds/` | Data for built-in tiles: calendar, sports, sky (radar, space, ISS, planes), meals, sales, cams, photos |
 
 `tools/countertop.py` re-exports every name, so tests and scripts use `countertop.config_load()` and friends. See [Developing Countertop](development.md#where-the-servers-code-lives) for how modules import each other.
 
@@ -67,6 +69,9 @@ One file per area, in `tools/server/`:
 | `GET /events`, `/notes`, `/sales`, `/meals`, … | Tiles | Data feeds |
 | `GET /tile-data`, `POST /tile-data/<id>` | Tiles | Each tile's own saved data |
 | `POST /tile-act/<id>` | Tiles | Things only the server can do, such as switching a Home Assistant light |
+| `GET /tile-fetch?type=&url=` | Tiles | A web address read on a tile's behalf, for the sites that kind of tile declares in `hosts` |
+| `GET /tile-frame/<id>` | Dashboard | The sandboxed page a community tile runs in, with its code at `/tile-frame/<id>/tile.js` |
+| `POST /sandbox/beat`, `/sandbox/safe` | Dashboard, Controls | Check-ins while community tiles show, and the safe mode switch |
 | `POST /trial` | Library | Try a layout on the screen without saving it |
 | `GET /community` | Library → Community | The gallery's list of layouts, themes and effects (cached ten minutes) |
 | `GET /status`, `/diagnostics`, `/version` | Controls, Docker health check | Health and support |
@@ -79,7 +84,8 @@ The dashboard and Controls are each a folder of plain files in `tools/`. There's
 
 | Folder or file | Served at | What it is |
 | --- | --- | --- |
-| `dash/` | `/dash` | The dashboard: `index.html`, `style.css` and scripts for start-up and settings (`core.js`), the tile API (`tile-api.js`), pages, feeds and night mode (`screen.js`), the grid (`grid.js`), on-screen editing (`editor.js`), the designer, looks, and demo data |
+| `dash/` | `/dash` | The dashboard: `index.html`, `style.css` and scripts for start-up and settings (`core.js`), the tile API (`tile-api.js`), community tile frames (`sandbox.js`), pages, feeds and night mode (`screen.js`), the grid (`grid.js`), on-screen editing (`editor.js`), the designer, looks, and demo data |
+| `sandbox/` | `/tile-frame/<id>` | The page a community tile runs in (`frame.html`) and the runtime that gives its code `this` (`runtime.js`) |
 | `control/` | `/control` | Controls: `index.html`, `style.css` and scripts for the setup guide, sources, lists, status, layout editing, looks, emoji, the Library and the preview |
 | `shared/` | | Code both pages use, such as the effects library |
 | `list.html` | `/list` | A phone-friendly grocery list |
@@ -98,7 +104,7 @@ A tile is one JavaScript file in `tools/tiles/` that calls `Tile(name, {...})`. 
 
 Tiles written for the tile API (`api:1`) can use `this.store` for their own saved data, `this.act` for actions the server performs (today: Home Assistant), `this.fetch` for web data, `this.feed` for data the dashboard already loads, and `this.t()` for translated text. Full details are in [Writing a tile](tile-api.md).
 
-**Planned:** moving the built-in tiles onto the tile API, and community tiles that run in a sandboxed frame and can only reach the web addresses they declare. Community tiles are a security-sensitive design. Please discuss in an issue before working on the sandbox or anything that loads tile code from outside the repository.
+Community tiles run in a sandboxed frame each (`tools/sandbox/`, `tools/dash/sandbox.js`, `tools/server/sandbox.py`) with the same `this`, and can only reach the web addresses they declare, through the server. See [Community tiles](tile-api.md#community-tiles). The sandbox is a security-sensitive design: please discuss in an issue before changing it or anything that loads tile code from outside the repository. Most built-in tiles still use older globals; they move onto the tile API a few at a time.
 
 ## Where data lives
 
@@ -148,7 +154,7 @@ Countertop is meant to run on a home network for one household.
 - **Requests from other websites are a separate concern.** Open access on the LAN doesn't mean a web page someone visits in a browser at home should be able to change settings or trigger actions. This is a known area to think about: it's welcome as a [private vulnerability report](../SECURITY.md) or, for a design discussion, an issue. A change here needs discussion first because it touches every route.
 - **Secrets stay on the server.** Tokens and keys live in `sources.json`. Secret fields are write-only: the server never sends them back to a page, and diagnostics remove them. New code must keep them out of logs and error messages too.
 - **Actions in the home need care.** Turning on a light is fine with one tap. Locks, garage doors and alarms are opt-in per tile and can require two taps, and the server, not the page, enforces both.
-- **Shared layouts, themes, effects and gallery downloads are untrusted input.** Everything is checked again when it's imported or downloaded, layouts carry no secrets or personal data, and effects contain no code. Community tiles, when they exist, will run sandboxed and won't reach addresses on the home network.
+- **Shared layouts, themes, effects and gallery downloads are untrusted input.** Everything is checked again when it's imported or downloaded, layouts carry no secrets or personal data, and effects contain no code. Community tiles run sandboxed, get only the data they declare, and can't reach addresses on the home network.
 
 See [SECURITY.md](../SECURITY.md) for how to report a problem.
 

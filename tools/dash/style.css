@@ -13,6 +13,8 @@
   .page{position:relative;width:var(--page-w);height:var(--page-h);padding:22px 36px 26px;display:grid;gap:16px;min-height:0}
   header{display:flex;justify-content:space-between;align-items:flex-start;text-shadow:0 2px 12px rgba(0,0,0,.45)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 20px;min-height:0;overflow:hidden;position:relative}
+  .m-sbx iframe.sbxf{position:absolute;border:0;background:transparent;color-scheme:normal}
+  .m-sbx .sbxmsg{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:20px;line-height:1.35}
   .card[hidden]{display:none}
   .card h3{margin:0 0 10px;font-size:16px;letter-spacing:.9px;color:var(--dim);text-transform:uppercase;font-weight:600;
     display:flex;justify-content:space-between;gap:12px}

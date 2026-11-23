@@ -22,10 +22,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Loading this file again (each test file does, with its own data folder) loads the server's parts again too.
 for _k in [k for k in sys.modules if k == "server" or k.startswith("server.")]:
     del sys.modules[_k]
-from server import core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, bench  # noqa: E402
-from server.feeds import sports, sky, stocks, meals, sales, cams, photos, calendar  # noqa: E402
+from server import core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, bench, sandbox, tilefetch  # noqa: E402
+from server.feeds import sports, sky, meals, sales, cams, photos, calendar  # noqa: E402
 
-for _m in (core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, bench, sports, sky, stocks, meals, sales, cams, photos, calendar):
+for _m in (core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, bench, sandbox, tilefetch, sports, sky, meals, sales, cams, photos, calendar):
     globals().update({k: v for k, v in vars(_m).items() if not k.startswith("__") and k not in ("VERSION", "sys", "Path")})
 del _m
 from server.app import main  # noqa: E402
@@ -36,7 +36,7 @@ class patch_everywhere:
     on each (with-statement, or start() and stop())."""
     def __init__(self, name, value):
         import unittest.mock
-        self.p = [unittest.mock.patch.object(m, name, value) for m in (core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, sports, sky, stocks, meals, sales, cams, photos, calendar) if name in vars(m)]
+        self.p = [unittest.mock.patch.object(m, name, value) for m in (core, app, sources, homeassistant, lists, config, upgrades, actions, library, community, pages, status, tiledata, sandbox, tilefetch, sports, sky, meals, sales, cams, photos, calendar) if name in vars(m)]
 
     def start(self):
         for x in self.p:

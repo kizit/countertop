@@ -1,0 +1,14 @@
+{
+ "countertop": "tile",
+ "id": "leaver",
+ "version": 1,
+ "name": "Leaver",
+ "description": "Navigates its own frame after a moment.",
+ "size": [
+  12,
+  8,
+  8,
+  6
+ ],
+ "code": "Tile(\"leaver\", { render(el){ el.textContent = \"here\"; if (!this._t) this._t = setTimeout(function(){ location.href = \"/bench/hit?via=leaver\"; }, 400); } });\n"
+}

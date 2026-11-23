@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
 from server import bench, tiledata
 from server.core import VERSION
@@ -250,6 +250,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(tiledata.apply(p[len("/tile-data/"):], body, live_tiles()))
             except tiledata.TileDataError as e:
                 self._json({"error": str(e)}, e.code)
+        elif p.startswith("/tile-trust/"):
+            ok = tile_trust(unquote(p[len("/tile-trust/"):]))
+            self._json({"ok": ok}, 200 if ok else 404)
         elif p.startswith("/tile-act/"):
             code, out = tile_act(p[len("/tile-act/"):], body)
             self._json(out, code)
@@ -382,7 +385,7 @@ def main():
 
 # names used only inside functions: imported last, so these modules can use each other
 from server.actions import tile_act  # noqa: E402
-from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, live_tiles  # noqa: E402
+from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, live_tiles, tile_trust  # noqa: E402
 from server.core import CAL_STATUS, HERE, ICS_CACHE, LOG, OLD_LOG, SCREEN, WORK, _Tee, lan_ip, log_entry  # noqa: E402
 from server.feeds.calendar import SAMPLE_ICS, parse_ics  # noqa: E402
 from server.feeds.cams import live_cams  # noqa: E402

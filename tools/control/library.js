@@ -184,7 +184,7 @@ function libLayoutItem(key){
     h += libSlotRows();
     const warn = [];
     if (LIB.imp.skipped.length) warn.push(["Left out", "Tiles this Countertop doesn't have: " + LIB.imp.skipped.join(", ")]);
-    if (LIB.imp.code) warn.push(["Has a tile with its own code", "It runs sealed off from the rest of the dashboard, like every Your own tile."]);
+    if (LIB.imp.code) warn.push(["Has a tile with its own code", "Its code won't run until you tap Run on the tile. It can't see the rest of the dashboard, and it can only reach secure https:// addresses, not plain http:// ones like most devices on your home network."]);
     if (warn.length) h += '<div class="lpanel">' + warn.map(([t, s]) => '<div class="lrow"><div class="t">' + esc(t) + '<small>' + esc(s) + '</small></div></div>').join("") + '</div>';
   }
   if (libHasLook(key)){ const tn = layoutThemeName(key, c);

@@ -31,7 +31,7 @@ async function main() {
   let log = "";
   server.stdout.on("data", d => log += d);
   server.stderr.on("data", d => log += d);
-  const problems = [];
+  const problems = [], probeHits = [];
   let browser;
   try {
     for (let i = 0; ; i++) {
@@ -131,6 +131,51 @@ async function main() {
         if (stored.counts[via]) throw new Error("the server saw a hit by " + via);
       if (stored.counts.nav !== 1) throw new Error("the self-navigation hit arrived " + stored.counts.nav + " times, not once");
     }]);
+    // Your own tile's network limit. mA was made before the limit (the server's record says so) and may still reach plain
+    // http:// addresses; mB is newer and mD claims the mark without the server's record: both reach https:// only. mC came
+    // in a shared layout: nothing runs until Run, which is saved. Every probe request is caught below and counted here.
+    const probe = (id, nonce) => `<script>fetch("${base}/mine-probe/${id}-http${nonce}").catch(() => {});new Image().src = "${base}/mine-probe/${id}-img${nonce}";` +
+      `fetch("https://probe.test/mine-probe/${id}-https${nonce}").catch(() => {});</script>`;
+    pages.push(["Your own tile network limit", "/dash/content", { width: 1920, height: 1080 }, async page => {
+      await sleep(1500);
+      const hit = k => probeHits.some(u => k.endsWith("-") ? u.includes("/mine-probe/" + k) : u.endsWith("/mine-probe/" + k));
+      const want = ["mA-http", "mA-img", "mA-https", "mB-https", "mD-https"], never = ["mB-http", "mB-img", "mD-http", "mD-img", "mC-"];
+      const wrong = want.filter(k => !hit(k)).map(k => "missing " + k).concat(never.filter(hit).map(k => "unexpected " + k));
+      if (wrong.length) throw new Error(wrong.join(", ") + " | saw " + probeHits.join(" "));
+      const note = await page.evaluate(() => [MODULES.mA.editNote(), MODULES.mB.editNote()]);
+      if (!/home network/.test(note[0]) || note[1]) throw new Error("the grandfathered tile's settings note is wrong: " + JSON.stringify(note));
+      const run = await page.$('.m-mine .mine-ask button');
+      if (!run) throw new Error("the shared tile shows no Run button");
+      if (await page.$$eval(".m-mine iframe.mine", f => f.length) !== 3) throw new Error("the shared tile's code is already in a frame");
+      await run.click();
+      await sleep(1500);
+      if (!hit("mC-https") || hit("mC-http") || hit("mC-img")) throw new Error("after Run the shared tile reached: " + probeHits.filter(u => u.includes("mC-")).join(" "));
+      const t = JSON.parse(fs.readFileSync(path.join(data, "dashboard.json"), "utf8")).modules.tiles.settings.items.find(x => x.id === "mC");
+      if (t.review || t.lan) throw new Error("Run wasn't saved as it should be: " + JSON.stringify(t));
+    }, () => {
+      const f = path.join(data, "dashboard.json"), d = JSON.parse(fs.readFileSync(f, "utf8"));
+      const own = (id, extra) => Object.assign({ id, type: "custom", name: id, settings: { html: probe(id, ""), frame: true } }, extra);
+      const main = d.modules.pages.settings.items.find(p => p.id === "main");
+      main.slots = ["mA", "mB", "mC", "mD"].map((id, i) => ({ id: "ms" + i, x: (i % 2) * 24, y: Math.floor(i / 2) * 16, w: 24, h: 16, mod: id }));
+      d.modules.tiles.settings.items = d.modules.tiles.settings.items.filter(t => t.type !== "custom")
+        .concat([own("mA", { lan: true }), own("mB"), own("mC", { review: true }), own("mD", { lan: true })]);
+      d.lanTiles = { ids: ["mA"], code: [] };
+      d.schema = 3;
+      fs.writeFileSync(f, JSON.stringify(d));
+    }]);
+    // a shared layout's Your own tile comes in waiting for Run, and never with the mark, whatever the file says
+    pages.push(["shared layout with its own code", "/control", { width: 1280, height: 900 }, async page => {
+      const r = await page.evaluate(() => {
+        LIB.imp = libRead({ countertop: "layout", format: 1, name: "Shared", pages: [{ boxes: [{ x: 0, y: 0, w: 12, h: 8,
+          tiles: [{ type: "custom", lan: true, review: false, settings: { html: "<b>shared</b>", lan: true } }, { type: "clock" }] }] }] });
+        const pid = installStarter("import", false, false), page = gpAll().find(p => p.id === pid);
+        const ids = [page.slots[0].mod].concat(page.slots[0].more || []);
+        return { code: LIB.imp.code, tiles: ids.map(id => tileList().find(t => t.id === id)) };
+      });
+      const [own, clock] = r.tiles;
+      if (!r.code || !own || own.review !== true || "lan" in own || "lan" in own.settings) throw new Error("imported Your own tile: " + JSON.stringify(own));
+      if (!clock || clock.review) throw new Error("a tile without code shouldn't wait for Run: " + JSON.stringify(clock));
+    }]);
     for (const [name, url, viewport, check, before] of pages) {
       if (before) before();
       const context = await browser.newContext({ viewport });
@@ -146,6 +191,10 @@ async function main() {
           }; })();` });
       await context.route("**/*", route => route.request().url().startsWith(base) || route.request().url().startsWith("data:")
         ? route.continue() : route.abort());
+      // what Your own tile code reached (see the network limit check): registered last, so it answers first
+      await context.route("**/mine-probe/**", route => { probeHits.push(route.request().url());
+        return route.fulfill({ status: 200, headers: { "Access-Control-Allow-Origin": "*" }, contentType: route.request().resourceType() === "image" ? "image/gif" : "text/plain",
+          body: route.request().resourceType() === "image" ? Buffer.from("R0lGODlhAQABAAAAACw=", "base64") : "ok" }); });
       // Home Assistant answers for the Tempo tile's French check
       await context.route(base + "/ha/states*", route => route.fulfill({ json: { states: [
         { id: "sensor.rte_tempo_couleur_actuelle", state: "Bleu" }, { id: "sensor.rte_tempo_prochaine_couleur", state: "Rouge" },
@@ -154,7 +203,7 @@ async function main() {
       page.on("pageerror", e => problems.push(name + ": " + (e.stack || e.message)));
       page.on("console", m => {
         // the sandbox test page tries to break out on purpose: the browser's own refusals are what it expects to see
-        const expected = name === "sandbox test page" && /Content Security Policy|sandboxed/.test(m.text());
+        const expected = (name === "sandbox test page" || /\/mine-probe\//.test(m.text())) && /Content Security Policy|sandboxed/.test(m.text());
         if (m.type() === "error" && !expected && !/Failed to load resource|net::ERR_/.test(m.text())) problems.push(name + ": console.error " + m.text());
       });
       await page.goto(base + url, { waitUntil: "load" });

@@ -73,15 +73,23 @@ def status_view():
     now = time.time()
     probs = []                  # [level, text]: "bad" = something is broken, "warn" = worth a look
     try:
-        g = config_load()["modules"]["general"]["settings"]
+        mods = config_load()["modules"]
     except Exception:
-        g = {}
+        mods = {}
+    g = (mods.get("general") or {}).get("settings") or {}
     work = WORK
     writable = os.access(work, os.W_OK) if work.exists() else os.access(work.parent, os.W_OK)
     if not writable:
         probs.append(["bad", "The server can't save settings: the data folder isn't writable. Check its owner (Docker: PUID/PGID, Unraid: 99:100)."])
     if not (g.get("lat") or g.get("lon")):
         probs.append(["warn", "Set your location so the weather can load."])
+    lan = sorted({str(t.get("name") or "Your own tile")[:60] for t in lan_tiles(mods)})
+    if lan:
+        one = len(lan) == 1
+        probs.append(["warn", "%s can reach plain http:// addresses, including devices on your home network. %s made before Your own tiles were "
+                              "limited to https:// addresses, so %s kept that access. Keep %s only if you wrote %s or trust whoever did." % (
+                                  ", ".join("\u201c%s\u201d" % n for n in lan), "It was" if one else "They were",
+                                  "it" if one else "they", "it" if one else "them", "it" if one else "them")])
     if CONFIG_PROBLEM.get("stuck"):
         probs.append(["bad", "The settings file can't be read, and the server couldn't move it aside, so changes aren't being saved. "
                              "Check the data folder: " + CONFIG_PROBLEM["stuck"]])
@@ -303,7 +311,7 @@ def diagnostics_zip():
 
 # names used only inside functions: imported last, so these modules can use each other
 from server import bench  # noqa: E402
-from server.config import CONFIG_PROBLEM, SERVER_START, config_load  # noqa: E402
+from server.config import CONFIG_PROBLEM, SERVER_START, config_load, lan_tiles  # noqa: E402
 from server.core import CAL_STATUS, CONSOLE, HERE, LOG, REPO, SCREEN, VERSION, WORK  # noqa: E402
 from server.feeds.meals import MEAL_STATUS  # noqa: E402
 from server.homeassistant import HA_STATUS  # noqa: E402

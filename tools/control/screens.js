@@ -191,6 +191,7 @@ function installStarter(key, onMain, withLook = onMain){
       }
       const tile = {id:tid, type:t.type, settings:values};
       if (t.name) tile.name = t.name;
+      if (c.imported && t.type === "custom" && String(values.html || "").trim()) tile.review = true;      // shared code waits for Run on the screen
       tileList().push(tile);
       return tid;
     });

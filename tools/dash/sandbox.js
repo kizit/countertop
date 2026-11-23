@@ -116,6 +116,7 @@ function sbxWanted(el){
 }
 function sbxRender(m, el){
   if (SBX.safe){ sbxDrop(m.id); return sbxSay(el, tr("Community tiles are off (safe mode). Turn them back on in Controls → Status.")); }
+  if ((SBX.tiles[m.type] || {}).revoked){ sbxDrop(m.id); return sbxSay(el, tr("Taken down from the community gallery, so it's off. Remove it in Controls → Library → Community.")); }
   if (SBX.paused[m.id]) return sbxSay(el, SBX.paused[m.id]);
   let rec = SBX.frames.get(m.id);
   if (rec && rec.el !== el){ sbxDrop(m.id); rec = null; }

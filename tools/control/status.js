@@ -62,7 +62,9 @@ function statusScreen(){
       reloads:"Turned on by itself: the screen restarted 3 times in 10 minutes with " + (X.tiles.join(", ") || "community tiles") + " on it.",
       person:"Turned on here."};
     h += sec("Community tiles", row({t:"Turn off all community tiles", sub: X.safe ? WHY[X.why] || "" : X.installed + (X.installed === 1 ? " tile installed" : " tiles installed") +
-        (X.showing.length ? " · showing now: " + X.showing.join(", ") : ""), post: sw(X.safe, 'data-act="stsafe"')}),
+        (X.showing.length ? " · showing now: " + X.showing.join(", ") : ""), post: sw(X.safe, 'data-act="stsafe"')}) +
+      (X.takenDown && X.takenDown.length ? row({t:"Taken down from the gallery", sub:X.takenDown.join(", ") + " · off on your screens. Remove them in Library → Community."}) : "") +
+      (X.checked ? row({t:"Checked the gallery for take-downs", v:new Date(X.checked * 1000).toLocaleString(undefined, {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}) : ""),
       "Safe mode. The screen starts again without community tiles, and their boxes say they're off. A faulty tile can freeze the screen until its browser is restarted; when that happens, this turns on by itself.");
   }
   const B = S.bench;      // only once the /bench test page has saved something

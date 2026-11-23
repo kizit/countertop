@@ -8,6 +8,7 @@ const MOUNTS = {auto:"Automatic", landscape:"Landscape", left:"Portrait · left 
 const SHELL = ECHO && window.parent !== window;
 let displayMode = "auto";
 let everyday, schema = {}, mods = {}, SRC = {}, KINDS = {}, saveTimer = null, stack = ["root"];
+let SBXC = {tiles:{}};          // community tiles installed on the server (/config → sandbox), for the Library
 const KIND_ORDER = ["calendars", "lists", "teams", "albums", "cams", "homeassistant", "recipes"];
 
 window.shellBusy = () => true;       // on the Echo, the shell must not reload the dashboard over Controls when a save changes the settings
@@ -71,6 +72,7 @@ async function load(){
     const [j, s] = await Promise.all([fetch("/config?starters=1", {cache:"no-store"}).then(r => r.json()), fetch("/sources", {cache:"no-store"}).then(r => r.json())]);
     applyDisplayMode(j.orientation || "auto");
     everyday = j.everyday; schema = j.schema; mods = j.modules; SRC = s.sources || {}; KINDS = s.kinds || {};
+    SBXC = j.sandbox || {tiles:{}}; commDefs();
     FXLIB.setMine(mods.effects && mods.effects.settings.mine);
     if (needsSetup() && stack.length === 1) stack = ["root", "wiz"];       // a new install: walk through the basics first
     await titlesLoad; show(); statusLoad();

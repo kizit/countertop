@@ -25,8 +25,8 @@ async function main() {
   for (const f of fs.readdirSync(path.join(root, "demo", "work"))) fs.copyFileSync(path.join(root, "demo", "work", f), path.join(data, f));
   const dir = path.join(data, "community", "tiles");
   fs.mkdirSync(dir, { recursive: true });
-  const fx = path.join(root, "tests", "fixtures", "community-tiles");
-  for (const f of fs.readdirSync(fx)) fs.copyFileSync(path.join(fx, f), path.join(dir, f));
+  const fx = path.join(root, "tests", "fixtures", "community-tiles");      // the test tiles (not the test gallery folder beside them)
+  for (const f of fs.readdirSync(fx).filter(f => f.endsWith(".json"))) fs.copyFileSync(path.join(fx, f), path.join(dir, f));
   // the four built-ins on the tile API, as community tiles: their own file, unchanged but for the name
   for (const type of Object.keys(BUILTINS)) {
     const src = fs.readFileSync(path.join(root, "tools", "tiles", type + ".js"), "utf8");

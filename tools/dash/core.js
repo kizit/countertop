@@ -1,7 +1,7 @@
 window.__mainLoaded = true;
 const $ = id => document.getElementById(id);
 const PREVIEW = /[?&]preview=1/.test(location.search);
-const SOLO = (location.search.match(/[?&]solo=(\w+)/) || [])[1] || "";
+const SOLO = (location.search.match(/[?&]solo=([\w-]+)/) || [])[1] || "";       // community tile ids have dashes
 if (SOLO) document.documentElement.classList.add("solo");
 const STILL = /[?&]still=1/.test(location.search);        // example thumbnails in Controls: draw once, then stop
 if (PREVIEW){        // Controls pauses its live preview while you scroll, so scrolling stays smooth

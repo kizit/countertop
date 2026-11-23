@@ -1,0 +1,11 @@
+{
+ "countertop": "tile",
+ "id": "hello-there",
+ "version": 1,
+ "name": "Hello there",
+ "author": "countertop-tests",
+ "description": "A friendly hello and the time. Test tile for Community: it needs nothing, so its permission list is empty.",
+ "size": [12, 8, 8, 6],
+ "every": 30,
+ "code": "Tile(\"hello-there\", {\n  css: \".hi{display:flex;flex-direction:column;justify-content:center;height:100%} .hi b{font-size:44px;color:var(--accent)} .hi small{color:var(--dim);font-size:20px}\",\n  cls: \"hi\",\n  render(el){\n    const t = new Date();\n    el.innerHTML = \"<b>Hello there</b><div>\" + this.esc(t.toLocaleTimeString([], {hour:\"numeric\", minute:\"2-digit\"})) + \"</div><small>Version 1</small>\";\n  }\n});\n"
+}

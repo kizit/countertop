@@ -9,13 +9,18 @@
 //   - trips to Settings leaving community tiles on
 //   - tapping dashboard-drawn control buttons vs tapping inside the tile frame
 //   - Echo Show 4x CPU-throttled touch smoke check
+//   - a community tile from the gallery, all by touch: Library → Community, Allow and download, Add it to Main,
+//     the gallery taking it down (its box says so), and Remove
 // Needs Node, Python 3 and Playwright with Chromium. Run with: node tests/touch-check.js
 const fs = require("node:fs");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const assert = require("node:assert/strict");
 const {
   root, sleep, until, makeDataDir, startServer, startFakeHA, runSuite, touchSession,
 } = require("./pw-helper");
+
+const galleryFile = dir => path.join(dir, "gallery-index.json");
 
 async function main() {
   await runSuite("touch-check", async ({ openContext, watchErrors, onCleanup }) => {
@@ -27,6 +32,8 @@ async function main() {
         fs.mkdirSync(path.join(dir, "community", "tiles"), { recursive: true });
         fs.copyFileSync(path.join(root, "tests", "fixtures", "community-tiles", "front-porch.json"),
           path.join(dir, "community", "tiles", "front-porch.json"));
+        // a gallery of test tiles (tests/fixtures/community-tiles/gallery), read from the data folder instead of the real gallery
+        fs.writeFileSync(galleryFile(dir), fs.readFileSync(path.join(root, "tests", "fixtures", "community-tiles", "gallery", "index.json")));
 
         const srcFile = path.join(dir, "sources.json");
         const sources = fs.existsSync(srcFile) ? JSON.parse(fs.readFileSync(srcFile, "utf8")) : {};
@@ -54,7 +61,7 @@ async function main() {
       },
     });
     onCleanup(() => fs.rmSync(data, { recursive: true, force: true }));
-    const srv = await startServer(data);
+    const srv = await startServer(data, { COUNTERTOP_GALLERY_URL: pathToFileURL(galleryFile(data)).href });
     onCleanup(() => srv.stop());
     const base = srv.base;
 
@@ -290,6 +297,49 @@ async function main() {
     await sleep(800);
     assert.equal(ha.calls().length, before + 1, "the lock needs its switch");
     console.log("✓ a tap on a dashboard-drawn button works its device; a tap inside the tile's frame works nothing");
+
+    // --- a tile from the gallery, by touch: Library → Community → Allow and download → Add it to Main ---
+    const C = sel => frameLoc().locator(sel).first();
+    const tapC = async sel => { await until(async () => (await C(sel).count()) && (await C(sel).isVisible()), sel); await C(sel).scrollIntoViewIfNeeded(); await sleep(150); await T.tap(...await T.centre(C(sel))); };
+    await gear();
+    await tapC('[data-act="lib"][data-id="layouts"]');
+    await tapC('[data-l="view"][data-id="community"]');
+    await tapC('[data-l="c-open"][data-id="tiles/hello-there"]');
+    await until(async () => /Nothing beyond its own box/.test(await C(".ctperms").textContent()), "the permission list");
+    await tapC('[data-l="c-dl"]');
+    await until(() => fs.existsSync(path.join(data, "community", "tiles", "hello-there.json")), "the download");
+    await tapC('[data-l="addtile"]');
+    // on the Echo, adding a tile goes back to the screen with the editor open on it
+    await until(() => D(() => EDIT.on), "the editor on the new tile");
+    await T.tap(...await T.centre(frameLoc().locator("#edsave")));
+    const hello = () => frameLoc().locator('[data-mod^="hello-"] iframe');
+    await until(async () => (await hello().count()) === 1, "the downloaded tile on Main", 15000);
+    const helloIn = frameLoc().frameLocator('[data-mod^="hello-"] iframe');
+    await until(async () => /Version 1/.test(await helloIn.locator("small").textContent()), "the downloaded tile drawn");
+    console.log("✓ a gallery tile downloads after its permission list and goes on Main, all by touch");
+
+    // --- the gallery takes it down: its box says so, and Remove (tapped twice) clears it ---
+    const gallery = JSON.parse(fs.readFileSync(galleryFile(data), "utf8"));
+    gallery.revoked = ["tiles/hello-there"];
+    fs.writeFileSync(galleryFile(data), JSON.stringify(gallery));
+    await fetch(base + "/community?refresh=1");          // what the daily check does
+    await until(async () => (await status()).takenDown.includes("Hello there"), "the take-down");
+    await until(async () => /taken down/i.test(await frameLoc().locator('[data-mod^="hello-"]').textContent()), "the box saying it was taken down (the shell looks for changes every 30 s)", 45000);
+    assert.equal(await hello().count(), 0, "a taken-down tile has no frame");
+    await gear();
+    await tapC('[data-act="lib"][data-id="layouts"]');
+    await tapC('[data-l="view"][data-id="community"]');
+    await tapC('.lpick.warn [data-l="c-open"]');
+    await tapC('[data-l="c-rm"]');
+    await sleep(300);
+    await tapC('[data-l="c-rm"]');
+    await until(() => !fs.existsSync(path.join(data, "community", "tiles", "hello-there.json")), "the removal");
+    await until(async () => !JSON.parse(fs.readFileSync(path.join(data, "dashboard.json"), "utf8")).modules.tiles.settings.items.some(t => t.type === "hello-there"), "its box gone from the settings");
+    await tapC('[data-l="close"]');
+    await T.tap(...await T.centre(frameLoc().locator("#done")));
+    await ready();
+    assert.equal(await frameLoc().locator('[data-mod^="hello-"]').count(), 0);
+    console.log("✓ a taken-down tile stops and says so in its box; Remove clears it and its box");
 
     // --- rotated display orientation ("left"): vertical framebuffer swipes turn pages ---
     await fetch(base + "/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"orientation":"left"}' });

@@ -143,6 +143,14 @@ def save_key(tile, name, value):
     return key_states(tile)
 
 
+def forget_keys(tid):
+    """Drop every key saved for a kind of tile (when it's removed)."""
+    with KEYS_LOCK:
+        all_ = _load()
+        if all_.pop(tid, None) is not None:
+            _write(all_)
+
+
 def saved_key_values():
     """Every saved key, for Diagnostics to blank out of anything it bundles."""
     return {e["value"] for t in _load().values() if isinstance(t, dict) for e in t.values()

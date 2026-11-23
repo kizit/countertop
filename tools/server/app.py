@@ -432,6 +432,7 @@ from server.feeds.sales import _flipp, purchases_library, sales_view  # noqa: E4
 from server.feeds.sky import iss_now, planes_near, radar_frames, space_picture  # noqa: E402
 from server.feeds.sports import team_matches  # noqa: E402
 from server.homeassistant import ha_entities, ha_test, ha_view  # noqa: E402
+from server import controls  # noqa: E402,F401  (adds the tile.control action)
 from server.pages import named, page, page_files  # noqa: E402
 from server.community import community_index  # noqa: E402
 from server.library import trial_add, trial_apply, trial_screen, trial_stop, trial_version  # noqa: E402

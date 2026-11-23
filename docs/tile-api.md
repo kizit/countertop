@@ -95,6 +95,7 @@ Some things only the server can do, like switching a light in Home Assistant. A 
 | Action | Args | Who can use it |
 | --- | --- | --- |
 | `ha.call` | `{entity, action, data, confirm}` | Home and Sensor tiles, for the things they show. Locks, alarms and garage doors need the tile's **Allow locks, garage doors and alarms**, and with **Two taps** the first answer is `{confirm, seconds}`: send the same action again with that `confirm` token to do it |
+| `tile.control` | `{control, confirm}` | Sent by the dashboard, never by tile code, when someone taps one of a community control tile's buttons (below). Only `control` and `confirm` are read |
 
 New actions go in `TILE_ACTIONS` on the server.
 
@@ -138,9 +139,33 @@ A community tile is the same `Tile("<id>", {...})` code, run in a sandboxed fram
 - **Personal data or the internet, never both.** A tile whose `feeds` include `events`, `notes`, `photos` or `sales` gets no `hosts`, whatever its file says. Even so, these tiles are reviewed and contained, not sealed: a frame can still send one request by loading another page, and the dashboard removes a frame that does.
 - `taps: true` lets taps and form submits reach `tap` and `submit`; never while the screen is being edited or previewed.
 - `has()` and `urgent()` are asked inside the frame after every draw and every change, and the box remembers the answer.
-- `this.act` is refused: a community tile can't send actions.
+- `this.act` is refused: a community tile can't send actions. A tile that works things in the house is a control tile (below).
 - Frames can't hold frames, objects or embeds, and WebRTC is removed before the tile's code runs.
 - A screen runs at most 6 community tiles at once, only for the page that's showing. A 7th waits, and its box says why.
 - While a community tile shows, the screen checks in every 5 seconds. An endless loop in a tile freezes the whole screen on the Echo, so when the server hears nothing for 30 seconds, or the screen restarts 3 times in 10 minutes with community tiles on it, it turns on safe mode: every community tile stays off until it's switched back on in Controls → Status.
 
 The server reads community tiles from `community/tiles/<id>.json` in the data folder. The id can't be a built-in tile's, and the code is at most 64 KB.
+
+### Control tiles
+
+A community tile can work lights, switches, locks and other things in Home Assistant, but its code never sends an action. It declares what it works, and the dashboard draws the buttons itself, below the tile's frame:
+
+```json
+{
+  "devices": {"light": {"label": "Porch light", "domains": ["light", "switch"]},
+              "lock": {"label": "Front door lock", "domains": ["lock"]}},
+  "controls": [{"id": "on", "device": "light", "action": "turn_on"},
+               {"id": "dim", "device": "light", "action": "turn_on", "data": {"brightness_pct": 30}},
+               {"id": "unlock", "device": "lock", "action": "unlock"}]
+}
+```
+
+- `devices` names up to 8 slots, each with the Home Assistant kinds it accepts. The person picks the real device for each slot in the tile's settings on the dashboard; that choice is the tile's grant, saved with that one tile.
+- `controls` lists up to 12 buttons. Each works one slot with one action every kind in the slot supports, plus optional fixed `data` (simple values Home Assistant takes, never an alarm `code`). Nothing else is ever sent.
+- The dashboard labels each button from its action and the picked device's own name, not from the tile. A tap counts only when it's a real one, never while editing or previewing, and only one at a time.
+- The server checks every tap against the saved tile: the button must be in the tile file, its slot must be granted with a device of the right kind, and safe mode must be off.
+- Locks, alarms and garage doors, gates and doors also need the tile's **Allow locks, garage doors and alarms**, and always ask first: the dashboard covers the tile with "Unlock Front door?" and needs a second real tap.
+- `this.devices()` in the frame gives the state of each picked device by slot (`null` for a slot not picked yet), so the tile can show what's on or locked. The frame never sees which devices were picked.
+- The state of the house is personal data, so a control tile gets no `hosts`.
+
+The settings the dashboard adds for this start with `@` (`@src`, `@secure`, `@<slot>`). A tile's own settings can't use those names, and they're never shared in a layout. To try one without real devices, run the stand-in Home Assistant in `tests/fake_ha.py`.

@@ -164,7 +164,10 @@
       var list = ask("events", { cals: Array.isArray(o.cals) ? o.cals.map(String) : [], once: !!o.once }, []);
       return list.map(function (e) { return Object.assign({}, e, { date: new Date(e.date) }); });
     },
-    act: function () { return Promise.reject(new Error("A community tile can't send actions.")); }
+    // a control tile: the state of each device the person picked for it, by the slot names in its file ({} until known,
+    // null for a slot not picked yet). The tile shows state; its buttons are drawn by the dashboard, outside this frame
+    devices: function () { return ask("devices", null, {}); },
+    act: function () { return Promise.reject(new Error("A community tile can't send actions. Its buttons are drawn by the dashboard.")); }
   };
 
   function report() {
@@ -233,6 +236,30 @@
       soon();
     }
   });
+  // holding a finger on the tile starts editing the screen, as it does on any other tile: the dashboard can't see
+  // touches inside this frame, so it's told. (A tile could send this by itself; all it would do is open the editor,
+  // and the dashboard takes it at most once every 10 seconds)
+  var holdT = null, holdAt = null, held = false;
+  function holdStop() { clearTimeout(holdT); holdT = null; }
+  D.addEventListener("pointerdown", function (e) {
+    held = false; holdAt = [e.clientX, e.clientY]; holdStop();
+    holdT = setTimeout(function () { holdT = null; held = true; post({ ct: "hold" }); }, 700);
+  }, true);
+  D.addEventListener("pointermove", function (e) { if (holdT && Math.abs(e.clientX - holdAt[0]) + Math.abs(e.clientY - holdAt[1]) > 12) holdStop(); }, true);
+  ["pointerup", "pointercancel"].forEach(function (n) { D.addEventListener(n, holdStop, true); });
+  // a swipe across the tile turns the page, as it does anywhere else on the screen
+  var sw = null;
+  function swEnd(x, y) {
+    if (!sw) return;
+    var dx = x - sw[0], dy = y - sw[1]; sw = null;
+    if (Math.abs(dx) > 90 && Math.abs(dx) > Math.abs(dy) * 1.3) { holdStop(); post({ ct: "swipe", dir: dx < 0 ? 1 : -1 }); }
+  }
+  D.addEventListener("touchstart", function (e) { var t = e.touches[0]; if (t) sw = [t.clientX, t.clientY]; }, { passive: true, capture: true });
+  D.addEventListener("touchend", function (e) { var t = e.changedTouches[0]; if (t) swEnd(t.clientX, t.clientY); }, true);
+  D.addEventListener("pointerdown", function (e) { if (e.pointerType !== "touch") sw = [e.clientX, e.clientY]; }, true);
+  D.addEventListener("pointerup", function (e) { if (e.pointerType !== "touch") swEnd(e.clientX, e.clientY); }, true);
+  // the tap that ends a hold isn't a tap
+  D.addEventListener("click", function (e) { if (held) { held = false; e.stopPropagation(); e.preventDefault(); } }, true);
   // taps and form submits, only for tiles that said they take taps, and never while the screen is being edited
   ROOT.addEventListener("click", function (e) { if (ME && TAPS && !QUIET && DEF.tap) { try { DEF.tap.call(ME, e, ROOT); } catch (x) { post({ ct: "error", msg: String(x.message || x) }); } } });
   ROOT.addEventListener("submit", function (e) {

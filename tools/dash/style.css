@@ -15,6 +15,18 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 20px;min-height:0;overflow:hidden;position:relative}
   .m-sbx iframe.sbxf{position:absolute;border:0;background:transparent;color-scheme:normal}
   .m-sbx .sbxmsg{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:20px;line-height:1.35}
+  .m-sbx .sbxc{position:absolute;display:grid;grid-auto-rows:1fr;gap:8px;overflow-x:auto;overflow-y:hidden}
+  .m-sbx .sbxc button{min-width:0;font:inherit;font-size:19px;line-height:1.1;color:var(--fg);background:rgba(255,255,255,.1);border:1px solid var(--line);
+    border-radius:12px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-sbx .sbxc button small{display:block;font-size:14px;color:var(--dim);overflow:hidden;text-overflow:ellipsis}
+  .m-sbx .sbxc button.off{opacity:.45}
+  .m-sbx .sbxc .sbxcmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;background:var(--card);color:#e8a08a;font-size:17px;border-radius:12px}
+  .m-sbx .sbxconf{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;
+    background:rgba(10,12,15,.94);border-radius:inherit;text-align:center}
+  .m-sbx .sbxconf p{margin:0;font-size:26px}
+  .m-sbx .sbxconf div{display:flex;gap:14px}
+  .m-sbx .sbxconf button{font:inherit;font-size:22px;color:var(--fg);background:rgba(255,255,255,.12);border:1px solid var(--line);border-radius:12px;padding:10px 22px}
+  .m-sbx .sbxconf .yes{background:#9b3b2c;border-color:#c0574a}
   .card[hidden]{display:none}
   .card h3{margin:0 0 10px;font-size:16px;letter-spacing:.9px;color:var(--dim);text-transform:uppercase;font-weight:600;
     display:flex;justify-content:space-between;gap:12px}

@@ -18,10 +18,21 @@ if (ECHO){
   setInterval(() => { try{ window.top.contentTick && window.top.contentTick(); }catch(e){} }, 20e3);
 }
 $("done").href = displayHref();
+// the dashboard this page replaced said goodbye to the server as it closed; say it again from here, in case that was
+// lost on the way out, so the server doesn't take its quiet for a frozen screen (tools/dash/sandbox.js sbxLeave)
+try{
+  const left = JSON.parse(sessionStorage.getItem("sbxLeft") || "null");
+  if (left && left.session && !left.told){
+    left.told = 1; sessionStorage.setItem("sbxLeft", JSON.stringify(left));
+    fetch("/sandbox/beat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({session:left.session, showing:[], gap:0, bye:true})}).catch(() => {});
+  }
+}catch(e){}
 
 function displayHref(edit){
   const url = new URL(SHELL ? "/dash/content" : "/dash", location.origin);
   if (edit) url.searchParams.set("edit", "1");
+  const page = new URLSearchParams(location.search).get("page");      // the page the screen was on (the ⚙ button sends it)
+  if (page) url.searchParams.set("page", page);
   return url.href;
 }
 function applyDisplayMode(mode){

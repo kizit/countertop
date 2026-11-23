@@ -208,7 +208,7 @@ function libPack(p, look, name, desc){
       for (const k in t.settings || {}){
         const d = S[k];
         if (k === "design"){ s.design = t.settings.design; continue; }
-        if (!d) continue;
+        if (!d || k[0] === "@") continue;          // a control tile's devices are this home's own
         if (d.type === "source"){ flags.add("src"); continue; }
         if (d.type === "entity"){ flags.add("ha"); continue; }
         if (d.share === false){ flags.add("own"); continue; }

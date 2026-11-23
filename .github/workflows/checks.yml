@@ -64,3 +64,7 @@ jobs:
         run: node tests/tile-data-check.js
       - name: Check community tiles in their sandbox
         run: node tests/sandbox-check.js
+      - name: Check control tile buttons
+        run: node tests/control-check.js
+      - name: Check touch and tap behaviour
+        run: node tests/touch-check.js

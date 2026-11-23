@@ -1,5 +1,6 @@
 /* Note: a message in big type */
 Tile("note", {
+  api:1, uses:[],
   title:"Note", cat:"Your own", size:[12, 8, 6, 4],
   desc:"A message in big type: Wi-Fi password for guests, a reminder, a welcome. Change it from here any time.",
   settings:{
@@ -13,7 +14,7 @@ Tile("note", {
     .m-note .tx{flex:1;display:flex;flex-direction:column;justify-content:center;line-height:1.2;overflow:hidden}`,
   cls:"m-note",
   render(el){
-    const s = this.s;
+    const s = this.s, esc = x => this.esc(x);
     el.innerHTML = (s.title ? '<h3>' + esc(this.name) + '</h3>' : "") + '<div class="tx" style="font-size:' + (+s.big || 44) + 'px;text-align:' + (s.align === "Left" ? "left" : "center") + ';color:' + esc(s.color || "#fff") + '">' +
       ((s.text || []).map(esc).join("<br>") || "&nbsp;") + '</div>';
   }

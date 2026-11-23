@@ -1,5 +1,6 @@
 /* Countdown: days until the dates you care about */
 Tile("countdown", {
+  api:1, uses:[],
   title:"Countdown", cat:"Time", every:600, size:[12, 8, 8, 5],
   desc:"Days until the dates you care about: a trip, a birthday, the last day of school. The nearest one is big; the next few are listed under it. Past dates drop off on their own.",
   settings:{
@@ -15,7 +16,8 @@ Tile("countdown", {
     .m-count .li .t{min-width:110px}`,
   cls:"m-count",
   list(){
-    const now = startOfDay(new Date()), out = [];
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const out = [];
     for (const line of this.s.dates || []){
       const m = String(line).match(/^(.*?)[,;]\s*(?:(\d{4})-)?(\d{1,2})-(\d{1,2})\s*$/); if (!m) continue;
       let d = new Date(m[2] ? +m[2] : now.getFullYear(), +m[3] - 1, +m[4]);
@@ -27,7 +29,7 @@ Tile("countdown", {
   },
   has(){ return this.list().length > 0; },
   render(el){
-    const L = this.list();
+    const L = this.list(), esc = x => this.esc(x), tr = (x, v) => this.t(x, v);
     if (!L.length){ el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="empty">Add dates in this tile\'s settings</div>'; return; }
     const a = L[0], n = a.days;
     let h = '<h3>' + esc(this.name) + '</h3><div class="what">' + esc(a.name) + '</div><div class="big"><b>' + (n === 0 ? tr("Today!") : n) + '</b><span>' +

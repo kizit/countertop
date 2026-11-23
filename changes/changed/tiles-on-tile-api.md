@@ -1,0 +1,1 @@
+- **Four tiles use the tile API.** Stocks, Agenda, Countdown and Note now run on the same tile API as Daily to-do, and the API gained `this.esc`, `this.events` and `this.sources` for them. Nothing looks different.

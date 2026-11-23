@@ -27,7 +27,7 @@ Tile("daily", {
 | `has()` | Return false when there's nothing to show, and the box skips this tile |
 | `css`, `cls` | The tile's own styles and the class its element gets |
 | `demo`, `demoData` | Settings and stored data for the Library's example pictures |
-| `api`, `uses` | The tile API version the tile is written for (`1`) and what it uses (`"store"`) |
+| `api`, `uses` | The tile API version the tile is written for (`1`) and what it uses (`"store"`, `"fetch"`, `"events"`…) |
 
 ## What a tile can use
 
@@ -38,6 +38,9 @@ Tile("daily", {
 | `this.store` | Its own saved data (below) |
 | `this.fetch(url, maxAge)` | Data from a web address, cached for `maxAge` seconds. Returns what it has now (or `null`) and redraws the tile when new data arrives |
 | `this.feed(name)` | Shared data the dashboard already loads: `weather`, `air`, `events`, `notes`, `teams`, `albums`, `sales`. List the matching `feeds` so it gets loaded |
+| `this.esc(text)` | The text made safe to put into `innerHTML`. Use it for anything a person typed or a feed sent |
+| `this.events({cals, once})` | Coming events from the calendars in Setup, soonest first, each with `date` (a `Date`) added. `cals` limits it to those calendar ids (empty means all); `once: true` shows a repeating event once, with `rep` ("every Tue") |
+| `this.sources(kind)` | The sources set up in Setup of one kind (`calendars`, `teams`, `lists`…) as `[{id, name, color}]`, with no addresses or keys. Use it to tell "nothing set up yet" from "nothing to show" |
 | `this.t(text, values)` | The text in the dashboard's language (below). `this.locale` is the locale for dates and numbers |
 | `this.act(action, args)` | Ask the server to do something the tile is set up to do (below). Resolves with the server's answer, rejects with its error |
 

@@ -135,6 +135,7 @@ function tileData(m, url, maxAge){
 // this.store   the tile's own data, kept by the server per tile (adding a second tile of a kind starts it empty)
 // this.fetch   data from a web address, cached (same as tileData)
 // this.feed    shared data the dashboard already loads: weather, events, notes, teams, albums, sales
+// this.events / this.sources / this.esc   upcoming events, the sources set up, safe text: so a tile needs no globals
 // this.act     ask the server to do something the tile is set up to do (ha.call)
 // tap(e, el) / submit(e, el, form) in a tile's definition get taps and form submits, except while editing or previewing
 const TDATA = {rev:0, ready:false, tiles:{}};
@@ -147,6 +148,16 @@ const TILE_API = {
   // words in the screen's language: the tile's own lang block first, then tools/lang/<code>.json, then the English as written
   t(s, vars){ return tr(s, vars, this.lang && this.lang[I18N.lang]); },
   get locale(){ return I18N.locale; },          // for Intl calls that need it; [] already means the chosen language
+  esc(s){ return esc(s); },                     // text made safe to put into innerHTML
+  // the sources set up in Setup of one kind ("calendars", "teams", "lists"...) as [{id, name, color}]: no addresses or keys
+  sources(kind){ return (SOURCES[kind] || []).map(x => ({id:x.id, name:x.name, color:x.color})); },
+  // coming events from the calendars in Setup, soonest first, each with a `date` (a Date) added.
+  // {cals:[ids]} limits it to those calendars (empty = all); {once:true} shows a repeating event once, tagged `rep` ("every Tue")
+  events(o){
+    o = o || {};
+    const all = upcoming(o.cals);
+    return (o.once ? collapseRepeats(all) : all).map(e => Object.assign({}, e, {date:evDate(e)}));
+  },
   // ask the server to do something for this tile (tools/countertop.py TILE_ACTIONS); resolves with its answer,
   // rejects with its error. Nothing happens while editing or previewing.
   async act(action, args){

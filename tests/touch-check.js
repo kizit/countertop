@@ -236,7 +236,9 @@ async function main() {
     await gear();
     await T.tap(...await T.centre(frameLoc().locator('[data-act="echoedit"]').first()));
     await until(() => D(() => EDIT.on && pageList()[PAGE] === "c:two" && EDIT.page === "c:two"), "Edit the screen on page two");
-    await T.tap(...await T.centre(frameLoc().locator("#edcancel")));
+    // the shell may swap in a new dashboard frame while Controls closes: aim at whichever frame is the dashboard now
+    const cancelBtn = await until(async () => { const f = dash(); if (!f) return false; const l = f.locator("#edcancel").first(); return (await l.isVisible()) ? l : false; }, "Cancel in the editor", 30000);
+    await T.tap(...await T.centre(cancelBtn));
     await ready();
     await onPage("c:two");
 

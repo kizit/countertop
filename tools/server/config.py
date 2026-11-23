@@ -1,4 +1,5 @@
 """Settings: the schema, reading and saving dashboard.json safely, backups, and which tiles are on the saved dashboard."""
+import hashlib
 import json
 import threading
 import time
@@ -101,7 +102,7 @@ def dashboard_orientation(saved=None):
 # ---------- keeping settings safe ----------
 # dashboard.json carries a "schema" number. Each upgrade below runs once, in order, for files saved
 # before it existed; add a step (and bump CONFIG_SCHEMA) whenever the stored shape changes.
-CONFIG_SCHEMA = 2
+CONFIG_SCHEMA = 3
 BACKUP_DIR = WORK / "backups"
 BACKUP_KEEP = 12              # rolling copies of dashboard.json, newest kept
 BACKUP_EVERY = 15 * 60        # at most one routine copy per 15 minutes (Controls saves on every change)
@@ -199,11 +200,13 @@ def config_load():
             if changed:
                 config_backup(force=True)
             try:
-                config_save({"modules": smods}, quiet=True)
+                config_save({"modules": smods}, quiet=True, grant_lan=have < 3)
                 CONFIG_PROBLEM.pop("upgrade_unsaved", None)
             except Exception as e:             # a read-only data folder: Status already says so; don't retry every load
                 CONFIG_PROBLEM["upgrade_unsaved"] = True
                 print("couldn't save upgraded settings: %s" % e, flush=True)
+    if have >= 3:                   # a mark the server didn't grant (a hand-edited file) does nothing
+        lan_check(_tile_items(smods), lan_ledger(saved))
     for mid, c in smods.items():
         if mid not in merged or not isinstance(c, dict):
             continue
@@ -216,7 +219,60 @@ def config_load():
     return {"modules": merged, "orientation": dashboard_orientation(saved)}
 
 
-def config_save(body, quiet=False):
+# ---------- Your own tiles that kept their network access ----------
+# Since settings schema 3, Your own tile code can only reach public HTTPS addresses. The tiles that already existed
+# when that upgrade ran keep plain-HTTP and home-network access: each carries "lan": true. A browser can send that
+# mark back, so the server keeps its own record next to the settings (never inside modules, which Controls sends
+# whole) and drops any mark it didn't grant. A mark is kept when the tile's id was granted, or when its code is
+# exactly the code of a tile that was (a copy made by switching back to a saved layout). Imports never set it.
+LAN_KEY = "lanTiles"
+
+
+def _code_hash(item):
+    html = ((item.get("settings") or {}).get("html") if isinstance(item.get("settings"), dict) else "") or ""
+    return hashlib.sha256(str(html).encode("utf-8")).hexdigest()
+
+
+def lan_ledger(saved=None):
+    """{ids, code} granted network access, from the saved settings file (or the dict given)."""
+    if saved is None:
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+        except (OSError, ValueError):
+            saved = {}
+    raw = saved.get(LAN_KEY) if isinstance(saved, dict) else None
+    raw = raw if isinstance(raw, dict) else {}
+    pick = lambda k: {x for x in raw.get(k) or [] if isinstance(x, str)}
+    return {"ids": pick("ids"), "code": pick("code")}
+
+
+def lan_check(items, ledger, grant=False):
+    """Keep "lan": true only on Your own tiles the ledger allows (every marked one when grant is set, for the
+    upgrade itself). Returns the ledger for what's kept, ready to save."""
+    ids, code = set(), set()
+    for t in items if isinstance(items, list) else []:
+        if not isinstance(t, dict) or "lan" not in t:
+            continue
+        ok = t.get("lan") is True and t.get("type") == "custom" and isinstance(t.get("id"), str) and \
+            (grant and not t.get("review") or t["id"] in ledger["ids"] or _code_hash(t) in ledger["code"])
+        if not ok:
+            del t["lan"]
+            continue
+        ids.add(t["id"])
+        code.add(_code_hash(t))
+    return {"ids": sorted(ids), "code": sorted(code)}
+
+
+def lan_tiles(mods):
+    """The Your own tiles in a modules dict that still have home-network access."""
+    try:
+        items = mods["tiles"]["settings"]["items"]
+    except (KeyError, TypeError):
+        return []
+    return [t for t in items if isinstance(t, dict) and t.get("lan") is True and t.get("type") == "custom"] if isinstance(items, list) else []
+
+
+def config_save(body, quiet=False, grant_lan=False):
     mods = body.get("modules") if isinstance(body, dict) else None
     orientation_edit = isinstance(body, dict) and "orientation" in body
     if orientation_edit and body["orientation"] not in ORIENTATIONS:
@@ -228,6 +284,9 @@ def config_save(body, quiet=False):
         if isinstance(mods, dict):
             # Layout editors send a snapshot of the modules. Preserve the current mount.
             saved = {"modules": mods, "orientation": dashboard_orientation()}
+            ledger = lan_check(_tile_items(mods), lan_ledger(), grant=grant_lan)
+            if ledger["ids"]:
+                saved[LAN_KEY] = ledger
         else:
             try:
                 saved = json.loads(CONFIG_FILE.read_text())
@@ -245,6 +304,33 @@ def config_save(body, quiet=False):
         if live is not None:              # a save without a tile list (orientation only) leaves tile data alone
             tiledata.sync(live)
     return None if quiet else config_load()
+
+
+def tile_trust(tid):
+    """Run: a Your own tile whose code came in a shared layout runs from now on. True when the saved tile was found."""
+    with CONFIG_LOCK:
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+        except (OSError, ValueError):
+            return False
+        t = next((t for t in _tile_items(saved.get("modules")) or [] if isinstance(t, dict) and t.get("id") == tid), None)
+        if not t or t.get("type") != "custom":
+            return False
+        if t.pop("review", None) is None:
+            return True
+        saved["saved"] = int(time.time())
+        config_backup()
+        tmp = CONFIG_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
+        tmp.replace(CONFIG_FILE)
+        return True
+
+
+def _tile_items(mods):
+    try:
+        return mods["tiles"]["settings"]["items"]
+    except (KeyError, TypeError):
+        return None
 
 
 def _tile_ids(mods):

@@ -24,6 +24,7 @@ def trial_add(body):
         raise ValueError("the layout has no main page")
     if len(json.dumps(body)) > 2_000_000:
         raise ValueError("that layout is too big")
+    lan_check(tiles, lan_ledger())           # a layout being tried only keeps home-network access its tiles were granted
     tid = uuid.uuid4().hex[:12]
     with TRIAL_LOCK:
         TRIALS[tid] = {"pages": pages, "tiles": tiles, "look": look or {}, "name": str(body.get("name") or "Layout")[:80], "at": time.time()}
@@ -72,3 +73,7 @@ def trial_apply(cfg, tid):
         if k in look and k not in ("items", "rules"):
             look[k] = v
     return cfg
+
+
+# names used only inside functions: imported last, so these modules can use each other
+from server.config import lan_check, lan_ledger  # noqa: E402

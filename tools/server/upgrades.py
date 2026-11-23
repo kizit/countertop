@@ -199,7 +199,24 @@ def _upgrade_looks(m):
     return m, migrate_looks(m)
 
 
-CONFIG_UPGRADES = [(1, _upgrade_v3), (2, _upgrade_looks)]
+# Network limit (schema 3): Your own tile code may only reach public HTTPS addresses from now on. Every Your own
+# tile already saved keeps the access it had (plain HTTP and the home network), marked "lan": true, with a warning
+# in its settings and in Status. config_load records these marks next to the settings, where an import can't add one.
+def mark_lan_tiles(m):
+    items = ((m.get("tiles") or {}).get("settings") or {}).get("items")
+    changed = False
+    for t in items if isinstance(items, list) else []:
+        if isinstance(t, dict) and t.get("type") == "custom" and not t.get("review") and t.get("lan") is not True:
+            t["lan"] = True
+            changed = True
+    return changed
+
+
+def _upgrade_lan(m):
+    return m, mark_lan_tiles(m)
+
+
+CONFIG_UPGRADES = [(1, _upgrade_v3), (2, _upgrade_looks), (3, _upgrade_lan)]
 
 
 # names used only inside functions: imported last, so these modules can use each other

@@ -297,6 +297,7 @@ function tileForm(m, inStack){
   const D = tileDefs(m), T = TYPES[m.type];
   let h = '<div class="sh">' + (inStack ? esc(m.name) + " settings" : "Tile settings") + '</div>';
   h += '<p class="pd tdesc"><b>' + esc(T.title) + '.</b> ' + esc(T.desc || "") + '</p>';
+  if (m.editNote) h += m.editNote();
   const dz = designOf(m);
   if (m.parts) h += styleChooser(m, dz);
   h += '<div class="grp"><label class="kv"><span>Name</span><input type="text" data-tn="1" placeholder="' + esc(T.title) + '" value="' + esc(m.it.name || "") + '"></label>';
@@ -445,7 +446,7 @@ function aiPrompt(desc){
     "- It fills a box whose size can change (from about 400x300 up to 1200x800 pixels). Make the layout flexible (flexbox or grid, percentages) and keep everything inside the box with no scrolling.\n" +
     "- Keep the background transparent; the dashboard draws a card behind it. These CSS variables are available: var(--fg) for main text, var(--dim) for secondary text, var(--accent) for a highlight color.\n" +
     "- It must be readable from a distance: no text under 18px, and the main number or words 40px or bigger.\n" +
-    "- For live data, use fetch() with a free public web API that works from a browser (allows CORS) and needs no API key. Never put passwords or private keys in the code. Refresh with setInterval, no more often than every 5 minutes.\n" +
+    "- For live data, use fetch() with a free public web API that works from a browser (allows CORS) and needs no API key. Only https:// addresses work: plain http:// and devices on my home network are blocked. Never put passwords or private keys in the code. Refresh with setInterval, no more often than every 5 minutes.\n" +
     "- It can't use cookies, localStorage or pop-ups, and can't reach the page around it. Nobody uses a mouse or keyboard on it.\n" +
     "- If the data can't be loaded, show a short friendly message instead of an error.\n" +
     "- Plain JavaScript and modern CSS; make it clean and good-looking. Emoji are fine.\n" +
@@ -586,6 +587,7 @@ function boxAct(a, el){
   else if (a === "add"){ EDIT.panel = "add"; EDIT.addTo = s ? s.id : null; edPaint(true); }
   else if (a === "setup") openSetup(el.dataset.kind);
   else if (a.startsWith("ent")) entAct(a, el);
+  else if (a === "minerun"){ const m = MODULES[EDIT.tile]; if (m && m.it.review){ remember(); delete m.it.review; render(m.id); edPaint(true); } }
   else if (a === "ai"){ const m = MODULES[EDIT.tile]; copyText(aiPrompt(m && m.s.ask)); }
   else if (a === "fit" && s && RG(s)){ const pg = curPg(), g = RG(s, pg), [dw, dh] = tsize(EDIT.tile || s.mod).map((v, i) => Math.min(v, i ? GR : GC)), R = {x:Math.min(g.x, GC - dw), y:Math.min(g.y, GR - dh), w:dw, h:dh};
     if (blocked(pg, R, s)){ flash("Not enough room here for its usual size"); return; } remember(); touch(pg); Object.assign(RG(s, pg), R); relayout(); }

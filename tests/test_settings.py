@@ -201,5 +201,140 @@ class OwnEffects(unittest.TestCase):
         self.assertEqual(ct.config_load()["modules"]["effects"]["settings"]["mine"], mine)
 
 
+# A settings file from before the network limit (schema 2): two Your own tiles and a clock.
+def own(iid, html, **extra):
+    return dict({"id": iid, "type": "custom", "name": "Tile " + iid, "settings": {"html": html}}, **extra)
+
+
+V2_OWN = {"schema": 2, "modules": {
+    "pages": {"on": True, "settings": {"items": [{"id": "main", "name": "Main", "on": True, "cols": 48, "slots": [
+        {"id": "s1", "x": 0, "y": 0, "w": 12, "h": 8, "mod": "cam"}, {"id": "s2", "x": 12, "y": 0, "w": 12, "h": 8, "mod": "pihole"},
+        {"id": "s3", "x": 24, "y": 0, "w": 12, "h": 8, "mod": "clock"}]}]}},
+    "tiles": {"on": True, "settings": {"items": [own("cam", "<img src='http://192.168.1.20/snap.jpg'>"), own("pihole", "<b>pi</b>"),
+                                                  {"id": "clock", "type": "clock", "settings": {}}]}},
+}}
+
+
+def items(mods=None):
+    mods = mods or ct.config_load()["modules"]
+    return {t["id"]: t for t in mods["tiles"]["settings"]["items"]}
+
+
+class YourOwnTileNetwork(unittest.TestCase):
+    """Your own tiles made before the limit keep home-network access; nothing that arrives later can claim it."""
+
+    def test_upgrade_grandfathers_existing_tiles_and_records_them(self):
+        reset(V2_OWN)
+        t = items()
+        self.assertTrue(t["cam"]["lan"] and t["pihole"]["lan"])
+        self.assertNotIn("lan", t["clock"])
+        s = stored()
+        self.assertEqual(s["schema"], ct.CONFIG_SCHEMA)
+        self.assertEqual(sorted(s["lanTiles"]["ids"]), ["cam", "pihole"])
+        self.assertEqual(len(backups()), 1)                       # the schema-2 file was kept first
+        self.assertEqual(items()["cam"].get("lan"), True)         # loading again changes nothing
+
+    def test_a_shared_tile_waiting_for_run_is_not_grandfathered(self):
+        data = json.loads(json.dumps(V2_OWN))
+        data["modules"]["tiles"]["settings"]["items"][1]["review"] = True
+        data["modules"]["tiles"]["settings"]["items"][1]["lan"] = True
+        reset(data)
+        t = items()
+        self.assertTrue(t["cam"]["lan"])
+        self.assertNotIn("lan", t["pihole"])
+
+    def test_new_installs_have_no_grandfathered_tiles(self):
+        reset()
+        ct.config_load()
+        self.assertNotIn("lanTiles", stored())
+
+    def test_a_new_tile_cant_claim_the_mark(self):
+        reset(V2_OWN)
+        mods = ct.config_load()["modules"]
+        L = mods["tiles"]["settings"]["items"]
+        L.append(own("new1", "<script>fetch('http://192.168.1.1/')</script>", lan=True))      # added after the upgrade
+        L.append(dict(id="clk2", type="clock", settings={}, lan=True))
+        ct.config_save({"modules": mods})
+        t = items()
+        self.assertNotIn("lan", t["new1"])
+        self.assertNotIn("lan", t["clk2"])
+        self.assertTrue(t["cam"]["lan"])
+        self.assertNotIn("new1", stored()["lanTiles"]["ids"])
+
+    def test_editing_a_grandfathered_tile_keeps_its_access(self):
+        reset(V2_OWN)
+        mods = ct.config_load()["modules"]
+        items(mods)["cam"]["settings"]["html"] = "<img src='http://192.168.1.21/snap.jpg'>"
+        ct.config_save({"modules": mods})
+        self.assertTrue(items()["cam"]["lan"])
+
+    def test_a_copy_with_the_same_code_keeps_it_other_code_doesnt(self):
+        reset(V2_OWN)
+        mods = ct.config_load()["modules"]
+        L = mods["tiles"]["settings"]["items"]
+        cam = items(mods)["cam"]
+        L.append(dict(json.loads(json.dumps(cam)), id="pg2_0"))             # "Use on Main" from My layouts copies tiles
+        L.append(dict(json.loads(json.dumps(cam)), id="pg2_1", settings={"html": "<script>evil()</script>"}))
+        ct.config_save({"modules": mods})
+        t = items()
+        self.assertTrue(t["pg2_0"]["lan"])
+        self.assertNotIn("lan", t["pg2_1"])
+
+    def test_a_removed_tile_loses_its_record(self):
+        reset(V2_OWN)
+        mods = ct.config_load()["modules"]
+        mods["tiles"]["settings"]["items"] = [t for t in mods["tiles"]["settings"]["items"] if t["id"] != "pihole"]
+        ct.config_save({"modules": mods})
+        self.assertEqual(stored()["lanTiles"]["ids"], ["cam"])
+        mods = ct.config_load()["modules"]                        # a later tile with the same id and other code
+        mods["tiles"]["settings"]["items"].append(own("pihole", "<script>other()</script>", lan=True))
+        ct.config_save({"modules": mods})
+        self.assertNotIn("lan", items()["pihole"])
+
+    def test_a_hand_made_mark_does_nothing(self):
+        reset()
+        ct.config_load()
+        s = stored()
+        s["modules"]["tiles"]["settings"]["items"].append(own("x1", "<b>x</b>", lan=True))
+        ct.CONFIG_FILE.write_text(json.dumps(s))
+        self.assertNotIn("lan", items()["x1"])
+
+    def test_a_tried_layout_keeps_only_granted_marks(self):
+        reset(V2_OWN)
+        cam = items()["cam"]
+        tiles = [dict(cam), own("imp1", "<b>i</b>", lan=True)]
+        out = ct.trial_add({"pages": [{"id": "main", "slots": []}], "tiles": tiles, "look": {}})
+        kept = {t["id"]: t for t in ct.TRIALS[out["id"]]["tiles"]}
+        self.assertTrue(kept["cam"]["lan"])
+        self.assertNotIn("lan", kept["imp1"])
+
+    def test_status_warns_about_grandfathered_tiles(self):
+        reset(V2_OWN)
+        ct.config_load()
+        warn = [p for p in ct.status_view()["problems"] if "home network" in p]
+        self.assertEqual(len(warn), 1)
+        self.assertIn("\u201cTile cam\u201d", warn[0])
+        self.assertIn("\u201cTile pihole\u201d", warn[0])
+        reset()
+        ct.config_load()
+        self.assertFalse([p for p in ct.status_view()["problems"] if "home network" in p])
+
+
+class TrustPrompt(unittest.TestCase):
+    def test_run_is_saved_once(self):
+        reset(V2_OWN)
+        mods = ct.config_load()["modules"]
+        mods["tiles"]["settings"]["items"].append(own("imp1", "<b>shared</b>", review=True))
+        ct.config_save({"modules": mods})
+        self.assertTrue(items()["imp1"]["review"])
+        self.assertTrue(ct.tile_trust("imp1"))
+        self.assertNotIn("review", items()["imp1"])
+        self.assertNotIn("lan", items()["imp1"])                  # running it doesn't grant home-network access
+        self.assertTrue(ct.tile_trust("imp1"))                    # already running: still fine
+        self.assertTrue(items()["cam"]["lan"])                    # the rest is untouched
+        self.assertFalse(ct.tile_trust("nope"))
+        self.assertFalse(ct.tile_trust("clock"))                  # only Your own tiles wait for Run
+
+
 if __name__ == "__main__":
     unittest.main()

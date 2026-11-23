@@ -36,7 +36,7 @@ When a layout is shared, these never go in the file:
 - Settings of type `entity` (Home Assistant devices).
 - Settings a tile marks `share:false`, such as a note's text, countdown dates and picture links. Tile authors: add `share:false` to any setting that is likely to hold something personal.
 
-A **Your own tile** keeps its code, and Share says so. It runs sealed off from the rest of the dashboard, as it always does.
+A **Your own tile** keeps its code, and Share says so. When someone opens the layout, that code doesn't run until they tap **Run** on the tile. It runs in its own frame, can't see or change the rest of the dashboard, and can load things only from secure https:// addresses, so it can't reach plain http:// addresses such as most devices on a home network.
 
 ## What importing checks
 

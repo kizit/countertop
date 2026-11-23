@@ -82,7 +82,7 @@ async function main() {
     // Library > Community: the gallery's items show, and Download puts a copy in the Library (and only then)
     pages.push(["library community", "/control", { width: 1280, height: 900 }, async page => {
       await page.evaluate(() => libOpen("community"));
-      await sleep(2500);
+      await page.waitForFunction(() => document.querySelectorAll("#lib .lc").length >= 3, null, { timeout: 15000 }).catch(() => {});
       const r = await page.evaluate(() => ({ cards: document.querySelectorAll("#lib .lc").length, mine: looks().length, fx: mineList().length }));
       if (r.cards !== 3) throw new Error("Community shows " + r.cards + " items, not 3");
       await page.evaluate(() => document.querySelector('#lib .lc[data-id="themes/calm"]').click());
@@ -90,12 +90,12 @@ async function main() {
       if (!(await page.$('#lib [data-l="c-dl"]'))) throw new Error("an item's page has no Download button");
       if (await page.evaluate(() => looks().length) !== r.mine) throw new Error("opening an item changed the Library");
       await page.evaluate(() => document.querySelector('#lib [data-l="c-dl"]').click());
-      await sleep(400);
+      await page.waitForFunction(() => looks().some(t => t.gallery) && document.querySelector('#lib [data-l="c-rm"]'), null, { timeout: 8000 }).catch(() => {});
       const after = await page.evaluate(() => ({ t: looks().filter(t => t.gallery).map(t => t.gallery.id), up: !!document.querySelector('#lib [data-l="c-rm"]') }));
       if (after.t.join() !== "themes/calm" || !after.up) throw new Error("Download didn't add the theme to the Library");
       await page.evaluate(() => document.querySelector('#lib [data-l="c-rm"]').click());
       await page.evaluate(() => document.querySelector('#lib [data-l="c-rm"]').click());
-      await sleep(300);
+      await page.waitForFunction(() => !looks().some(t => t.gallery), null, { timeout: 8000 }).catch(() => {});
       if (await page.evaluate(() => looks().some(t => t.gallery))) throw new Error("Remove didn't take the theme out");
     }]);
     // a community tile from the gallery in a shared layout: the layout carries where to get it, never its code; a

@@ -230,7 +230,7 @@ async function main() {
     const gear = async () => {
       for (let i = 0; ; i++) {
         await T.tap(...await T.centre(frameLoc().locator("#gear")));
-        try { return await until(ctl, "Controls", 4000); } catch (e) { if (i) throw e; }
+        try { return await until(ctl, "Controls", 9000); } catch (e) { if (i) throw e; }
       }
     };
     await gear();

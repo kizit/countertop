@@ -30,7 +30,7 @@ for (const f of pages) {
 }
 for (const f of ["keep.js", "schnucks_export.js"]) if (fs.existsSync(path.join(tools, f))) jobs.push([f, path.join(tools, f)]);
 // and each part on its own, so an error names the file it's in
-for (const d of ["dash", "control", "shared"])
+for (const d of ["dash", "control", "shared", "sandbox"])
   for (const f of fs.readdirSync(path.join(tools, d)).filter(f => f.endsWith(".js")).sort()) jobs.push([d + "/" + f, path.join(tools, d, f)]);
 const tiles = path.join(tools, "tiles");
 for (const f of fs.readdirSync(tiles).filter(f => f.endsWith(".js")).sort()) jobs.push(["tiles/" + f, path.join(tiles, f)]);

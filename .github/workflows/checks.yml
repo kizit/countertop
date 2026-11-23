@@ -36,8 +36,8 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
-  pages:
-    name: Pages and tiles load without errors
+  scripts:
+    name: Scripts, tile API, translations and holidays
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,19 +54,49 @@ jobs:
         run: node tests/check-lang.js
       - name: Check the holiday regions
         run: node tests/check-holidays.js
+
+  pages:
+    name: Browser checks (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: pages-and-tiles
+            label: pages, tiles and tile data
+            checks: |
+              node tests/browser-check.js
+              node tests/tiles-check.js
+              node tests/tile-data-check.js
+          - id: sandbox-and-controls
+            label: sandbox, controls and API keys
+            checks: |
+              node tests/sandbox-check.js
+              node tests/control-check.js
+              node tests/key-check.js
+          - id: touch-and-ux
+            label: touch and Controls UX
+            checks: |
+              node tests/touch-check.js
+              node tests/controls-ux-check.js
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       - name: Install Playwright and Chromium
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
-      - name: Open the dashboard, Controls and the phone list
-        run: node tests/browser-check.js
-      - name: Check tile data end to end
-        run: node tests/tile-data-check.js
-      - name: Check community tiles in their sandbox
-        run: node tests/sandbox-check.js
-      - name: Check control tile buttons
-        run: node tests/control-check.js
-      - name: Check touch and tap behaviour
-        run: node tests/touch-check.js
-      - name: Check community tiles' API keys
-        run: node tests/key-check.js
+      - name: Run ${{ matrix.label }}
+        run: ${{ matrix.checks }}
+      - name: Upload failure screenshots and Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures-${{ matrix.id }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

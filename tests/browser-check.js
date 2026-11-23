@@ -3,48 +3,27 @@
 // the data feeds, so this needs no network.
 // Needs Node, Python 3 and Playwright with Chromium. Run with: node tests/browser-check.js
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
-const net = require("node:net");
-const { spawn } = require("node:child_process");
-const { chromium } = require("playwright");
-
-const root = path.join(__dirname, "..");
-const fixtures = fs.readFileSync(path.join(root, "demo", "fixtures", "demo-data.js"), "utf8");
-
-const freePort = () => new Promise(res => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => res(p)); }); });
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const { pathToFileURL } = require("node:url");
+const {
+  root, sleep, makeDataDir, startServer, runSuite,
+} = require("./pw-helper");
 
 async function main() {
-  const data = fs.mkdtempSync(path.join(os.tmpdir(), "countertop-check-"));
-  for (const f of fs.readdirSync(path.join(root, "demo", "work"))) fs.copyFileSync(path.join(root, "demo", "work", f), path.join(data, f));
-  {     // the night page takes over 22:00-04:00 and would hide the main page, so runs at those hours failed
-    const f = path.join(data, "dashboard.json"), d = JSON.parse(fs.readFileSync(f, "utf8"));
-    d.modules.night.on = false;
-    fs.writeFileSync(f, JSON.stringify(d));
-  }
-  const gallery = path.join(data, "gallery-index.json");        // Library > Community reads this instead of the real gallery
-  fs.writeFileSync(gallery, JSON.stringify({ countertop: "gallery", format: 1, updated: "2026-11-22", revoked: [], items: [
-    { id: "themes/calm", kind: "theme", name: "Calm", description: "", author: "someone", version: 1, updated: "2026-11-22",
-      item: { countertop: "theme", format: 1, name: "Calm", values: { accent: "#ff9f5a", tiles: "See-through" } } },
-    { id: "effects/hearts", kind: "effect", name: "Hearts", description: "", author: "someone", version: 1, updated: "2026-11-22",
-      item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } }] }));
-  const port = await freePort();
-  const base = "http://127.0.0.1:" + port;
-  const server = spawn(process.env.PYTHON || "python3", [path.join(root, "tools", "countertop.py"), "--port", String(port)],
-    { env: { ...process.env, COUNTERTOP_DATA: data, COUNTERTOP_NO_UPDATE_CHECK: "1", COUNTERTOP_GALLERY_URL: require("node:url").pathToFileURL(gallery).href }, stdio: ["ignore", "pipe", "pipe"] });
-  let log = "";
-  server.stdout.on("data", d => log += d);
-  server.stderr.on("data", d => log += d);
   const problems = [], probeHits = [];
-  let browser;
-  try {
-    for (let i = 0; ; i++) {
-      try { if ((await fetch(base + "/version")).ok) break; } catch (e) { /* not up yet */ }
-      if (i > 50) throw new Error("server didn't start:\n" + log);
-      await sleep(200);
-    }
-    browser = await chromium.launch();
+  await runSuite("browser-check", async ({ openContext, watchErrors, onCleanup }) => {
+    const data = makeDataDir("check"); // disables night.on so checks never flake between 22:00 and 04:00
+    onCleanup(() => fs.rmSync(data, { recursive: true, force: true }));
+    const gallery = path.join(data, "gallery-index.json");        // Library > Community reads this instead of the real gallery
+    fs.writeFileSync(gallery, JSON.stringify({ countertop: "gallery", format: 1, updated: "2026-11-22", revoked: [], items: [
+      { id: "themes/calm", kind: "theme", name: "Calm", description: "", author: "someone", version: 1, updated: "2026-11-22",
+        item: { countertop: "theme", format: 1, name: "Calm", values: { accent: "#ff9f5a", tiles: "See-through" } } },
+      { id: "effects/hearts", kind: "effect", name: "Hearts", description: "", author: "someone", version: 1, updated: "2026-11-22",
+        item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } }] }));
+    const srv = await startServer(data, { COUNTERTOP_GALLERY_URL: pathToFileURL(gallery).href });
+    onCleanup(() => srv.stop());
+    const base = srv.base;
+
     const pages = [
       ["dashboard", "/dash/content", { width: 1920, height: 1080 }],
       ["dashboard, portrait", "/dash/content", { width: 1080, height: 1920 }],
@@ -78,16 +57,13 @@ async function main() {
         const c = document.getElementById("edcanvas").getBoundingClientRect(), pg = curPg(), s = pg.slots[0];
         const land = JSON.stringify([s.x, s.y, s.w, s.h]), cols = getComputedStyle(document.getElementById("edgrid")).gridTemplateColumns.split(" ").length;
         const before = portOwn(pg);
-        EDIT.sel = s.id; const g = RG(s); remember(); touch(pg); Object.assign(RG(s), {h: Math.max(1, g.h - 2)}); relayout();
-        const after = {own: portOwn(pg), land: JSON.stringify([s.x, s.y, s.w, s.h]), p: !!s.p};
-        return {tall: c.height > c.width, cols, before, after, land};
+        EDIT.sel = s.id; const g = RG(s); remember(); touch(pg); Object.assign(RG(s), { h: Math.max(1, g.h - 2) }); relayout();
+        const after = { own: portOwn(pg), land: JSON.stringify([s.x, s.y, s.w, s.h]), p: !!s.p };
+        return { tall: c.height > c.width, cols, before, after, land };
       });
       await page.setViewportSize({ width: 1920, height: 1080 });
       await sleep(600);
-      r.lcols = await page.evaluate(() => {
-        const lcols = getComputedStyle(document.getElementById("edgrid")).gridTemplateColumns.split(" ").length;
-        return lcols;
-      });
+      r.lcols = await page.evaluate(() => getComputedStyle(document.getElementById("edgrid")).gridTemplateColumns.split(" ").length);
       if (!r.tall) throw new Error("the editor's canvas isn't portrait");
       if (r.cols !== 32 || r.lcols !== 48) throw new Error("grid columns " + r.cols + " / " + r.lcols + ", not 32 / 48");
       if (r.before || !r.after.own || !r.after.p) throw new Error("moving a box didn't give the page a portrait arrangement");
@@ -149,7 +125,7 @@ async function main() {
       if (wrong.length) throw new Error(wrong.join(", ") + " | saw " + probeHits.join(" "));
       const note = await page.evaluate(() => [MODULES.mA.editNote(), MODULES.mB.editNote()]);
       if (!/home network/.test(note[0]) || note[1]) throw new Error("the grandfathered tile's settings note is wrong: " + JSON.stringify(note));
-      const run = await page.$('.m-mine .mine-ask button');
+      const run = await page.$(".m-mine .mine-ask button");
       if (!run) throw new Error("the shared tile shows no Run button");
       if (await page.$$eval(".m-mine iframe.mine", f => f.length) !== 3) throw new Error("the shared tile's code is already in a frame");
       await run.click();
@@ -181,51 +157,41 @@ async function main() {
       if (!r.code || !own || own.review !== true || "lan" in own || "lan" in own.settings) throw new Error("imported Your own tile: " + JSON.stringify(own));
       if (!clock || clock.review) throw new Error("a tile without code shouldn't wait for Run: " + JSON.stringify(clock));
     }]);
+
     for (const [name, url, viewport, check, before] of pages) {
       if (before) before();
-      const context = await browser.newContext({ viewport });
-      // The pages catch a tile that throws and post it to /report; the fixture answers fetch itself, so
-      // wrap fetch once more and turn those reports into console errors this script sees.
-      await context.addInitScript({ content: fixtures + `
-        ;(() => { const f = window.fetch;
-          window.fetch = function (u, o) {
-            if (String(u).endsWith("/report") && o && o.body) {
-              try { const b = JSON.parse(o.body); if (b.task === "js-error") console.error("reported: " + b.error); } catch (e) {}
-            }
-            return f.apply(this, arguments);
-          }; })();` });
-      await context.route("**/*", route => route.request().url().startsWith(base) || route.request().url().startsWith("data:")
-        ? route.continue() : route.abort());
+      const context = await openContext({
+        base, viewport, useFixtures: true, realSaves: true, interceptReports: true, label: name,
+      });
       // what Your own tile code reached (see the network limit check): registered last, so it answers first
-      await context.route("**/mine-probe/**", route => { probeHits.push(route.request().url());
-        return route.fulfill({ status: 200, headers: { "Access-Control-Allow-Origin": "*" }, contentType: route.request().resourceType() === "image" ? "image/gif" : "text/plain",
-          body: route.request().resourceType() === "image" ? Buffer.from("R0lGODlhAQABAAAAACw=", "base64") : "ok" }); });
+      await context.route("**/mine-probe/**", route => {
+        probeHits.push(route.request().url());
+        return route.fulfill({
+          status: 200,
+          headers: { "Access-Control-Allow-Origin": "*" },
+          contentType: route.request().resourceType() === "image" ? "image/gif" : "text/plain",
+          body: route.request().resourceType() === "image" ? Buffer.from("R0lGODlhAQABAAAAACw=", "base64") : "ok",
+        });
+      });
       // Home Assistant answers for the Tempo tile's French check
       await context.route(base + "/ha/states*", route => route.fulfill({ json: { states: [
         { id: "sensor.rte_tempo_couleur_actuelle", state: "Bleu" }, { id: "sensor.rte_tempo_prochaine_couleur", state: "Rouge" },
         { id: "sensor.prix_tempo_courant", state: "0.1325" }, { id: "binary_sensor.rte_tempo_heures_creuses", state: "on" }] } }));
       const page = await context.newPage();
-      page.on("pageerror", e => problems.push(name + ": " + (e.stack || e.message)));
-      page.on("console", m => {
+      watchErrors(page, problems, {
+        prefix: name,
         // the sandbox test page tries to break out on purpose: the browser's own refusals are what it expects to see
-        const expected = (name === "sandbox test page" || /\/mine-probe\//.test(m.text())) && /Content Security Policy|sandboxed/.test(m.text());
-        if (m.type() === "error" && !expected && !/Failed to load resource|net::ERR_/.test(m.text())) problems.push(name + ": console.error " + m.text());
+        ignoreConsole: text => (name === "sandbox test page" || /\/mine-probe\//.test(text)) && /Content Security Policy|sandboxed/.test(text),
       });
       await page.goto(base + url, { waitUntil: "load" });
       await sleep(4000);                    // let tiles render and take a turn or two
       if (check) await check(page).catch(e => problems.push(name + ": " + e.message));
-      console.log((problems.some(p => p.startsWith(name + ":")) ? "✗ " : "✓ ") + name);
-      await context.close();
+      const bad = problems.some(p => p.startsWith(name + ":"));
+      console.log((bad ? "✗ " : "✓ ") + name);
+      if (!bad) await context.close();      // leave failing context open so runSuite captures its screenshot & trace
     }
-  } finally {
-    if (browser) await browser.close();
-    server.kill();
-    fs.rmSync(data, { recursive: true, force: true });
-  }
-  if (problems.length) {
-    console.error("\n" + [...new Set(problems)].join("\n\n"));
-    process.exit(1);
-  }
+    if (problems.length) throw new Error("\n" + [...new Set(problems)].join("\n\n"));
+  });
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

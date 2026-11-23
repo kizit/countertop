@@ -108,7 +108,7 @@ async function main() {
     await inFrame("moon-facts", ".fact", /drifting away/);
     await inFrame("moon-facts", ".wx", /Weather here/);
     const policy = (await (await fetch(base + "/tile-frame/moon-facts")).headers.get("content-security-policy"));
-    assert.match(policy, /^sandbox allow-scripts; default-src 'none'; script-src 'nonce-/);
+    assert.match(policy, /^sandbox allow-scripts; default-src 'none'; script-src http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/runtime\.js http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/tile\.js;/);
     assert.equal(await page.locator('[data-mod="moon_a"] iframe').getAttribute("sandbox"), "allow-scripts");
     console.log("✓ a community tile draws in its frame, with its site's answer and the weather");
 
@@ -151,6 +151,8 @@ async function main() {
     for (const k of ["fetchConfig", "fetchLan", "tileFetch"]) assert.match(out[k], /^refused/, k + ": " + out[k]);
     assert.ok(/blocked|refused/.test(out.postConfig), "postConfig: " + out.postConfig);
     assert.match(out.img, /blocked|no answer/);
+    for (const k of ["scriptOut", "scriptHere", "scriptTileFetch"]) assert.match(out[k], /blocked|no answer/, k + ": " + out[k]);
+    assert.ok(!outside.some(u => u.includes("leak.example.com")), "a script from elsewhere is never even requested");
     assert.equal(out.open, "blocked");
     assert.equal(out.events, "[]", "it didn't declare events");
     assert.equal(out.weather, "null", "it didn't declare the weather");

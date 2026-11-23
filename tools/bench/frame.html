@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sandbox test frame</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #16283d; color: #fff; font: 13px sans-serif; }
+  canvas { display: block; position: absolute; inset: 0; }
+  #clock { position: absolute; top: 3px; left: 6px; font-size: 18px; }
+  #dom { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; line-height: 10px; opacity: .7; word-break: break-all; }
+</style>
+<canvas id="c"></canvas><div id="clock"></div><div id="dom"></div>
+<script nonce="__NONCE__">
+var Q = new URLSearchParams(location.search), MODE = Q.get("mode") || "busy", RUN = Q.get("run") || "x", IDX = +Q.get("i") || 0;
+var violations = [];
+document.addEventListener("securitypolicyviolation", function (e) {
+  violations.push((e.violatedDirective || "?") + " " + String(e.blockedURI || "").slice(0, 50));
+});
+function tell(m) { try { parent.postMessage(m, "*"); } catch (e) { /* nobody to tell */ } }
+function hit(via) { return "/bench/hit?via=" + via + "&run=" + encodeURIComponent(RUN); }
+
+// a tile that is always busy: a canvas animation, a clock, and DOM updates every second
+function busy() {
+  var c = document.getElementById("c"), g = c.getContext("2d"), dots = [], i, n = 0, last = performance.now(), t0 = last;
+  function size() { c.width = innerWidth || 200; c.height = innerHeight || 100; }
+  size();
+  for (i = 0; i < 24; i++) dots.push({ x: Math.random(), y: Math.random(), r: 4 + Math.random() * 10, dx: (Math.random() - .5) * .01, dy: (Math.random() - .5) * .01, h: Math.random() * 360 });
+  function frame(now) {
+    var w = c.width, h = c.height;
+    g.fillStyle = "#16283d"; g.fillRect(0, 0, w, h);
+    for (i = 0; i < dots.length; i++) {
+      var d = dots[i]; d.x = (d.x + d.dx + 1) % 1; d.y = (d.y + d.dy + 1) % 1;
+      g.fillStyle = "hsla(" + d.h + ",80%,60%,.8)"; g.beginPath(); g.arc(d.x * w, d.y * h, d.r, 0, 6.3); g.fill();
+    }
+    n++;
+    if (now - last >= 5000) { tell({ bench: "fps", i: IDX, fps: n * 1000 / (now - last) }); n = 0; last = now; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  setInterval(function () { document.getElementById("clock").textContent = new Date().toLocaleTimeString(); }, 250);
+  var spans = [], dom = document.getElementById("dom");
+  for (i = 0; i < 60; i++) { var s = document.createElement("span"); dom.appendChild(s); spans.push(s); }
+  setInterval(function () { for (var k = 0; k < spans.length; k++) spans[k].textContent = Math.floor(Math.random() * 1000) + " "; }, 1000);
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.cmd === "loop") { tell({ bench: "looping", i: IDX }); setTimeout(function () { for (;;) { /* an endless loop */ } }, 50); }
+  });
+  tell({ bench: "ready", i: IDX });
+}
+
+// the ways out: each is tried, and the parent page compares the answers with what the server saw
+function escapes() {
+  var r = { origin: String(self.origin) }, wait = [];
+  function ask(name, p) { wait.push(p.then(function (v) { r[name] = v; }, function (e) { r[name] = "error " + String(e).slice(0, 40); })); }
+  ask("fetch", fetch(hit("fetch")).then(function (x) { return "reached " + x.status; }, function () { return "blocked"; }));
+  ask("post", new Promise(function (ok) {         // XMLHttpRequest, so it is the browser's own request
+    var x = new XMLHttpRequest();
+    x.onload = function () { ok(x.status === 403 ? "refused 403" : "answered " + x.status); };
+    x.onerror = function () { ok("blocked"); };
+    try { x.open("POST", "/config"); x.setRequestHeader("Content-Type", "application/json"); x.send("{\"bench\":\"probe\"}"); } catch (e) { ok("blocked"); }
+  }));
+  ask("img", new Promise(function (ok) {
+    var im = new Image(); im.onload = function () { ok("loaded"); }; im.onerror = function () { ok("blocked"); }; im.src = hit("img");
+    setTimeout(function () { ok("no answer"); }, 1500);
+  }));
+  var ln = document.createElement("link"); ln.rel = "prefetch"; ln.href = hit("prefetch"); document.head.appendChild(ln);
+  try { var w = window.open(hit("open")); r.open = w ? "opened" : "blocked"; } catch (e) { r.open = "blocked"; }
+  try { top.location.href = hit("top"); r.top = "no error"; } catch (e) { r.top = "blocked"; }
+  Promise.all(wait).then(function () { return new Promise(function (ok) { setTimeout(ok, 600); }); }).then(function () {
+    if (!window.RTCPeerConnection) { r.rtc = { present: false, candidates: 0 }; return; }
+    return new Promise(function (ok) {
+      var res = { present: true, candidates: 0, kinds: {} }, pc;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        pc.createDataChannel("x");
+        pc.onicecandidate = function (e) {
+          if (!e.candidate) return;
+          res.candidates++;
+          var s = e.candidate.candidate, t = (/ typ (\w+)/.exec(s) || [0, "?"])[1] + (/ [0-9a-f-]+\.local /.test(s) ? " (hidden address)" : " (real address)");
+          res.kinds[t] = (res.kinds[t] || 0) + 1;
+        };
+        pc.createOffer().then(function (o) { return pc.setLocalDescription(o); }).catch(function (e) { res.error = String(e).slice(0, 60); });
+      } catch (e) { res.error = String(e).slice(0, 60); }
+      setTimeout(function () { try { pc.close(); } catch (e) { /* closed */ } r.rtc = res; ok(); }, 3000);
+    });
+  }).then(function () {
+    tell({ bench: "escape", result: r, violations: violations.slice(0, 12) });
+    // last: leave the page for a hit on the server. A frame can always do this, and the parent counts the second load
+    setTimeout(function () { location.href = hit("nav"); }, 1200);
+  });
+}
+
+if (MODE === "escape") escapes(); else busy();
+</script>

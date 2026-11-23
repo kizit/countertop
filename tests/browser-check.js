@@ -115,6 +115,22 @@ async function main() {
       await sleep(300);
       if (await page.evaluate(() => looks().some(t => t.gallery))) throw new Error("Remove didn't take the theme out");
     }]);
+    // /bench, the sandbox test page: one busy frame, then the escape checks. Every way out must be blocked except leaving
+    // the frame's own page, which arrives at the server and shows as a second load. (The endless-loop test is for the Echo, not here.)
+    pages.push(["sandbox test page", "/bench?secs=3", { width: 1280, height: 800 }, async page => {
+      const run = await page.evaluate(() => window.bench.perf(1));
+      if (!run || !(run.fps > 1)) throw new Error("the 1-frame run measured nothing: " + JSON.stringify(run));
+      const r = await page.evaluate(() => window.bench.escapes());
+      const bad = Object.entries(r.checks).filter(([, c]) => !c.ok).map(([k, c]) => k + ": " + c.note);
+      if (bad.length) throw new Error("not as expected: " + bad.join("; ") + " | reports " + r.violations);
+      if (r.passed !== 8 || r.total !== 8) throw new Error("checked " + r.total + " things, passed " + r.passed);
+      if (!/connect-src/.test(r.violations)) throw new Error("the browser reported no connect-src policy violation: " + JSON.stringify(r.violations));
+      const stored = await (await fetch(base + "/bench/results")).json();
+      if (!stored.stored.perf["1"] || !stored.stored.escape) throw new Error("results weren't saved");
+      for (const via of ["fetch", "img", "prefetch", "open", "top"])
+        if (stored.counts[via]) throw new Error("the server saw a hit by " + via);
+      if (stored.counts.nav !== 1) throw new Error("the self-navigation hit arrived " + stored.counts.nav + " times, not once");
+    }]);
     for (const [name, url, viewport, check, before] of pages) {
       if (before) before();
       const context = await browser.newContext({ viewport });
@@ -137,7 +153,9 @@ async function main() {
       const page = await context.newPage();
       page.on("pageerror", e => problems.push(name + ": " + (e.stack || e.message)));
       page.on("console", m => {
-        if (m.type() === "error" && !/Failed to load resource|net::ERR_/.test(m.text())) problems.push(name + ": console.error " + m.text());
+        // the sandbox test page tries to break out on purpose: the browser's own refusals are what it expects to see
+        const expected = name === "sandbox test page" && /Content Security Policy|sandboxed/.test(m.text());
+        if (m.type() === "error" && !expected && !/Failed to load resource|net::ERR_/.test(m.text())) problems.push(name + ": console.error " + m.text());
       });
       await page.goto(base + url, { waitUntil: "load" });
       await sleep(4000);                    // let tiles render and take a turn or two

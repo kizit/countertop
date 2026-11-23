@@ -1,5 +1,6 @@
 /* Stocks: prices and today's change for the symbols you pick */
 Tile("stocks", {
+  api:1, uses:["fetch"],
   title:"Stocks", cat:"Money", every:60, size:[12, 10, 8, 5],
   desc:"Prices for the stocks, funds or indexes you pick, with today's change and a little chart of the day. Prices can be up to 15 minutes old. Not investment advice.",
   settings:{
@@ -18,9 +19,10 @@ Tile("stocks", {
     .slot.narrow > .m-stocks svg{display:none} .slot.narrow > .m-stocks .sk{grid-template-columns:minmax(0,1fr) auto}`,
   cls:"m-stocks",
   render(el){
+    const esc = x => this.esc(x);
     const syms = (this.s.syms || []).map(x => String(x).trim()).filter(Boolean);
     if (!syms.length){ el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="empty">Add symbols in this tile\'s settings</div>'; return; }
-    const d = tileData(this, "/stocks?s=" + encodeURIComponent(syms.join(",")), 300);
+    const d = this.fetch("/stocks?s=" + encodeURIComponent(syms.join(",")), 300);
     const NAMES = {"^GSPC":"S&P 500", "^DJI":"Dow Jones", "^IXIC":"Nasdaq", "^RUT":"Russell 2000"};
     let h = '<h3>' + esc(this.name) + '</h3>';
     if (!d){ el.innerHTML = h + '<div class="empty">Loading…</div>'; return; }

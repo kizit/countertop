@@ -48,6 +48,8 @@ jobs:
           node-version: 22
       - name: Syntax-check every script
         run: node tests/check-js.js
+      - name: Check tiles run through the tile API alone
+        run: node tests/check-tile-api.js
       - name: Check the translations
         run: node tests/check-lang.js
       - name: Check the holiday regions

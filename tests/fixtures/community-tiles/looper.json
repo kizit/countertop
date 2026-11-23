@@ -1,0 +1,15 @@
+{
+ "countertop": "tile",
+ "id": "looper",
+ "version": 1,
+ "name": "Freeze test",
+ "description": "For testing safe mode on a real screen: a tap starts an endless loop, which freezes the whole page. Not used by the automated checks.",
+ "size": [
+  12,
+  8,
+  8,
+  6
+ ],
+ "taps": true,
+ "code": "Tile(\"looper\", {\n  render(el){ el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3><div class=empty>Tap to freeze the screen. Safe mode should turn on within a minute.</div>\"; },\n  tap(){ for (;;) { /* an endless loop */ } }\n});\n"
+}

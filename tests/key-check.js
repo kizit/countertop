@@ -1,6 +1,7 @@
 // API keys for community tiles, end to end in the shell the Echo runs, with real touches: hold the tile, type a key in
 // its settings, tap Save key. The key reaches the server's own file and nowhere else: not the settings, not /config,
 // not the page, not the tile's frame (which only learns that a key is saved), not a shared layout. Then Remove key.
+// Also: shared layouts never carry a Home Assistant tile's lock switch, taps setting or renamed things.
 // The test tile is tests/fixtures/community-tiles/key-check.json; its site reads are answered here (no internet).
 // Needs Node, Python 3 and Playwright with Chromium. Run with: node tests/key-check.js
 const fs = require("node:fs");
@@ -136,8 +137,27 @@ async function main() {
     assert.match(packed, /"type":"key-check","settings":\{"label":"kept"\}/);
     assert.ok(!/typed/.test(packed), "no key settings in a shared layout");
     for (const k of [KEY, TOKEN]) assert.ok(!packed.includes(k));
-    await ctl.close();
     console.log("✓ a shared layout holds the tile but none of its key settings");
+
+    // Home Assistant tiles: "Allow locks…", how many taps they need, and the renamed things never travel in a layout,
+    // so an imported one can't arrive with locks already allowed on one tap
+    const ha = await ctl.evaluate(() => {
+      const it = { id: "ha_x", type: "ha", settings: { title: "Hall", secure: true, confirm: "One tap", names: "lock.front_door = Kid's door" } };
+      const sn = { id: "hs_x", type: "hasensor", settings: { secure: true, confirm: "One tap", names: "Kid's room" } };
+      tileList().push(it, sn);
+      const pg = { id: "p_x", name: "X", slots: [{ id: "x1", mod: "ha_x", x: 0, y: 0, w: 12, h: 12 }, { id: "x2", mod: "hs_x", x: 12, y: 0, w: 12, h: 12 }] };
+      const out = JSON.stringify(libPack(pg, null, "Mine", "").pkg);
+      // a file made elsewhere that sets them anyway
+      const read = libRead({ countertop: "layout", pages: [{ boxes: [{ x: 0, y: 0, w: 12, h: 12, tiles: [{ type: "ha", settings: { secure: true, confirm: "One tap", names: "a = b", title: "Hall" } },
+        { type: "hasensor", settings: { secure: true, confirm: "One tap", names: "c = d" } }] }] }] });
+      return { out, read: JSON.stringify(read.boxes) };
+    });
+    assert.match(ha.out, /"type":"ha"/);
+    assert.ok(!/secure|One tap|confirm|Kid/.test(ha.out), "exported: " + ha.out);
+    assert.match(ha.read, /"type":"ha","settings":\{\}/);
+    assert.ok(!/secure|One tap|confirm|names/.test(ha.read), "imported: " + ha.read);
+    await ctl.close();
+    console.log("✓ Home Assistant tiles never share or import their lock switch, their taps setting or renamed things");
 
     // --- Remove key ---
     const fb2 = await dashL().locator('[data-mod="kc_a"] iframe').boundingBox();

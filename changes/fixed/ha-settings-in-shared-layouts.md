@@ -1,0 +1,1 @@
+- **Shared layouts keep your Home Assistant choices to yourself.** A Home Assistant tile's "Allow locks, garage doors and alarms", how many taps they need, and the names you gave things are no longer saved in shared layouts, so a layout someone sends you can't arrive with locks already allowed.

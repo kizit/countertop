@@ -1,0 +1,234 @@
+{
+ "countertop": "gallery",
+ "format": 1,
+ "updated": "2026-11-23",
+ "items": [
+  {
+   "id": "tiles/hello-there",
+   "kind": "tile",
+   "name": "Hello there",
+   "description": "A friendly hello and the time. Test tile for Community: it needs nothing, so its permission list is empty.",
+   "author": "countertop-tests",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "hello-there",
+    "name": "Hello there",
+    "author": "countertop-tests",
+    "description": "A friendly hello and the time. Test tile for Community: it needs nothing, so its permission list is empty.",
+    "size": [
+     12,
+     8,
+     8,
+     6
+    ],
+    "every": 30,
+    "code": "Tile(\"hello-there\", {\n  css: \".hi{display:flex;flex-direction:column;justify-content:center;height:100%} .hi b{font-size:44px;color:var(--accent)} .hi small{color:var(--dim);font-size:20px}\",\n  cls: \"hi\",\n  render(el){\n    const t = new Date();\n    el.innerHTML = \"<b>Hello there</b><div>\" + this.esc(t.toLocaleTimeString([], {hour:\"numeric\", minute:\"2-digit\"})) + \"</div><small>Version 1</small>\";\n  }\n});\n"
+   }
+  },
+  {
+   "id": "tiles/moon-facts",
+   "kind": "tile",
+   "name": "Moon facts",
+   "description": "A fact about the moon from a public site, and a tally you can tap.",
+   "author": "someone",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "moon-facts",
+    "name": "Moon facts",
+    "author": "someone",
+    "description": "A fact about the moon from a public site, and a tally you can tap.",
+    "size": [
+     12,
+     8,
+     8,
+     6
+    ],
+    "uses": [
+     "store",
+     "fetch"
+    ],
+    "feeds": [
+     "wx"
+    ],
+    "hosts": [
+     "api.example.com"
+    ],
+    "taps": true,
+    "every": 60,
+    "settings": {
+     "label": {
+      "type": "text",
+      "label": "Label",
+      "default": "Taps"
+     }
+    },
+    "code": "Tile(\"moon-facts\", {\n  css: \".mf b{color:var(--accent)} .mf .n{font-size:40px}\",\n  cls: \"mf\",\n  render(el){\n    const fact = this.fetch(\"https://api.example.com/moon.json\", 300), err = this.fetchError(\"https://api.example.com/moon.json\");\n    const wx = this.feed(\"weather\"), n = (this.store.get().taps || 0);\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3><div class=fact>\" + (fact ? this.esc(fact.fact) : err ? \"Couldn't load: \" + this.esc(err) : \"Loading\u2026\") +\n      \"</div><div class=wx>\" + (wx && wx.current ? \"Weather here\" : \"No weather\") + \"</div><div class=n>\" + this.esc(this.s.label) + \": <b>\" + n + \"</b></div>\";\n  },\n  tap(){ this.store.set(\"taps\", (this.store.get().taps || 0) + 1); }\n});\n"
+   },
+   "shot": "items/tiles/moon-facts.png"
+  },
+  {
+   "id": "tiles/list-count",
+   "kind": "tile",
+   "name": "List count",
+   "description": "How many things are on your lists. Test tile for Community: it reads personal data, so it gets no sites and shows the contained, not sealed warning.",
+   "author": "countertop-tests",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "list-count",
+    "name": "List count",
+    "author": "countertop-tests",
+    "description": "How many things are on your lists. Test tile for Community: it reads personal data, so it gets no sites and shows the contained, not sealed warning.",
+    "size": [
+     10,
+     8,
+     8,
+     6
+    ],
+    "feeds": [
+     "notes"
+    ],
+    "every": 60,
+    "code": "Tile(\"list-count\", {\n  css: \".lcnt{display:flex;flex-direction:column;justify-content:center;height:100%} .lcnt b{font-size:56px;color:var(--accent)}\",\n  cls: \"lcnt\",\n  render(el){\n    const n = this.feed(\"notes\"), items = Array.isArray(n) ? n : n && typeof n === \"object\" ? [].concat(...Object.values(n).filter(Array.isArray)) : [];\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3><b>\" + items.length + \"</b><div>on your lists</div>\";\n  }\n});\n"
+   }
+  },
+  {
+   "id": "tiles/front-porch",
+   "kind": "tile",
+   "name": "Front porch",
+   "description": "The porch light and the front door lock. Test tile for control buttons: its code tries to work the lock by itself when tapped.",
+   "author": "countertop-tests",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "front-porch",
+    "name": "Front porch",
+    "author": "countertop-tests",
+    "description": "The porch light and the front door lock. Test tile for control buttons: its code tries to work the lock by itself when tapped.",
+    "size": [
+     12,
+     10,
+     10,
+     8
+    ],
+    "taps": true,
+    "settings": {
+     "note": {
+      "type": "text",
+      "label": "Note",
+      "default": "hi"
+     }
+    },
+    "devices": {
+     "light": {
+      "label": "Porch light",
+      "domains": [
+       "light",
+       "switch"
+      ]
+     },
+     "lock": {
+      "label": "Front door lock",
+      "domains": [
+       "lock"
+      ]
+     }
+    },
+    "controls": [
+     {
+      "id": "on",
+      "device": "light",
+      "action": "turn_on"
+     },
+     {
+      "id": "off",
+      "device": "light",
+      "action": "turn_off"
+     },
+     {
+      "id": "lock",
+      "device": "lock",
+      "action": "lock"
+     },
+     {
+      "id": "unlock",
+      "device": "lock",
+      "action": "unlock"
+     }
+    ],
+    "demoData": {},
+    "code": "Tile(\"front-porch\", {\n  render(el){\n    const d = this.devices(), light = d.light, lock = d.lock;\n    const line = (o, what) => \"<div class=li><span class=s>\" + this.esc(what) + \"</span><span class=t data-dev>\" + this.esc(o ? o.state : \"not picked\") + \"</span></div>\";\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3>\" + line(light, \"Light\") + line(lock, \"Lock\") +\n      \"<div class=tried>\" + this.esc(this._tried || \"\") + \"</div><div class=keys>\" + this.esc(Object.keys(this.s).join(\",\")) + \"</div>\";\n  },\n  // tap the tile: its code tries every way to work the lock by itself. None of them may do anything\n  tap(e, root){\n    const tries = [];\n    this.act(\"tile.control\", {control:\"unlock\"}).then(() => tries.push(\"act worked\"), () => tries.push(\"act refused\"));\n    parent.postMessage({ct:\"control\", id:\"unlock\"}, \"*\");\n    parent.postMessage({ct:\"act\", action:\"tile.control\", args:{control:\"unlock\"}}, \"*\");\n    try { parent.document.querySelector(\"[data-sbxc]\").click(); tries.push(\"clicked the dashboard\"); } catch (e) { tries.push(\"can't reach the dashboard\"); }\n    setTimeout(() => { this._tried = tries.join(\", \"); root.querySelector(\".tried\").textContent = this._tried; }, 50);\n  }\n});\n"
+   }
+  },
+  {
+   "id": "tiles/next-up",
+   "kind": "tile",
+   "name": "Next up",
+   "description": "Your next event.",
+   "author": "countertop-tests",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "next-up",
+    "name": "Next up",
+    "description": "Your next event.",
+    "size": [
+     12,
+     8,
+     8,
+     6
+    ],
+    "uses": [
+     "events",
+     "sources"
+    ],
+    "feeds": [
+     "events"
+    ],
+    "hosts": [
+     "api.example.com"
+    ],
+    "settings": {
+     "cals": {
+      "type": "source",
+      "kind": "calendars",
+      "multi": true,
+      "label": "Calendars",
+      "default": []
+     }
+    },
+    "code": "Tile(\"next-up\", {\n  render(el){\n    const list = this.events({cals:this.s.cals, once:true}), cals = this.sources(\"calendars\"), teams = this.sources(\"teams\");\n    const e = list[0];\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3>\" + (e ? \"<div class=ev>\" + this.esc(e.summary) + \"</div><div class=isdate>\" + (e.date instanceof Date && !isNaN(e.date)) + \"</div>\" :\n      \"<div class=empty>\" + (cals.length ? \"Nothing coming up\" : \"Connect a calendar\") + \"</div>\") + \"<div class=cals>\" + cals.length + \"</div><div class=teams>\" + teams.length + \"</div>\";\n    if (!this._tried){ this._tried = 1; this.fetch(\"https://api.example.com/moon.json\"); }\n    const fe = this.fetchError(\"https://api.example.com/moon.json\");\n    if (fe) el.innerHTML += \"<div class=neterr>\" + this.esc(fe) + \"</div>\";\n  }\n});\n"
+   }
+  },
+  {
+   "id": "tiles/someone-else",
+   "kind": "tile",
+   "name": "Spinner",
+   "description": "Plain tile used to fill a page.",
+   "author": "countertop-tests",
+   "version": 1,
+   "updated": "2026-11-24",
+   "item": {
+    "countertop": "tile",
+    "id": "spinner",
+    "name": "Spinner",
+    "description": "Plain tile used to fill a page.",
+    "size": [
+     8,
+     8,
+     6,
+     6
+    ],
+    "code": "Tile(\"spinner\", { render(el){ el.innerHTML = \"<div class=ok>\" + this.esc(this.name) + \"</div>\"; } });\n"
+   }
+  }
+ ],
+ "revoked": []
+}

@@ -146,6 +146,19 @@ A community tile is the same `Tile("<id>", {...})` code, run in a sandboxed fram
 
 The server reads community tiles from `community/tiles/<id>.json` in the data folder. The id can't be a built-in tile's, and the code is at most 64 KB.
 
+### From the gallery
+
+People get community tiles from Library → Community. A gallery tile is an item of kind `tile` in the gallery's `index.json`, with the tile file above inline as `item`, the id `tiles/<tile id>`, and optionally a screenshot at `shot` (`items/tiles/<tile id>.png`). Countertop leaves out any tile that doesn't check out, or reads personal data and also asks for sites.
+
+- **Before Download** the tile's page lists everything it can do: the data it sees, the sites it reads, its API keys, the devices it has buttons for and what they do, and whether it responds to taps. Tiles that see personal data or the home's devices also say "Reviewed and contained, not sealed".
+- **Download** sends the list the person saw. The server reads the tile from the gallery itself and refuses if it can now do anything that wasn't on the list. It saves the tile with a note of where it came from: `"gallery": {"id", "v", "by", "perms"}`.
+- **Updates** never happen by themselves. Community shows Update when the gallery has a newer version, and a version that can do more marks what's new and asks again. Doing less never asks.
+- **Remove** takes the tile out of every page and drops its API keys.
+- **Take-downs.** While a tile from the gallery is installed, the server reads `index.json` once a day (an hour later after a failure) and sends nothing about the install. A tile in its `revoked` list stops: its frame isn't served, its box says it was taken down, and Status says so. It runs again if the gallery lists it again.
+- **Shared layouts** name a gallery tile and its version (`"from": {"id", "v"}`), never its code. A Countertop without the tile offers it from Community, or leaves its box out.
+
+Test galleries are in `tests/fixtures/community-tiles/gallery/`. Point Countertop at one with `COUNTERTOP_GALLERY_URL`.
+
 ### Control tiles
 
 A community tile can work lights, switches, locks and other things in Home Assistant, but its code never sends an action. It declares what it works, and the dashboard draws the buttons itself, below the tile's frame:

@@ -50,6 +50,7 @@ One file per area, in `tools/server/`:
 | `actions.py` | Tile actions (`TILE_ACTIONS`) and the two-tap confirmation |
 | `library.py` | Previewing and trying layouts |
 | `community.py` | The Community gallery's list for Library → Community. Downloads are checked again like any imported file |
+| `commtiles.py` | Community tiles from the gallery: what each can do, Download and Update after consent, Remove, and the daily take-down check |
 | `sandbox.py` | Community tiles: reading their files, the sandboxed frame page each one runs in, and safe mode |
 | `tilefetch.py` | Web addresses read for tiles (`/tile-fetch`): only https, only the sites a tile declares, never the home network |
 | `tilekeys.py` | Community tiles' API keys (`POST /tile-key`): kept on the server, added by `/tile-fetch` only to the one site each is for |
@@ -74,7 +75,9 @@ One file per area, in `tools/server/`:
 | `GET /tile-frame/<id>` | Dashboard | The sandboxed page a community tile runs in, with its code at `/tile-frame/<id>/tile.js` |
 | `POST /sandbox/beat`, `/sandbox/safe` | Dashboard, Controls | Check-ins while community tiles show, and the safe mode switch |
 | `POST /trial` | Library | Try a layout on the screen without saving it |
-| `GET /community` | Library → Community | The gallery's list of layouts, themes and effects (cached ten minutes) |
+| `GET /community` | Library → Community | The gallery's list of layouts, tiles, themes and effects (cached ten minutes) |
+| `POST /community/tile`, `/community/tile/remove` | Library → Community | Download or update a gallery tile (the server reads it from the gallery, only with consent to everything it can do), and remove one |
+| `GET /community/shot?id=` | Library → Community | A gallery tile's screenshot, read from the gallery by the server |
 | `GET /status`, `/diagnostics`, `/version` | Controls, Docker health check | Health and support |
 
 The route table lives in `tools/server/app.py`. This list is a summary, so check `app.py` for the full set.
@@ -116,6 +119,7 @@ Everything the server saves is in one data folder: `work/` next to `tools/` by d
 | `dashboard.json` | **Settings**: pages, boxes, tiles and their settings, looks | Yes, except settings marked `share:false` |
 | `sources.json` | **Sources**: calendar links, lists, Home Assistant, recipe and other connections, including tokens and keys | Never |
 | `tile-keys.json` | **API keys** typed into community tiles' settings | Never |
+| `community/tiles/<id>.json`, `community/takedowns.json` | **Community tiles** downloaded from the gallery (or put there by hand), and which ones the gallery took down | A layout names a gallery tile and its version, never its code |
 | `tiles/<tile id>.json` | **Tile data**: what a tile has saved with `this.store` | Never |
 | `notes.json`, `pushed_lists.json` | Lists kept on the server, and lists sent from the Mac app or a phone shortcut | Never |
 | `backups/` | Recent copies of the settings and tile data | |

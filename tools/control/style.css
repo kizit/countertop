@@ -247,6 +247,21 @@
   .lok.warn{color:#ffb84d}
   .lact{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 10px} .lact .lbtn{flex:1}
   .lnote{color:var(--faint);font-size:13px;margin:6px 0}
+  .lnote.warn{color:#ffcf85;background:#2a2112;border:1px solid #5a4520;border-radius:10px;padding:10px 12px;font-size:14px}
+  .ctshot{display:flex;align-items:center;justify-content:center;background:#141a21;border:1px solid #2a333e}
+  .ctshot img{width:100%;height:100%;object-fit:contain;display:block}
+  .ctshot.none{flex-direction:column;gap:4px;font-size:15px;color:var(--fg)}
+  .lc > .lpic.ctshot,.lbig > .lpic.ctshot{display:flex}
+  .ctshot .ctn{font-weight:600;padding:0 10px;text-align:center}
+  .ctshot .cts{color:var(--faint);font-size:12px}
+  .ctbig .ctshot.none{font-size:26px}
+  .lcode{margin:10px 0}
+  .lcode summary{cursor:pointer;color:var(--accent);font-size:14px;padding:6px 0}
+  .lcode pre{max-height:420px;overflow:auto;background:#0e1217;border:1px solid #2a333e;border-radius:8px;padding:10px;font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .ctperms h3{margin:4px 0 6px;font-size:15px}
+  .lrow.perm .lok{background:#1c232c}
+  .lrow.perm.secure .lok{background:#3a2a12}
+  .lnew{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;background:var(--accent);color:#000;font-size:11px;font-weight:700;vertical-align:middle}
   .lfield{display:block;color:var(--dim);font-size:13px;margin-bottom:12px}
   .lfield input,.lfield select,.lfield textarea{display:block;width:100%;margin-top:4px}
   #lib textarea.code{min-height:0;font-size:12px;word-break:break-all;white-space:pre-wrap}

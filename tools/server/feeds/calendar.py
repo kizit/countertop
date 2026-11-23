@@ -104,7 +104,8 @@ def _rrule_expand(rule, dtstart, cursor, window_end, limit=400):
     until = None
     if P.get("UNTIL"):
         u = P["UNTIL"]
-        until = datetime.strptime(u[:15], "%Y%m%dT%H%M%S") if "T" in u else datetime.strptime(u[:8], "%Y%m%d").replace(hour=23, minute=59, second=59)
+        # a UTC end (…Z) is turned into local time, as the dateutil branch of parse_ics does
+        until = _local_naive(u[:16], "")[0] if "T" in u else datetime.strptime(u[:8], "%Y%m%d").replace(hour=23, minute=59, second=59)
     days = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
     byday = [(int(m.group(1) or 0), days.index(m.group(2))) for m in (re.match(r"([+-]?\d*)(MO|TU|WE|TH|FR|SA|SU)$", x.strip().upper()) for x in P.get("BYDAY", "").split(",") if x.strip()) if m]
     bymd = [int(x) for x in P.get("BYMONTHDAY", "").split(",") if x.strip().lstrip("-").isdigit()]

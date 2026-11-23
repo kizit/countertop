@@ -177,6 +177,10 @@ _SAFE_HOSTS = ("api.open-meteo.com", "geocoding-api.open-meteo.com", "air-qualit
                "stats-api.mlssoccer.com", "site.api.espn.com", "api.rainviewer.com", "tilecache.rainviewer.com", "tile.openstreetmap.org")
 
 
+# tile settings someone types personal text into: Note text, Countdown dates, the clock's own countdowns
+_PRIVATE_TILE_TEXT = ("text", "note", "body", "dates", "extra")
+
+
 def _secret_fields(kind):
     """Fields never shown in full: every field Setup marks secret, plus links and sync keys of any kind."""
     return sorted({"url", "pushKey"} | {f for f, v in (SOURCE_KINDS.get(kind) or {}).get("fields", {}).items() if v.get("secret")})
@@ -257,8 +261,12 @@ def diagnostics_zip():
         mods["deals"]["settings"]["zip"] = "<removed>"
     for it in (mods.get("tiles", {}).get("settings", {}).get("items") or []):
         for k, v in list((it.get("settings") or {}).items()):
-            if k in ("text", "note", "body") and isinstance(v, str) and v:
+            if k not in _PRIVATE_TILE_TEXT or not v:
+                continue
+            if isinstance(v, str):
                 it["settings"][k] = "<%d characters removed>" % len(v)
+            elif isinstance(v, list):          # Note text, Countdown dates and clock countdowns are kept one line each
+                it["settings"][k] = "<%d line%s removed>" % (len(v), "" if len(v) == 1 else "s")
     srcs = {}
     for kind, items in sources_load().items():
         srcs[kind] = []

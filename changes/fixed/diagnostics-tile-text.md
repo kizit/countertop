@@ -1,0 +1,1 @@
+- **Download diagnostics leaves out what you typed into tiles.** The text of Note tiles, Countdown dates and the clock's own countdowns are no longer copied into the diagnostics file.

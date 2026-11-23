@@ -204,6 +204,7 @@ def _secrets():
                 out.add(("%.2f" % float(g[k])))
     except Exception:
         pass
+    out.update(saved_key_values())          # community tiles' API keys
     return sorted(out, key=len, reverse=True)
 
 
@@ -261,12 +262,12 @@ def diagnostics_zip():
     srcs = {}
     for kind, items in sources_load().items():
         srcs[kind] = []
-        sec = _secret_fields(kind)
+        fields = _secret_fields(kind)
         for it in items or []:
-            o = {k: v for k, v in it.items() if k not in sec}
+            o = {k: v for k, v in it.items() if k not in fields}
             if it.get("url"):
                 o["url"] = "set (%s)" % (urlparse(it["url"].replace("webcal://", "https://")).hostname or "?")
-            for f in sec:
+            for f in fields:
                 if f != "url" and it.get(f):
                     o[f] = "set"
             srcs[kind].append(o)
@@ -319,3 +320,4 @@ from server.feeds.meals import MEAL_STATUS  # noqa: E402
 from server.homeassistant import HA_STATUS  # noqa: E402
 from server.lists import notes_view  # noqa: E402
 from server.sources import SOURCE_KINDS, sources_load  # noqa: E402
+from server.tilekeys import saved_key_values  # noqa: E402

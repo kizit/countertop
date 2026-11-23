@@ -209,6 +209,7 @@ function libPack(p, look, name, desc){
         const d = S[k];
         if (k === "design"){ s.design = t.settings.design; continue; }
         if (!d || k[0] === "@") continue;          // a control tile's devices are this home's own
+        if (d.type === "secret") continue;       // an API key is kept by the server; never in a layout
         if (d.type === "source"){ flags.add("src"); continue; }
         if (d.type === "entity"){ flags.add("ha"); continue; }
         if (d.share === false){ flags.add("own"); continue; }

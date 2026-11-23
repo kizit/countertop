@@ -52,8 +52,45 @@ function sbxEditNote(m){
   if ((m.personal || []).length) L.push(tr("Reviewed and contained, not sealed. Silk lets a tile's code send one request by navigating its own frame, and may allow other ways out. Only turn on tiles from authors you trust."));
   return L.length ? '<p class="pd">' + L.map(esc).join(" ") + '</p>' : "";
 }
-// the settings the tile's own code sees: not the ones the dashboard added
-function sbxS(m){ const o = {}; for (const k in m.s) if (k[0] !== "@") o[k] = m.s[k]; return o; }
+// the settings the tile's own code sees: not the ones the dashboard added, and for an API key only whether one is saved
+function sbxS(m){
+  const o = {}, D = m.settings || {}, secret = k => !!D[k] && D[k].type === "secret";
+  for (const k in m.s) if (k[0] !== "@" && !secret(k)) o[k] = m.s[k];
+  for (const k in D) if (secret(k)) o[k] = sbxKeyState(m, k) === "set";
+  return o;
+}
+/* ----- API keys: typed here, saved on the server (POST /tile-key), never sent back to any page or to the frame.
+   The server adds a key only to requests to the one site its setting names (server/tilekeys.py). ----- */
+function sbxKeyState(m, k){ return ((SBX.tiles[m.type] || {}).keys || {})[k] || ""; }
+function sbxKeyField(m, k, d, lab){
+  const st = sbxKeyState(m, k);
+  const say = st === "set" ? tr("A key is saved.") : st === "moved" ? tr("This tile now sends its key to a different site or in a different way, so the saved key isn't used. Type it again to allow that.") : tr("No key saved yet.");
+  return '<div class="kv col sbxkey" data-key="' + esc(k) + '">' + lab() +
+    '<em class="' + (st === "set" ? "ok" : "none") + '">' + esc(say) + '</em>' +
+    '<input type="password" data-tk="' + esc(k) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(st === "set" ? tr("Type a new key to replace it") : tr("Paste or type the key")) + '">' +
+    '<div class="btns"><button class="pri" data-act="tksave" data-k="' + esc(k) + '">' + esc(tr("Save key")) + '</button>' +
+    (st ? '<button data-act="tkrm" data-k="' + esc(k) + '">' + esc(tr("Remove key")) + '</button>' : "") + '</div>' +
+    '<small>' + esc(tr("Sent only to {host}. It stays on the Countertop server, is never shown again, and is left out of shared layouts. Every {name} tile uses this key.", {host:d.host, name:(TYPES[m.type] || {}).title || m.type})) + '</small></div>';
+}
+async function sbxKeyAct(a, el){
+  const m = MODULES[EDIT.tile]; if (!m || !m.community) return;
+  const k = el.dataset.k, inp = $("edpanel").querySelector('input[data-tk="' + k + '"]');
+  const value = inp ? inp.value.trim() : "";
+  if (a === "tksave" && !value){ flash(tr("Type the key first")); return; }
+  let j;
+  try{
+    const r = await fetch("/tile-key", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(a === "tkrm" ? {type:m.type, name:k, remove:true} : {type:m.type, name:k, value})});
+    j = await r.json();
+  }catch(e){ j = {error:tr("Couldn't reach the Countertop server")}; }
+  if (inp) inp.value = "";
+  if (!j || j.error){ flash((j && j.error) || tr("Couldn't save the key")); return; }
+  (SBX.tiles[m.type] = SBX.tiles[m.type] || {}).keys = j.keys || {};
+  // every tile of this kind starts again with the new key: no answers kept from before
+  for (const x of Object.values(MODULES)) if (x.type === m.type){ x._sf = {}; sbxDrop(x.id); }
+  flash(a === "tkrm" ? tr("Key removed") : tr("Key saved"), true);
+  relayout();
+}
 // what a box says instead of running its tile. (Notes for Controls → Status stay in English, like the rest of Status.)
 function sbxSay(el, text){
   if (el._sbxSaid === text && el.querySelector(".sbxmsg")) return;

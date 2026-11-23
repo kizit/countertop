@@ -21,6 +21,7 @@ import threading
 import time
 
 from server.core import HERE, WORK
+from server.tilekeys import MAX_SECRETS, clean_secret, key_states, secrets_of
 
 TILES_DIR = WORK / "community" / "tiles"
 SAFE_FILE = WORK / "safe-mode.json"
@@ -33,7 +34,7 @@ SBX_MAX_CODE = 64 * 1024
 
 SBX_FEEDS = ("wx", "aqi", "events", "notes", "team", "photos", "sales")
 SBX_PERSONAL = ("events", "notes", "photos", "sales")      # what a household would mind leaving the house
-SBX_SETTING_TYPES = ("bool", "int", "number", "text", "list", "choice", "color", "source")
+SBX_SETTING_TYPES = ("bool", "int", "number", "text", "list", "choice", "color", "source", "secret")
 SBX_SOURCE_KINDS = {"calendars": "events", "teams": "team", "lists": "notes", "albums": "photos"}
 SBX_ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,39}$")
 SBX_SLOT_RE = re.compile(r"^[a-z][a-z0-9_]{0,19}$")
@@ -116,6 +117,14 @@ def clean_tile(raw, builtins=None):
     devices, controls = clean_controls(raw)
     # the state of things in the house is personal data too
     personal = [f for f in feeds if f in SBX_PERSONAL] + (["devices"] if devices else [])
+    # an API key: kept by the server and sent only to one of the tile's own sites (server/tilekeys.py)
+    secret = [k for k, s in settings.items() if s.get("type") == "secret"]
+    if len(secret) > MAX_SECRETS:
+        raise ValueError("it asks for more than %d keys" % MAX_SECRETS)
+    for k in secret:
+        if personal:
+            raise ValueError("setting %s is a key for a site, but a tile that reads personal data gets no sites" % k)
+        settings[k] = clean_secret(k, settings[k], hosts)
     return {
         "id": tid, "type": tid, "version": version,
         "title": str(raw.get("name") or raw.get("title") or tid)[:60],
@@ -210,10 +219,12 @@ def tile_hosts(type_):
 
 
 def sandbox_view():
-    """What /config tells the dashboard: safe mode, and each community tile without its code."""
+    """What /config tells the dashboard: safe mode, and each community tile without its code. For a tile with API keys,
+    only whether each one is saved (`keys`), never the key."""
     s = safe_mode()
     return {"safe": s["on"], "max": MAX_FRAMES, "beat": BEAT_EVERY,
-            "tiles": {k: {x: v for x, v in t.items() if x != "code"} for k, t in community_installed()["tiles"].items()}}
+            "tiles": {k: dict({x: v for x, v in t.items() if x != "code"}, **({"keys": key_states(t)} if secrets_of(t) else {}))
+                      for k, t in community_installed()["tiles"].items()}}
 
 
 def sandbox_version():

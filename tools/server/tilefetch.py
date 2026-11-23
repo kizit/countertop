@@ -5,9 +5,15 @@ be a public one: nothing on the home network, loopback, link-local, carrier-grad
 local and unique-local, and no IPv4 address tucked inside an IPv6 one. The connection then goes to exactly the address
 that was checked, so a second lookup can't send it somewhere else. Redirects are followed by hand, at most 3, and each
 one is checked again in the same way. At most 1 MB, and 10 seconds for the whole fetch.
+
+A community tile's API keys (server/tilekeys.py) are added here, to requests to exactly the host each one is for, and
+nowhere else: a redirect whose address carries a key to another site is refused, and the key is blanked out of the
+answer.
 """
+import hashlib
 import http.client
 import ipaddress
+import json
 import re
 import socket
 import ssl
@@ -16,6 +22,7 @@ import time
 from urllib.parse import urljoin, urlsplit
 
 from server.core import VERSION
+from server.tilekeys import apply_keys, carries_key, hide_keys
 
 FETCH_MAX_BYTES = 1_000_000
 FETCH_TIMEOUT = 10.0
@@ -123,13 +130,14 @@ class _PinnedHTTPS(http.client.HTTPSConnection):
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 
-def _open(host, ip, path, deadline):
-    """(status, headers, body) from one request to `ip`, reading at most FETCH_MAX_BYTES + 1 bytes before `deadline`."""
+def _open(host, ip, path, deadline, extra=None):
+    """(status, headers, body) from one request to `ip`, reading at most FETCH_MAX_BYTES + 1 bytes before `deadline`.
+    `extra` is the headers that carry a tile's keys for this host."""
     left = lambda: max(0.05, deadline - time.monotonic())
     conn = _PinnedHTTPS(host, ip, left())
     try:
-        conn.request("GET", path, headers={"User-Agent": FETCH_USER_AGENT, "Accept": "application/json, text/*;q=0.9, */*;q=0.5",
-                                           "Accept-Encoding": "identity"})
+        conn.request("GET", path, headers=dict(extra or {}, **{"User-Agent": FETCH_USER_AGENT, "Accept": "application/json, text/*;q=0.9, */*;q=0.5",
+                                                                "Accept-Encoding": "identity"}))
         r = conn.getresponse()
         heads = {k.lower(): v for k, v in r.getheaders()}
         body = b""
@@ -154,11 +162,21 @@ FETCH_RESOLVE = _resolve
 FETCH_OPEN = _open
 
 
-def fetch_url(url, hosts):
-    """{"type", "body"} for `url`, following the rules at the top of this file; FetchError otherwise."""
+def fetch_url(url, hosts, keys=()):
+    """{"type", "body"} for `url`, following the rules at the top of this file; FetchError otherwise. `keys` are the
+    tile's API keys, each added only for its own host."""
+    try:
+        return _fetch_url(url, hosts, keys)
+    except FetchError as e:
+        # a message never repeats a key, whatever the other end or the network library put in it
+        raise FetchError(hide_keys(str(e), keys), e.code) if keys else e
+
+
+def _fetch_url(url, hosts, keys):
     deadline = time.monotonic() + FETCH_TIMEOUT
     for hop in range(FETCH_MAX_REDIRECTS + 1):
         host, path = check_url(url, hosts)
+        path, extra = apply_keys(host, path, keys)
         try:
             ips = FETCH_RESOLVE(host)
         except (OSError, UnicodeError):
@@ -170,7 +188,7 @@ def fetch_url(url, hosts):
         if time.monotonic() > deadline:
             raise FetchError("took longer than %d seconds" % FETCH_TIMEOUT, 504)
         try:
-            status, heads, body = FETCH_OPEN(host, ips[0], path, deadline)
+            status, heads, body = FETCH_OPEN(host, ips[0], path, deadline, extra) if extra else FETCH_OPEN(host, ips[0], path, deadline)
         except FetchError:
             raise
         except (OSError, http.client.HTTPException, ssl.SSLError) as e:
@@ -182,6 +200,8 @@ def fetch_url(url, hosts):
             if hop == FETCH_MAX_REDIRECTS:
                 break
             url = urljoin(url, loc.strip())
+            if keys and carries_key(url, [k for k in keys if k["host"] != (urlsplit(url).hostname or "").lower().rstrip(".")]):
+                raise FetchError("%s tried to send this tile's key on to another site" % host, 403)
             continue
         if status != 200:
             raise FetchError("%s answered %d" % (host, status))
@@ -190,7 +210,7 @@ def fetch_url(url, hosts):
         ctype = (heads.get("content-type") or "").split(";")[0].strip().lower()
         if not ctype.startswith(FETCH_TYPES) and not ctype.endswith("+json"):
             raise FetchError("the answer isn't text or data (%s)" % (ctype or "no type")[:40])
-        return {"type": ctype, "body": body}
+        return {"type": ctype, "body": hide_keys(body, keys)}
     raise FetchError("more than %d redirects" % FETCH_MAX_REDIRECTS)
 
 
@@ -200,31 +220,36 @@ FETCH_LOCK = threading.Lock()
 FETCH_CACHE_MAX = 200
 
 
-def cached_fetch(url, hosts, max_age=300):
+def cached_fetch(url, hosts, max_age=300, keys=(), scope=""):
     """fetch() with a cache: answers for `max_age` seconds (30 to 3600), failures for 30 seconds. The address is
-    checked against `hosts` before the cache is, so a tile never gets another tile's answer for a site it didn't declare."""
+    checked against `hosts` before the cache is, so a tile never gets another tile's answer for a site it didn't declare.
+    An answer read with a tile's keys is kept for that kind of tile (`scope`) and those keys only."""
     check_url(url, hosts)
+    slot = url
+    if keys:
+        sig = hashlib.sha256(json.dumps(sorted(json.dumps(k, sort_keys=True) for k in keys)).encode()).hexdigest()
+        slot = "%s\n%s\n%s" % (scope, sig, url)
     try:
         keep = min(3600, max(30, int(max_age)))
     except (TypeError, ValueError):
         keep = 300
     now = time.time()
     with FETCH_LOCK:
-        hit = FETCH_CACHE.get(url)
+        hit = FETCH_CACHE.get(slot)
     if hit and now - hit[0] < (30 if isinstance(hit[1], FetchError) else keep):
         if isinstance(hit[1], FetchError):
             raise hit[1]
         return hit[1]
     try:
-        res = fetch_url(url, hosts)
+        res = fetch_url(url, hosts, keys)
     except FetchError as e:
         if e.code not in (400, 403):
             with FETCH_LOCK:
-                FETCH_CACHE[url] = (now, e)
+                FETCH_CACHE[slot] = (now, e)
         raise
     with FETCH_LOCK:
         if len(FETCH_CACHE) >= FETCH_CACHE_MAX:
             for k in sorted(FETCH_CACHE, key=lambda k: FETCH_CACHE[k][0])[:FETCH_CACHE_MAX // 4]:
                 del FETCH_CACHE[k]
-        FETCH_CACHE[url] = (now, res)
+        FETCH_CACHE[slot] = (now, res)
     return res

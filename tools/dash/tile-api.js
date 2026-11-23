@@ -114,7 +114,7 @@ function funDue(el, s){ if (el._funAt && Date.now() - el._funAt < Math.max(15, s
 // A TILE is one placed copy of a type with its own settings: CFG.tiles.settings.items = [{id, type, name, settings}].
 // Boxes on pages hold tile ids; a box with several tiles shows them in turn.
 const TYPES = {}, MODULES = {};
-const CATS = ["Time", "Weather", "Calendar", "Lists & food", "Home", "Sports", "Photos & video", "Around you", "Money", "Fun", "Your own"];
+const CATS = ["Time", "Weather", "Calendar", "Lists & food", "Home", "Sports", "Photos & video", "Around you", "Money", "Fun", "Your own", "Community"];
 function Tile(type, def){
   TYPES[type] = Object.assign(Object.create(TILE_API), {type, cat:"Fun", size:[12, 8, 8, 6], card:true, feeds:[], settings:{}}, def);
   if (def.css){ const st = document.createElement("style"); st.dataset.tile = type; st.textContent = def.css; document.head.appendChild(st); }     // a tile's own look
@@ -143,7 +143,20 @@ const tileQuiet = () => EDIT.on || PREVIEW || !!SOLO || STILL || !!TRIAL_ID || !
 const TILE_API = {
   api:0,
   get store(){ return tileStore(this); },
-  fetch(url, maxAge){ return tileData(this, url, maxAge == null ? 300 : maxAge); },
+  // a web address: an https:// one is read by the server (GET /tile-fetch), and only on the sites the tile lists in `hosts`
+  fetch(url, maxAge){
+    url = String(url);
+    if (!/^https:\/\//i.test(url)) return tileData(this, url, maxAge == null ? 300 : maxAge);
+    const c = (this._sf = this._sf || {})[url] = this._sf[url] || {data:null, error:"", at:0, busy:false};
+    if (!c.busy && Date.now() - c.at > Math.max(30, maxAge == null ? 300 : +maxAge || 0) * 1000){
+      c.busy = true;
+      tileGet(this, url, maxAge).then(d => { c.data = d; c.error = ""; }, e => { c.error = String(e.message || e).slice(0, 200); })
+        .finally(() => { c.busy = false; c.at = Date.now(); if (MODULES[this.id] === this) render(this.id); });
+    }
+    return c.data;
+  },
+  // why the last this.fetch of that address failed ("" when it didn't)
+  fetchError(url){ const c = (this._sf || {})[String(url)]; return c ? c.error : ""; },
   feed(name){ return STATE[{weather:"wx", air:"aqi"}[name] || name]; },
   // words in the screen's language: the tile's own lang block first, then tools/lang/<code>.json, then the English as written
   t(s, vars){ return tr(s, vars, this.lang && this.lang[I18N.lang]); },
@@ -168,6 +181,16 @@ const TILE_API = {
     return j;
   }
 };
+// GET /tile-fetch: the server reads `url` for this kind of tile, if it's on one of the tile's sites. JSON comes back
+// parsed, anything else as text
+async function tileGet(m, url, maxAge){
+  const u = "/tile-fetch?type=" + encodeURIComponent(m.type) + "&maxAge=" + Math.round(maxAge == null ? 300 : +maxAge || 0) + "&url=" + encodeURIComponent(url);
+  if (SOLO){ const d = demoJSON(u); if (d !== undefined) return d; }
+  const r = await fetch(u, {cache:"no-store"});
+  const json = /json/.test(r.headers.get("Content-Type") || "");
+  if (!r.ok){ const j = json ? await r.json().catch(() => ({})) : {}; throw new Error(j.error || ("error " + r.status)); }
+  return json ? r.json() : r.text();
+}
 function tileUsesStore(m){ return (m.uses || []).includes("store"); }
 function tileStore(m){
   const id = m.id, write = (ops, unless) => tileWrite(id, ops, unless);

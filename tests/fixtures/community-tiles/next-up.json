@@ -1,0 +1,33 @@
+{
+ "countertop": "tile",
+ "id": "next-up",
+ "version": 2,
+ "name": "Next up",
+ "description": "Your next event.",
+ "size": [
+  12,
+  8,
+  8,
+  6
+ ],
+ "uses": [
+  "events",
+  "sources"
+ ],
+ "feeds": [
+  "events"
+ ],
+ "hosts": [
+  "api.example.com"
+ ],
+ "settings": {
+  "cals": {
+   "type": "source",
+   "kind": "calendars",
+   "multi": true,
+   "label": "Calendars",
+   "default": []
+  }
+ },
+ "code": "Tile(\"next-up\", {\n  render(el){\n    const list = this.events({cals:this.s.cals, once:true}), cals = this.sources(\"calendars\"), teams = this.sources(\"teams\");\n    const e = list[0];\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3>\" + (e ? \"<div class=ev>\" + this.esc(e.summary) + \"</div><div class=isdate>\" + (e.date instanceof Date && !isNaN(e.date)) + \"</div>\" :\n      \"<div class=empty>\" + (cals.length ? \"Nothing coming up\" : \"Connect a calendar\") + \"</div>\") + \"<div class=cals>\" + cals.length + \"</div><div class=teams>\" + teams.length + \"</div>\";\n    if (!this._tried){ this._tried = 1; this.fetch(\"https://api.example.com/moon.json\"); }\n    const fe = this.fetchError(\"https://api.example.com/moon.json\");\n    if (fe) el.innerHTML += \"<div class=neterr>\" + this.esc(fe) + \"</div>\";\n  }\n});\n"
+}

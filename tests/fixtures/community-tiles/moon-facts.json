@@ -1,0 +1,34 @@
+{
+ "countertop": "tile",
+ "id": "moon-facts",
+ "version": 1,
+ "name": "Moon facts",
+ "author": "someone",
+ "description": "A fact about the moon from a public site, and a tally you can tap.",
+ "size": [
+  12,
+  8,
+  8,
+  6
+ ],
+ "uses": [
+  "store",
+  "fetch"
+ ],
+ "feeds": [
+  "wx"
+ ],
+ "hosts": [
+  "api.example.com"
+ ],
+ "taps": true,
+ "every": 60,
+ "settings": {
+  "label": {
+   "type": "text",
+   "label": "Label",
+   "default": "Taps"
+  }
+ },
+ "code": "Tile(\"moon-facts\", {\n  css: \".mf b{color:var(--accent)} .mf .n{font-size:40px}\",\n  cls: \"mf\",\n  render(el){\n    const fact = this.fetch(\"https://api.example.com/moon.json\", 300), err = this.fetchError(\"https://api.example.com/moon.json\");\n    const wx = this.feed(\"weather\"), n = (this.store.get().taps || 0);\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3><div class=fact>\" + (fact ? this.esc(fact.fact) : err ? \"Couldn't load: \" + this.esc(err) : \"Loading…\") +\n      \"</div><div class=wx>\" + (wx && wx.current ? \"Weather here\" : \"No weather\") + \"</div><div class=n>\" + this.esc(this.s.label) + \": <b>\" + n + \"</b></div>\";\n  },\n  tap(){ this.store.set(\"taps\", (this.store.get().taps || 0) + 1); }\n});\n"
+}

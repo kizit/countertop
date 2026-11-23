@@ -39,8 +39,12 @@ function demoJSON(u){
   if (/^\/photos/.test(u)) return {photos:[]};
   if (/^\/planes/.test(u)){ const g = S("general"), P = (f, t, dx, dy, alt, tr) => ({flight:f, type:t, desc:t, lat:g.lat + dy / 69, lon:g.lon + dx / 53, alt, speed:420, track:tr});
     return {planes:[P("SWA1234", "Boeing 737-800", 2, 1, 9800, 80), P("DAL88", "Airbus A321", -6, 4, 24000, 260), P("N512CP", "Cessna 172", 1, -3, 2500, 10), P("UAL301", "Boeing 787-9", 9, -7, 35000, 300)], error:null}; }
-  if (/^\/stocks/.test(u)){ const q = (sym, name, price, prev) => ({sym, name, price, prev, spark:[...Array(40)].map((_, i) => +(prev + (price - prev) * i / 39 + Math.sin(i / 3) * prev * .002).toFixed(2))});
-    return {stocks:[q("^GSPC", "S&P 500", 5932.1, 5901.4), q("^DJI", "Dow Jones", 43210.5, 43350.2), q("ACME", "Acme Corp", 182.44, 179.9)]}; }
+  if (/^\/tile-fetch\?type=stocks&/.test(u)){       // Yahoo's chart for one symbol, made up
+    const url = decodeURIComponent(u.split("&url=")[1] || ""), sym = decodeURIComponent((/\/chart\/([^?]+)/.exec(url) || [0, ""])[1]);
+    const P = {"^GSPC":["S&P 500", 5932.1, 5901.4], "^DJI":["Dow Jones", 43210.5, 43350.2], "^IXIC":["Nasdaq", 19102.3, 18990.8]}[sym] || ["Acme Corp", 182.44, 179.9];
+    const close = [...Array(78)].map((_, i) => +(P[2] + (P[1] - P[2]) * i / 77 + Math.sin(i / 4) * P[2] * .002).toFixed(2));
+    return {chart:{result:[{meta:{shortName:P[0], regularMarketPrice:P[1], chartPreviousClose:P[2]}, indicators:{quote:[{close}]}}]}};
+  }
   return undefined;     // anything else (meal ideas, cams, radar, space) holds nothing personal
 }
 // one tile of the asked-for type on a page of its own, made-up data, no personal settings

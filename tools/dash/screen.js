@@ -324,6 +324,7 @@ function tick(){
   const due = Object.keys(MOUNTED).filter(id => { const m = MODULES[id]; return m && m.every && sec % m.every === 0; });
   if (due.length) render(...due);
   stackTick();
+  sbxTick();
   nightTick(d);
   if (d.getSeconds() === 0){
     themeTick(); themePhotos();
@@ -379,6 +380,7 @@ function trialBanner(t){
 let SOURCES = {};
 async function boot(){
   try{ const j = await getJSON("/config" + (TRIAL_ID ? "?trial=" + encodeURIComponent(TRIAL_ID) : "")); CFG = j.modules; SCH = {}; SOURCES = j.sources || {}; for (const k in CFG) SCH[k] = (j.schema || {})[k] || {};
+    sbxSetup(j.sandbox);
     if (j.trial) trialBanner(j.trial); }
   catch(e){ reportErr("config", String(e)); setTimeout(boot, 15e3); return; }
   if (SOLO) demoConfig();             // ?solo=<type>: one tile of that type with made-up data (examples in the tile list)
@@ -389,6 +391,7 @@ async function boot(){
   $("gear").hidden = !S("general").gear;
   layout();
   render();
+  sbxBoot();
   applySeason(); fxUpdate();
   FEEDS.forEach(([f]) => f());
   tick(); setInterval(tick, 1000);

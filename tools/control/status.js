@@ -56,6 +56,15 @@ function statusScreen(){
   const L = S.list;
   if (L && L.name){ const SRCN = {dashboard:"This dashboard", reminders:"Apple Reminders", pushed:"Sent from another app", url:"A web address"};
     h += sec("List", row({t:L.name, sub:(SRCN[L.source] || L.source) + (L.error ? " · " + L.error : ""), v:L.count + (L.count === 1 ? " item" : " items")})); }
+  const X = S.sandbox;    // only once a community tile is installed, or safe mode is on
+  if (X){
+    const WHY = {froze:"Turned on by itself: the screen stopped answering while " + (X.tiles.join(", ") || "a community tile") + " was showing.",
+      reloads:"Turned on by itself: the screen restarted 3 times in 10 minutes with " + (X.tiles.join(", ") || "community tiles") + " on it.",
+      person:"Turned on here."};
+    h += sec("Community tiles", row({t:"Turn off all community tiles", sub: X.safe ? WHY[X.why] || "" : X.installed + (X.installed === 1 ? " tile installed" : " tiles installed") +
+        (X.showing.length ? " · showing now: " + X.showing.join(", ") : ""), post: sw(X.safe, 'data-act="stsafe"')}),
+      "Safe mode. The screen starts again without community tiles, and their boxes say they're off. A faulty tile can freeze the screen until its browser is restarted; when that happens, this turns on by itself.");
+  }
   const B = S.bench;      // only once the /bench test page has saved something
   if (B){ const perf = Object.keys(B.perf || {}).map(n => n + " frame" + (n === "1" ? "" : "s") + ": " + (B.perf[n].fps == null ? "?" : Math.round(B.perf[n].fps)) + " fps").join(" · ");
     const lp = B.loop;

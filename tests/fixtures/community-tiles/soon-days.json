@@ -1,0 +1,21 @@
+{
+ "countertop": "tile",
+ "id": "soon-days",
+ "version": 1,
+ "name": "Soon",
+ "description": "Days to a date, hidden when there's none.",
+ "size": [
+  12,
+  8,
+  8,
+  6
+ ],
+ "settings": {
+  "date": {
+   "type": "text",
+   "label": "Date",
+   "default": ""
+  }
+ },
+ "code": "Tile(\"soon-days\", {\n  has(){ return !!this.s.date; },\n  render(el){ el.innerHTML = \"<div class=d>\" + this.esc(this.s.date || \"none\") + \"</div>\"; }\n});\n"
+}

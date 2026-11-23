@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
-from server import bench, tiledata
+from server import bench, sandbox, tiledata, tilefetch
 from server.core import VERSION
 
 
@@ -91,6 +91,7 @@ class Handler(BaseHTTPRequestHandler):
                 cfg["everyday"] = {"page": main, "tiles": defaults["tiles"]["settings"]["items"]}
             cfg["schema"] = SCHEMA
             cfg["sources"] = sources_public()
+            cfg["sandbox"] = sandbox.sandbox_view()
             self._json(cfg)
         elif p == "/community":
             self._json(community_index(bool(parse_qs(urlparse(self.path).query).get("refresh"))))     # the gallery's list, when Controls opens Community
@@ -118,8 +119,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(iss_now())
         elif p == "/planes":
             self._json(planes_near(parse_qs(urlparse(self.path).query).get("r", ["15"])[0]))
-        elif p == "/stocks":
-            self._json(stocks(parse_qs(urlparse(self.path).query).get("s", [""])[0]))
+        elif p == "/tile-fetch":
+            self._tile_fetch()
+        elif re.fullmatch(r"/tile-frame/[a-z][a-z0-9-]{1,39}", p):
+            code, body, headers = sandbox.tile_frame_page(p.split("/")[2])
+            self._send(code, body, "text/html; charset=utf-8", headers)
+        elif re.fullmatch(r"/tile-frame/[a-z][a-z0-9-]{1,39}/tile\.js", p):
+            code, body = sandbox.tile_frame_code(p.split("/")[2])
+            self._send(code, body, "application/javascript; charset=utf-8", {"X-Content-Type-Options": "nosniff"})
         elif p == "/meals":
             q = parse_qs(urlparse(self.path).query)
             self._json(meal_ideas(q.get("meal", ["dinner"])[0], q.get("diet", ["Anything"])[0], q.get("src", [""])[0]))
@@ -154,15 +161,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bench.results())
         elif p == "/version":
             # the shell polls this and reloads the iframe when the dashboard page, a tile file, the settings or Setup change
-            v = 0
-            for f in page_files("dash") + [CONFIG_FILE, SOURCES_FILE] + sorted((HERE / "tiles").glob("*.js")):
-                try:
-                    v = max(v, int(f.stat().st_mtime))
-                except OSError:
-                    pass
-            # include the server's start time, so a restart also reloads the dashboard (it reads /config at boot)
-            # a layout tried on the screen changes it too, when it starts and when it ends
-            self._json({"v": v + SERVER_START + trial_version(), "orientation": dashboard_orientation()})
+            self._json({"v": dash_version(), "orientation": dashboard_orientation()})
         elif p == "/status":
             if parse_qs(urlparse(self.path).query).get("check"):
                 update_check(force=True)
@@ -222,6 +221,14 @@ class Handler(BaseHTTPRequestHandler):
             elif body.get("task") == "js-error":
                 SCREEN["errors"].append({"at": time.time(), "error": str(body.get("error") or "")[:300]})
             self._send(204)
+        elif p == "/sandbox/beat":
+            try:
+                self._json(sandbox.sandbox_beat(body, self.client_address[0], dash_version()))
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+        elif p == "/sandbox/safe":
+            sandbox.set_safe_mode(body.get("on") is True, "person")
+            self._json({"safe": sandbox.safe_mode()["on"]})
         elif p == "/bench/save":
             try:
                 self._json(bench.save(body))
@@ -274,6 +281,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(notes_view())
         else:
             self._send(404)
+
+    def _tile_fetch(self):
+        """A web address read for a tile: only on the sites that kind of tile declared (tools/server/tilefetch.py)."""
+        q = parse_qs(urlparse(self.path).query)
+        typ, url = (q.get("type") or [""])[0], (q.get("url") or [""])[0]
+        hosts = sandbox.tile_hosts(typ) if re.fullmatch(r"[a-z][a-z0-9-]{1,39}", typ) else None
+        # the answer is someone else's text: if a frame is ever pointed here, it is shown as inert text
+        inert = {"Content-Security-Policy": "sandbox; default-src 'none'", "X-Content-Type-Options": "nosniff"}
+        if not hosts:
+            return self._send(403, json.dumps({"error": "This tile can't reach the internet."}).encode(), "application/json", inert)
+        try:
+            res = tilefetch.cached_fetch(url, hosts, (q.get("maxAge") or ["300"])[0])
+        except tilefetch.FetchError as e:
+            return self._send(e.code, json.dumps({"error": str(e)}).encode(), "application/json", inert)
+        ctype = "application/json" if "json" in res["type"] else "text/plain; charset=utf-8"
+        self._send(200, res["body"], ctype, inert)
 
     def _events(self):
         qs = parse_qs(urlparse(self.path).query)
@@ -338,6 +361,19 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def dash_version():
+    """Changes whenever the screen should load the dashboard again: its page or a tile file changed, the settings or
+    Setup changed, the server restarted (the dashboard reads /config when it starts), a layout tried on the screen
+    started or ended, or a community tile or safe mode changed."""
+    v = 0
+    for f in page_files("dash") + [CONFIG_FILE, SOURCES_FILE] + sorted((HERE / "tiles").glob("*.js")):
+        try:
+            v = max(v, int(f.stat().st_mtime))
+        except OSError:
+            pass
+    return v + SERVER_START + trial_version() + sandbox.sandbox_version()
+
+
 def main():
     ap = argparse.ArgumentParser(description="Countertop dashboard server")
     ap.add_argument("--port", type=int, default=8090)
@@ -357,6 +393,7 @@ def main():
             pass
     threading.Thread(target=reminders_loop, daemon=True).start()
     threading.Thread(target=update_loop, daemon=True).start()
+    threading.Thread(target=sandbox.safe_loop, daemon=True).start()
     ip = lan_ip()
     scheme = "https" if a.tls else "http"
     srv = ThreadingHTTPServer(("0.0.0.0", a.port), Handler)
@@ -394,7 +431,6 @@ from server.feeds.photos import PHOTO_CACHES, album_photos  # noqa: E402
 from server.feeds.sales import _flipp, purchases_library, sales_view  # noqa: E402
 from server.feeds.sky import iss_now, planes_near, radar_frames, space_picture  # noqa: E402
 from server.feeds.sports import team_matches  # noqa: E402
-from server.feeds.stocks import stocks  # noqa: E402
 from server.homeassistant import ha_entities, ha_test, ha_view  # noqa: E402
 from server.pages import named, page, page_files  # noqa: E402
 from server.community import community_index  # noqa: E402

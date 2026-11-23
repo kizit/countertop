@@ -96,6 +96,13 @@ async function wizAct(a, id){
     }catch(e){ toast("Didn't save: " + e.message, "bad"); }
     return;
   }
+  if (a === "stsafe"){
+    const on = !(STATUS && STATUS.sandbox && STATUS.sandbox.safe);
+    try{ await fetch("/sandbox/safe", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({on})}); }catch(e){}
+    toast(on ? "Community tiles are off" : "Community tiles are back on", "ok");
+    await statusLoad();
+    return;
+  }
   if (a === "stcheck"){ toast("Checking…"); await statusLoad(true); toast(STATUS && STATUS.latest.error ? "Couldn't reach GitHub" : STATUS && STATUS.update ? "A new version is out" : "You're up to date", STATUS && STATUS.latest.error ? "bad" : "ok"); }
 }
 

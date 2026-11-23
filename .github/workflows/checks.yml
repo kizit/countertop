@@ -62,3 +62,5 @@ jobs:
         run: node tests/browser-check.js
       - name: Check tile data end to end
         run: node tests/tile-data-check.js
+      - name: Check community tiles in their sandbox
+        run: node tests/sandbox-check.js

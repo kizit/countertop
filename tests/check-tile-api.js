@@ -28,7 +28,8 @@ function tileThis({ def, s }, over) {
   const api = Object.assign({}, def, {
     s: Object.assign(s, over.settings), name: def.title, esc,
     t: (text, vars) => String(text).replace(/\{(\w+)\}/g, (m, k) => vars && k in vars ? vars[k] : m),
-    fetch: (url, maxAge) => { fetched.push([url, maxAge]); return over.fetched === undefined ? null : over.fetched; },
+    fetch: (url, maxAge) => { fetched.push([url, maxAge]); return typeof over.fetched === "function" ? over.fetched(url) : over.fetched === undefined ? null : over.fetched; },
+    fetchError: url => (over.errors || {})[url] || "",
     feed: name => (over.feeds || {})[name] || [],
     sources: kind => (over.sources || {})[kind] || [],
     events: o => (over.events || []).map(e => Object.assign({}, e, { date: new Date(e.start) })),
@@ -44,15 +45,26 @@ const draw = (type, over = {}) => {
 
 for (const type of TILES) load(type);
 
-// Stocks: asks for its prices through this.fetch, shows Loading, then the numbers
+// Stocks: asks Yahoo for each symbol through this.fetch (a site it declares), shows Loading, then the numbers;
+// Stooq's last price when Yahoo can't be reached
+const Y = s => "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(s) + "?range=1d&interval=5m";
+const chart = (name, price, prev, close) => ({ chart: { result: [{ meta: { shortName: name, regularMarketPrice: price, chartPreviousClose: prev }, indicators: { quote: [{ close }] } }] } });
+assert.equal(JSON.stringify(load("stocks").def.hosts), '["query1.finance.yahoo.com","stooq.com"]');
 let r = draw("stocks");
-assert.equal(JSON.stringify(r.me.fetched), '[["/stocks?s=%5EGSPC%2C%5EDJI%2C%5EIXIC",300]]');
+assert.deepEqual(r.me.fetched, [[Y("^GSPC"), 300], [Y("^DJI"), 300], [Y("^IXIC"), 300]]);
 assert.match(r.html, /Loading/);
-r = draw("stocks", { fetched: { stocks: [{ sym: "ACME", name: "Acme <Corp>", price: 182.44, prev: 179.9, spark: [1, 2, 3] }, { sym: "^GSPC", price: 5932.1, prev: 5901.4 }, { sym: "BAD" }] } });
+const answers = { [Y("ACME")]: chart("Acme <Corp>", 182.44, 179.9, [1, null, 2, 3]), [Y("^GSPC")]: chart("S&P 500", 5932.1, 5901.4, []), [Y("BAD")]: { chart: { result: null } } };
+r = draw("stocks", { settings: { syms: ["acme", "^GSPC", "BAD", "OLD"] }, fetched: u => answers[u] || null,
+  errors: { [Y("OLD")]: "query1.finance.yahoo.com answered 429", "https://stooq.com/q/l/?s=old.us&f=sd2t2ohlcv&h&e=csv": "stooq.com answered 500" } });
 assert.match(r.html, /<small>Acme &lt;Corp&gt;<\/small>/);
 assert.match(r.html, /S&amp;P 500/);
 assert.match(r.html, /▲ 1\.41%/);
-assert.match(r.html, /Couldn't load/);
+assert.match(r.html, /<polyline/);
+assert.equal((r.html.match(/Couldn't load/g) || []).length, 1);         // BAD has no price; OLD failed everywhere
+assert.ok(r.me.fetched.some(([u]) => u === "https://stooq.com/q/l/?s=bad.us&f=sd2t2ohlcv&h&e=csv"));
+r = draw("stocks", { settings: { syms: ["ZZZ"] }, fetched: u => u.startsWith("https://stooq.com/") ? "Symbol,Date,Time,Open,High,Low,Close,Volume\nZZZ.US,2026-11-20,22:00:00,10,11,9,10.5,100\n" : null,
+  errors: { [Y("ZZZ")]: "query1.finance.yahoo.com answered 404" } });
+assert.match(r.html, /10\.50<small class="up">▲ 5\.00%/);
 assert.match(draw("stocks", { settings: { syms: [] } }).html, /Add symbols/);
 
 // Agenda: events and sources come from the API

@@ -90,6 +90,7 @@ def status_view():
                               "limited to https:// addresses, so %s kept that access. Keep %s only if you wrote %s or trust whoever did." % (
                                   ", ".join("\u201c%s\u201d" % n for n in lan), "It was" if one else "They were",
                                   "it" if one else "they", "it" if one else "them", "it" if one else "them")])
+    probs.extend(sandbox.sandbox_problems())
     if CONFIG_PROBLEM.get("stuck"):
         probs.append(["bad", "The settings file can't be read, and the server couldn't move it aside, so changes aren't being saved. "
                              "Check the data folder: " + CONFIG_PROBLEM["stuck"]])
@@ -157,6 +158,7 @@ def status_view():
                    "tz": time.strftime("%Z"), "writable": writable},
         "screen": {"seenAgo": _ago(seen), "fullscreen": beat.get("fs"), "wxAgo": int(now - feeds["wx"] / 1000) if feeds.get("wx") else None},
         "bench": bench.summary(),
+        "sandbox": sandbox.sandbox_status(),
         "calendars": [dict(c, ago=_ago(c["at"])) for c in cals],
         "homeassistant": [dict(h, ago=_ago(h["at"])) for h in homes],
         "recipes": [dict(r, ago=_ago(r["at"])) for r in recipes],
@@ -310,7 +312,7 @@ def diagnostics_zip():
 
 
 # names used only inside functions: imported last, so these modules can use each other
-from server import bench  # noqa: E402
+from server import bench, sandbox  # noqa: E402
 from server.config import CONFIG_PROBLEM, SERVER_START, config_load, lan_tiles  # noqa: E402
 from server.core import CAL_STATUS, CONSOLE, HERE, LOG, REPO, SCREEN, VERSION, WORK  # noqa: E402
 from server.feeds.meals import MEAL_STATUS  # noqa: E402

@@ -1,0 +1,14 @@
+{
+ "countertop": "tile",
+ "id": "spinner",
+ "version": 1,
+ "name": "Spinner",
+ "description": "Plain tile used to fill a page.",
+ "size": [
+  8,
+  8,
+  6,
+  6
+ ],
+ "code": "Tile(\"spinner\", { render(el){ el.innerHTML = \"<div class=ok>\" + this.esc(this.name) + \"</div>\"; } });\n"
+}

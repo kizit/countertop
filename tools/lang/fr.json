@@ -158,5 +158,11 @@
   "Victoria Day": "Fête de la Reine",
   "Victory in Europe Day": "Victoire 1945",
   "Whit Monday": "Lundi de Pentecôte",
-  "{n} days to Christmas": "{n} jours avant Noël"
+  "{n} days to Christmas": "{n} jours avant Noël",
+
+  "A screen runs up to {n} community tiles at once, so this one is waiting. Move it to another page.": "Un écran fait tourner jusqu'à {n} tuiles de la communauté à la fois, donc celle-ci attend. Déplacez-la sur une autre page.",
+  "Community tiles are off (safe mode). Turn them back on in Controls → Status.": "Les tuiles de la communauté sont désactivées (mode sans échec). Réactivez-les dans Controls → Status.",
+  "This tile can't reach the internet.": "Cette tuile n'a pas accès à Internet.",
+  "This tile sent too many messages, so it was stopped. It stays off until the screen restarts.": "Cette tuile a envoyé trop de messages, elle a donc été arrêtée. Elle reste éteinte jusqu'au redémarrage de l'écran.",
+  "This tile tried to leave its box, so it was stopped. It stays off until the screen restarts.": "Cette tuile a essayé de sortir de son cadre, elle a donc été arrêtée. Elle reste éteinte jusqu'au redémarrage de l'écran."
 }

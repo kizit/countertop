@@ -90,6 +90,7 @@ node tests/check-js.js                    # every script in the pages and tiles 
 node tests/check-lang.js                  # translations keep their placeholders; lists missing words
 node tests/browser-check.js               # the pages open with the demo data and log no errors (needs Playwright)
 node tests/tile-data-check.js            # two Daily to-do tiles keep separate lists on a real screen (needs Playwright)
+node tests/sandbox-check.js              # community tiles in their frames, a hostile tile, safe mode (needs Playwright)
 ```
 
 Repeating calendar events use python-dateutil when it's installed and a built-in expander when it isn't, so the calendar tests run against both. When you change how settings are stored, add a step to `CONFIG_UPGRADES` in `tools/server/upgrades.py`, bump `CONFIG_SCHEMA` in `tools/server/config.py`, and add a test with a settings file in the old shape.

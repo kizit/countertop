@@ -1,0 +1,12 @@
+{
+ "countertop": "tile",
+ "id": "list-count",
+ "version": 1,
+ "name": "List count",
+ "author": "countertop-tests",
+ "description": "How many things are on your lists. Test tile for Community: it reads personal data, so it gets no sites and shows the contained, not sealed warning.",
+ "size": [10, 8, 8, 6],
+ "feeds": ["notes"],
+ "every": 60,
+ "code": "Tile(\"list-count\", {\n  css: \".lcnt{display:flex;flex-direction:column;justify-content:center;height:100%} .lcnt b{font-size:56px;color:var(--accent)}\",\n  cls: \"lcnt\",\n  render(el){\n    const n = this.feed(\"notes\"), items = Array.isArray(n) ? n : n && typeof n === \"object\" ? [].concat(...Object.values(n).filter(Array.isArray)) : [];\n    el.innerHTML = \"<h3>\" + this.esc(this.name) + \"</h3><b>\" + items.length + \"</b><div>on your lists</div>\";\n  }\n});\n"
+}

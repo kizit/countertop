@@ -20,7 +20,7 @@ function libOpen(view){
   defsLoad.then(libShow); libShow();
 }
 function libClose(){
-  LIB.pick = ""; DRAFT = null; if (FXDRAFT || LIB.fimp){ FXDRAFT = null; LIB.fimp = null; fxRegister(); } LIB.timp = null; LIB.trial = ""; LIB.pvq = ""; LIB.sub = [];
+  LIB.pick = ""; LIB.impRaw = null; DRAFT = null; if (FXDRAFT || LIB.fimp){ FXDRAFT = null; LIB.fimp = null; fxRegister(); } LIB.timp = null; LIB.trial = ""; LIB.pvq = ""; LIB.sub = [];
   libEl().hidden = true; document.body.classList.remove("libopen");
   LIB.item = ""; LIB.pvKey = ""; const f = libEl().querySelector(".lbig iframe"); if (f) f.src = "about:blank";
 }
@@ -96,6 +96,13 @@ function libTiles(){
   }
   return h;
 }
+// a community tile in the Library: where it came from, and where to update or remove it
+function libCommunityRow(t, d){
+  const g = d.gallery;
+  if (d.revoked) return '<div class="lpick warn"><div><b>Taken down from the community gallery</b><small>It\'s off on your screens. Remove it to clear its boxes.</small></div><button class="lbtn" data-l="c-open" data-id="' + esc(g.id) + '">Remove</button></div>';
+  if (g) return '<div class="lpanel"><div class="lrow"><div class="t">Downloaded from the community gallery<small>See what it can do, update it or remove it in Community.</small></div><button class="lbtn" data-l="c-open" data-id="' + esc(g.id) + '">Open in Community</button></div></div>';
+  return '<div class="lpanel"><div class="lrow"><div class="t">Added to the data folder by hand<small>Not from the gallery, so it isn\'t checked for updates or take-downs.</small></div></div></div>';
+}
 // a live example of a tile with made-up data (the dashboard's ?solo=<type>), its own box scaled to fit the card
 function libTileShot(t, d, big){
   const [w, h] = d.size || [12, 8];
@@ -120,8 +127,8 @@ function libTileItem(t){
   const labels = Object.values(S).filter(s => s.label && s.type !== "source").map(s => s.label);
   const used = tileList().filter(x => x.type === t).length, sz = d.size || [12, 8, 8, 6];
   return '<button class="lback" data-l="view" data-id="tiles">‹ Tiles</button><div class="ldet"><div>' + libTileShot(t, d, true) + '</div><div>' +
-    '<h2 class="ltitle">' + esc(d.title || t) + '</h2><div class="lsub">' + esc(d.cat) + ' · built in</div>' +
-    '<p class="ldesc">' + esc(d.desc || "") + '</p>' +
+    '<h2 class="ltitle">' + esc(d.title || t) + '</h2><div class="lsub">' + esc(d.cat) + (d.community ? (d.author ? " · by " + esc(d.author) : "") + " · version " + (d.version || 1) : ' · built in') + '</div>' +
+    '<p class="ldesc">' + esc(d.desc || "") + '</p>' + (d.community ? libCommunityRow(t, d) : "") +
     '<div class="lpanel">' + (kinds.length ? '<div class="lrow"><div class="t">Uses your ' + esc(kinds.map(k => (KINDS[k] ? KINDS[k].title : k).toLowerCase()).join(" and ")) + '<small>Set up once in Controls, then pick them in the tile\'s settings</small></div></div>' : "") +
       '<div class="lrow"><div class="t">Sizes<small>Starts at ' + sz[0] + ' × ' + sz[1] + ' on the 48 × 32 grid, and can be as small as ' + (sz[2] || sz[0]) + ' × ' + (sz[3] || sz[1]) + '</small></div></div>' +
       (labels.length ? '<div class="lrow"><div class="t">Settings<small>' + esc(labels.slice(0, 8).join(" · ")) + (labels.length > 8 ? " …" : "") + '</small></div></div>' : "") +
@@ -157,6 +164,13 @@ async function libPreview(key){
     f.src = "/dash/content?preview=1&trial=" + j.id;
   }catch(e){ LIB.pvKey = ""; }
 }
+// community tiles a layout uses that aren't downloaded yet: each can be opened in Community; otherwise its box is left out
+function libNeedRows(imp){
+  if (!imp || !(imp.need || []).length) return "";
+  const name = n => { const e = COMM.data && COMM.data.items.find(x => x.id === n.id); return e ? e.name : n.type; };
+  return '<div class="lpanel"><div class="lrow"><div class="t">Uses community tiles you haven\'t downloaded<small>Download them first to keep their boxes; otherwise those boxes are left out.</small></div></div>' +
+    imp.need.map(n => '<div class="lrow"><div class="t">' + esc(name(n)) + '</div><button class="lbtn" data-l="c-open" data-id="' + esc(n.id) + '">Open in Community</button></div>').join("") + '</div>';
+}
 function libSlotRows(){
   const imp = LIB.imp; if (!imp || !imp.kinds.length) return "";
   return '<div class="lpanel"><h3>Fill in from your setup</h3>' + imp.kinds.map(k => {
@@ -184,6 +198,7 @@ function libLayoutItem(key){
     h += libSlotRows();
     const warn = [];
     if (LIB.imp.skipped.length) warn.push(["Left out", "Tiles this Countertop doesn't have: " + LIB.imp.skipped.join(", ")]);
+    h += libNeedRows(LIB.imp);
     if (LIB.imp.code) warn.push(["Has a tile with its own code", "Its code won't run until you tap Run on the tile. It can't see the rest of the dashboard, and it can only reach secure https:// addresses, not plain http:// ones like most devices on your home network."]);
     if (warn.length) h += '<div class="lpanel">' + warn.map(([t, s]) => '<div class="lrow"><div class="t">' + esc(t) + '<small>' + esc(s) + '</small></div></div>').join("") + '</div>';
   }
@@ -217,6 +232,8 @@ function libPack(p, look, name, desc){
         s[k] = t.settings[k];
       }
       const o = {type:t.type, settings:s}; if (t.name) o.name = t.name;
+      // a community tile: where to get it, never its code
+      const g = (DEFS[t.type] || {}).community && DEFS[t.type].gallery; if (g) o.from = {id:g.id, v:g.v};
       return o;
     });
     const b = {x:sl.x, y:sl.y, w:sl.w, h:sl.h, tiles};
@@ -316,13 +333,19 @@ function libRead(j){
   if (!pg || !Array.isArray(pg.boxes)) throw new Error("This layout has no page in it.");
   const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v) || 0));
   const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "";
-  const skipped = new Set(), uses = {}, multi = new Set(); let code = false;
+  const skipped = new Set(), uses = {}, multi = new Set(), need = new Map(); let code = false;
   const boxes = pg.boxes.slice(0, 60).map(b => {
     b = b || {};
     const x = num(b.x, 0, 47), y = num(b.y, 0, 31), w = num(b.w, 1, 48 - x), h = num(b.h, 1, 32 - y);
     const tiles = (Array.isArray(b.tiles) ? b.tiles : []).slice(0, 12).map(t => {
       const def = t && typeof t.type === "string" && Object.prototype.hasOwnProperty.call(DEFS, t.type) ? DEFS[t.type] : null;
-      if (!def){ if (t && t.type) skipped.add(str(String(t.type), 40)); return null; }
+      if (!def){
+        // a community tile this Countertop hasn't downloaded: offered from Community, otherwise its box is left out
+        const f = t && t.from, gid = f && typeof f.id === "string" && /^tiles\/[a-z][a-z0-9-]{1,39}$/.test(f.id) ? f.id : "";
+        if (gid && gid === "tiles/" + t.type) need.set(gid, {id:gid, type:t.type});
+        else if (t && t.type) skipped.add(str(String(t.type), 40));
+        return null;
+      }
       const S = def.settings || {}, s = {}, name = str(t.name, 60);
       for (const k in (t.settings && typeof t.settings === "object" ? t.settings : {})){
         const d = S[k], v = t.settings[k];
@@ -345,7 +368,7 @@ function libRead(j){
   for (const k of LOOK_KEYS) if (j.look && j.look[k] !== undefined){ const c = libClean(LSD[k], j.look[k]); if (c !== undefined) look[k] = c; }
   for (const k in uses) uses[k] = [...new Set(uses[k])];
   return {name:str(j.name, 80) || "Shared layout", desc:str(j.description, 500), made:str(j.made, 10), look, boxes,
-    skipped:[...skipped], kinds:KIND_ORDER.filter(k => uses[k]).concat(Object.keys(uses).filter(k => !KIND_ORDER.includes(k))), uses, multi:[...multi], code};
+    skipped:[...skipped], need:[...need.values()], kinds:KIND_ORDER.filter(k => uses[k]).concat(Object.keys(uses).filter(k => !KIND_ORDER.includes(k))), uses, multi:[...multi], code};
 }
 // a source setting in an imported tile: what was picked in "Fill in from your setup"
 function libFill(type, values){
@@ -368,7 +391,7 @@ function libLoadImport(text){
     const j = libParse(text);
     if (j.countertop === "theme"){ LIB.timp = themeRead(j); LIB.ttrial = ""; LIB.impErr = ""; libGo("themes"); LIB.sub = ["looks", "timp"]; libShow(); return; }
     if (j.countertop === "effect"){ LIB.fimp = fxRead(j); LIB.impErr = ""; libGo("effects"); LIB.sub = ["effects", "fximp"]; libShow(); return; }
-    LIB.imp = libRead(j); LIB.impErr = ""; LIB.slots = {}; LIB.look = true; LIB.pvKey = "";
+    LIB.imp = libRead(j); LIB.impRaw = j; LIB.impErr = ""; LIB.slots = {}; LIB.look = true; LIB.pvKey = "";
     libGo("import", "import");
   }catch(e){ LIB.impErr = e.message; LIB.imp = null; libGo("import"); }
 }

@@ -19,11 +19,13 @@ import re
 import secrets
 import threading
 import time
+import zlib
 
 from server.core import HERE, WORK
 from server.tilekeys import MAX_SECRETS, clean_secret, key_states, secrets_of
 
 TILES_DIR = WORK / "community" / "tiles"
+TAKEDOWN_FILE = WORK / "community" / "takedowns.json"      # the gallery's take-downs of downloaded tiles (server/commtiles.py)
 SAFE_FILE = WORK / "safe-mode.json"
 RUNTIME_DIR = HERE / "sandbox"
 MAX_FRAMES = 6                 # frames a screen runs at once (the Echo test: 6 stay smooth, 12 don't)
@@ -141,7 +143,31 @@ def clean_tile(raw, builtins=None):
         "demoData": _sbx_plain(raw.get("demoData")) if isinstance(raw.get("demoData"), dict) else {},
         "lang": _sbx_plain(raw.get("lang")) if isinstance(raw.get("lang"), dict) else {},
         "code": code,
+        "gallery": _gallery_tag(raw.get("gallery")),
     }
+
+
+def _gallery_tag(g):
+    """Where a downloaded tile came from: {id, v, by}, or None for a tile put in the folder by hand."""
+    if not isinstance(g, dict) or not isinstance(g.get("id"), str) or not re.fullmatch(r"tiles/[a-z][a-z0-9-]{1,39}", g["id"]):
+        return None
+    return {"id": g["id"], "v": g["v"] if isinstance(g.get("v"), int) and not isinstance(g.get("v"), bool) else 0, "by": str(g.get("by") or "")[:39],
+            "perms": [str(x)[:200] for x in g.get("perms")[:60]] if isinstance(g.get("perms"), list) else []}
+
+
+def taken_down():
+    """Ids of downloaded tiles the gallery took down: they don't run (decision 7)."""
+    try:
+        d = json.loads(TAKEDOWN_FILE.read_text())
+        gone = set(x for x in d.get("revoked") or [] if isinstance(x, str)) if isinstance(d, dict) else set()
+    except (OSError, ValueError):
+        return set()
+    return {k for k, t in community_installed()["tiles"].items() if t["gallery"] and t["gallery"]["id"] in gone}
+
+
+def tile_runs(t):
+    """Whether a community tile may run: not in safe mode, and not taken down by the gallery."""
+    return bool(t) and not safe_mode()["on"] and t["id"] not in taken_down()
 
 
 def clean_controls(raw):
@@ -214,16 +240,17 @@ def tile_hosts(type_):
     """The sites /tile-fetch may read for this kind of tile, or None when it isn't a tile that may fetch."""
     t = community_tile(type_)
     if t:
-        return None if safe_mode()["on"] else t["hosts"]
+        return t["hosts"] if tile_runs(t) else None
     return builtin_hosts(type_)
 
 
 def sandbox_view():
     """What /config tells the dashboard: safe mode, and each community tile without its code. For a tile with API keys,
     only whether each one is saved (`keys`), never the key."""
-    s = safe_mode()
+    s, gone = safe_mode(), taken_down()
     return {"safe": s["on"], "max": MAX_FRAMES, "beat": BEAT_EVERY,
-            "tiles": {k: dict({x: v for x, v in t.items() if x != "code"}, **({"keys": key_states(t)} if secrets_of(t) else {}))
+            "tiles": {k: dict({x: v for x, v in t.items() if x != "code"}, **({"keys": key_states(t)} if secrets_of(t) else {}),
+                              **({"revoked": True} if k in gone else {}))
                       for k, t in community_installed()["tiles"].items()}}
 
 
@@ -232,7 +259,7 @@ def sandbox_version():
     reloads then. Safe mode turning itself on doesn't reload the screen: a frozen page can't, and a page that was only
     cut off for a while gets the chance to check in again and turn it back off."""
     sig = community_installed()["sig"] or ()
-    return sum(n[1] // 1_000_000_000 + n[2] for n in sig) % 1_000_000 + safe_mode()["gen"]
+    return sum(n[1] // 1_000_000_000 + n[2] for n in sig) % 1_000_000 + safe_mode()["gen"] + zlib.crc32(",".join(sorted(taken_down())).encode()) % 100_000
 
 
 # ---------- the frame page ----------
@@ -245,8 +272,9 @@ def tile_frame_page(tid):
     t = community_tile(tid) if isinstance(tid, str) and SBX_ID_RE.match(tid) else None
     if not t:
         return 404, b"no such tile", {}
-    if safe_mode()["on"]:
-        body = '<!doctype html><meta charset="utf-8"><style>body{margin:0;color:#ccc;font:16px sans-serif}</style><p>Off: safe mode is on.</p>'
+    if not tile_runs(t):
+        body = '<!doctype html><meta charset="utf-8"><style>body{margin:0;color:#ccc;font:16px sans-serif}</style><p>Off: %s.</p>' % (
+            "safe mode is on" if safe_mode()["on"] else "taken down from the community gallery")
         return 200, body.encode("utf-8"), {"Content-Security-Policy": SBX_OFF_POLICY}
     nonce = secrets.token_hex(16)
     html = (_sbx_read("frame.html").replace("__RUNTIME__", _sbx_read("runtime.js"))
@@ -259,7 +287,7 @@ def tile_frame_page(tid):
 def tile_frame_code(tid):
     """(status, js) for /tile-frame/<id>/tile.js. Nothing in safe mode."""
     t = community_tile(tid) if isinstance(tid, str) and SBX_ID_RE.match(tid) else None
-    if not t or safe_mode()["on"]:
+    if not tile_runs(t):
         return 404, b"// off"
     return 200, t["code"].encode("utf-8")
 
@@ -376,8 +404,18 @@ def sandbox_status():
         return None
     now = time.time()
     return {"safe": s["on"], "why": s["why"], "tiles": s["tiles"], "since": s["at"], "installed": len(inst["tiles"]),
+            "takenDown": sorted(inst["tiles"][k]["title"] for k in taken_down()), "checked": _takedown_checked(),
             "problems": inst["problems"], "notes": [n["text"] for n in SBX_NOTES if now - n["at"] < 86400][-5:],
             "showing": sorted({n for x in SBX_SESSIONS.values() if now - x["at"] < 60 for n in x["showing"]})}
+
+
+def _takedown_checked():
+    """When the gallery was last read for take-downs (0: never, or no tile from the gallery is installed)."""
+    try:
+        d = json.loads(TAKEDOWN_FILE.read_text())
+        return d.get("checked") or 0 if isinstance(d, dict) else 0
+    except (OSError, ValueError):
+        return 0
 
 
 def sandbox_problems():
@@ -392,6 +430,8 @@ def sandbox_problems():
             "froze": "Community tiles are off: the screen stopped answering while %s was showing. Restart the browser on the screen if it's still stuck, then turn community tiles back on in Status when you're ready." % (names or "a community tile"),
             "reloads": "Community tiles are off: the screen restarted 3 times in 10 minutes with %s on it. Turn them back on in Status when you're ready." % (names or "community tiles"),
         }.get(st["why"], "Community tiles are off (safe mode). Turn them back on in Status.")])
+    for n in st["takenDown"]:
+        out.append(["warn", "“%s” was taken down from the community gallery, so it's off. Remove it in Library → Community." % n])
     for f, why in st["problems"]:
         out.append(["warn", "The community tile in %s can't be used: %s." % (f, why)])
     for n in st["notes"]:

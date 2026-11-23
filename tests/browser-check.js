@@ -23,7 +23,9 @@ async function main() {
     { id: "themes/calm", kind: "theme", name: "Calm", description: "", author: "someone", version: 1, updated: "2026-11-22",
       item: { countertop: "theme", format: 1, name: "Calm", values: { accent: "#ff9f5a", tiles: "See-through" } } },
     { id: "effects/hearts", kind: "effect", name: "Hearts", description: "", author: "someone", version: 1, updated: "2026-11-22",
-      item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } }] }));
+      item: { countertop: "effect", format: 1, name: "Hearts", effect: { glyphs: ["💕"], motion: "rise" } } },
+    { id: "tiles/hello-there", kind: "tile", name: "Hello there", description: "", author: "someone", version: 1, updated: "2026-11-23",
+      item: JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "community-tiles", "hello-there.json"), "utf8")) }] }));
   const port = await freePort();
   const base = "http://127.0.0.1:" + port;
   const server = spawn(process.env.PYTHON || "python3", [path.join(root, "tools", "countertop.py"), "--port", String(port)],
@@ -101,7 +103,7 @@ async function main() {
       await page.evaluate(() => libOpen("community"));
       await sleep(2500);
       const r = await page.evaluate(() => ({ cards: document.querySelectorAll("#lib .lc").length, mine: looks().length, fx: mineList().length }));
-      if (r.cards !== 2) throw new Error("Community shows " + r.cards + " items, not 2");
+      if (r.cards !== 3) throw new Error("Community shows " + r.cards + " items, not 3");
       await page.evaluate(() => document.querySelector('#lib .lc[data-id="themes/calm"]').click());
       await sleep(600);
       if (!(await page.$('#lib [data-l="c-dl"]'))) throw new Error("an item's page has no Download button");
@@ -114,6 +116,33 @@ async function main() {
       await page.evaluate(() => document.querySelector('#lib [data-l="c-rm"]').click());
       await sleep(300);
       if (await page.evaluate(() => looks().some(t => t.gallery))) throw new Error("Remove didn't take the theme out");
+    }]);
+    // a community tile from the gallery in a shared layout: the layout carries where to get it, never its code; a
+    // Countertop without it offers it from Community, and grants and keys never travel
+    pages.push(["community tile in a shared layout", "/control", { width: 1280, height: 900 }, async page => {
+      await page.evaluate(() => libOpen("community"));
+      await sleep(1500);
+      await page.evaluate(() => libGo("community", "c:tiles/hello-there"));
+      await sleep(300);
+      if (!/Nothing beyond its own box/.test(await page.textContent("#lib .ctperms"))) throw new Error("the permission list is missing");
+      await page.click('#lib [data-l="c-dl"]');
+      await page.waitForFunction(() => DEFS["hello-there"] && DEFS["hello-there"].community, null, { timeout: 5000 });
+      const r = await page.evaluate(() => {
+        libAddTile("hello-there", "main");
+        const t = tileList().find(x => x.type === "hello-there");
+        t.settings["@src"] = "ha1";                     // a grant from this home (as a control tile has) must not travel
+        const { pkg } = libPack(gpAll().find(p => p.id === "main"), lookSnap(), "Mine", "");
+        const tile = [].concat(...pkg.pages[0].boxes.map(b => b.tiles)).find(x => x.type === "hello-there");
+        delete DEFS["hello-there"];                      // a Countertop without it
+        const imp = libRead(JSON.parse(JSON.stringify(pkg)));
+        libOpen("import"); LIB.imp = imp; LIB.impRaw = pkg; libGo("import", "import");
+        return { tile, need: imp.need, skipped: imp.skipped, boxes: imp.boxes.filter(b => b.tiles.some(x => x.type === "hello-there")).length,
+          offer: !!document.querySelector('#lib [data-l="c-open"][data-id="tiles/hello-there"]') };
+      });
+      if (JSON.stringify(r.tile.from) !== JSON.stringify({ id: "tiles/hello-there", v: 1 })) throw new Error("the layout doesn't say where to get the tile: " + JSON.stringify(r.tile));
+      if (JSON.stringify(r.tile).includes("Tile(") || "@src" in r.tile.settings) throw new Error("the layout carries code or a grant: " + JSON.stringify(r.tile));
+      if (r.need.length !== 1 || r.need[0].id !== "tiles/hello-there" || r.skipped.length || r.boxes) throw new Error("import didn't ask for the tile: " + JSON.stringify(r));
+      if (!r.offer) throw new Error("the import page doesn't offer the tile from Community");
     }]);
     // /bench, the sandbox test page: one busy frame, then the escape checks. Every way out must be blocked except leaving
     // the frame's own page, which arrives at the server and shows as a second load. (The endless-loop test is for the Echo, not here.)

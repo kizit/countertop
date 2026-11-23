@@ -95,6 +95,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(cfg)
         elif p == "/community":
             self._json(community_index(bool(parse_qs(urlparse(self.path).query).get("refresh"))))     # the gallery's list, when Controls opens Community
+        elif p == "/community/shot":
+            # a gallery tile's screenshot, read from the gallery by the server (the screen and Controls never call out)
+            try:
+                got = commtiles.gallery_shot(parse_qs(urlparse(self.path).query).get("id", [""])[0], community_index(), gallery_url())
+            except Exception:
+                got = None
+            if got:
+                self._send(200, got[0], got[1], {"Cache-Control": "max-age=86400", "X-Content-Type-Options": "nosniff"})
+            else:
+                self._send(404, b"no picture")
         elif p == "/sources":
             self._json({"sources": sources_public(), "kinds": SOURCE_KINDS})
         elif p == "/control":
@@ -233,6 +243,19 @@ class Handler(BaseHTTPRequestHandler):
                 if not t:
                     raise ValueError("No such community tile")
                 self._json({"keys": tilekeys.save_key(t, str(body.get("name") or ""), None if body.get("remove") is True else body.get("value"))})
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+        elif p == "/community/tile":
+            # Download or Update a gallery tile: read from the gallery here, never taken from the browser
+            try:
+                self._json(commtiles.install(body.get("id"), body.get("consent"), community_index(True)))
+            except PermissionError as e:
+                self._json({"error": str(e), "perms": getattr(e, "perms", []), "ask": True}, 409)
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+        elif p == "/community/tile/remove":
+            try:
+                self._json(commtiles.remove(body.get("type")))
             except ValueError as e:
                 self._json({"error": str(e)}, 400)
         elif p == "/sandbox/safe":
@@ -404,6 +427,7 @@ def main():
     threading.Thread(target=reminders_loop, daemon=True).start()
     threading.Thread(target=update_loop, daemon=True).start()
     threading.Thread(target=sandbox.safe_loop, daemon=True).start()
+    threading.Thread(target=commtiles.takedown_loop, args=(community_index,), daemon=True).start()
     ip = lan_ip()
     scheme = "https" if a.tls else "http"
     srv = ThreadingHTTPServer(("0.0.0.0", a.port), Handler)
@@ -444,7 +468,8 @@ from server.feeds.sports import team_matches  # noqa: E402
 from server.homeassistant import ha_entities, ha_test, ha_view  # noqa: E402
 from server import controls  # noqa: E402,F401  (adds the tile.control action)
 from server.pages import named, page, page_files  # noqa: E402
-from server.community import community_index  # noqa: E402
+from server.community import community_index, gallery_url  # noqa: E402
+from server import commtiles  # noqa: E402
 from server.library import trial_add, trial_apply, trial_screen, trial_stop, trial_version  # noqa: E402
 from server.lists import list_push, local_list_apply, local_list_source, local_list_view, notes_apply, notes_view, pushed_list, reminders_apply, reminders_list_name, reminders_loop  # noqa: E402
 from server.sources import SOURCES_FILE, SOURCE_KINDS, sources_apply, sources_load, sources_public  # noqa: E402

@@ -96,14 +96,35 @@ async function main() {
     assert.deepEqual(st, { min: "tMin", wx: "builtin-weather-station", same: true });
     console.log("✓ starter layouts bring their built-in theme; earlier copies still win");
 
-    // New theme copies a built-in as it is
-    await ctl.evaluate(() => { go("looks"); go("newlook"); });
-    await ctl.locator('[data-lact="make"][data-id="builtin-light"]').click();
-    await until(() => ctl.evaluate(() => looks().some(t => t.name === "Light" && t.values.accent === "#2b7de9" && t.values.textScale === 100)), "copy of Light");
+    // Customize on a built-in opens an unsaved draft: Cancel leaves nothing behind
+    await ctl.evaluate(() => { go("looks"); go("theme:builtin-glass"); });
+    await ctl.locator('.saverow [data-lact="new"]').click();
+    await ctl.locator('select[data-lfrom]').waitFor();
+    assert.equal(await ctl.evaluate(() => looks().length), 3 - 1, "Customize saved a copy before Save");
+    await ctl.locator('[data-lact="cancel"]').click();
+    await until(() => ctl.evaluate(() => stack[stack.length - 1] === "theme:builtin-glass" && DRAFT === null), "Cancel goes back with no draft");
+    assert.equal(await ctl.evaluate(() => looks().length), 2);
+    console.log("✓ Customize on a built-in is a draft, and Cancel keeps nothing");
+
+    // New theme: start from Light, name it, Save & use
+    await ctl.evaluate(() => go("looks"));
+    await ctl.locator('.lcard[data-lact="new"]').click();
+    await ctl.locator('input[data-lk="__name"]').fill("Sunny");
+    await ctl.locator('input[data-lk="__name"]').dispatchEvent("change");
+    await ctl.locator('select[data-lfrom]').selectOption("builtin-light");
+    assert.equal(await ctl.locator('input[data-lk="__name"]').inputValue(), "Sunny", "a typed name stays when Start from changes");
+    await ctl.locator('[data-lact="saveuse"]').click();
+    await until(async () => { const c = await cfg(); const t = c.items.find(x => x.name === "Sunny"); return t && c.use === t.id && t.values.accent === "#2b7de9" && t.values.textScale === 100; }, "Sunny saved from Light and in use");
+    assert.match(await ctl.evaluate(() => stack[stack.length - 1]), /^theme:t/);
+    console.log("✓ New theme starts from any theme, and Save & use saves and uses it");
+
+    // with a schedule showing another theme, Use this theme says when it will show
+    const msg = await ctl.evaluate(() => { rules().push({ id: "rnow", on: true, look: "builtin-calm-evening", when: {} }); return useText("tOld"); });
+    assert.match(msg, /^Old will show when Calm evening's scheduled time ends$/);
+    await ctl.evaluate(() => { LS().use = "builtin-glass"; rules().length = 0; save(); });
 
     // restart: the built-in in use is still there
-    await ctl.evaluate(() => { rules().length = 0; save(); });
-    await until(async () => !((await cfg()).rules || []).length, "rules cleared");
+    await until(async () => { const c = await cfg(); return !(c.rules || []).length && c.use === "builtin-glass"; }, "rules cleared");
     await srv.stop();
     srv = await startServer(data);
     assert.equal((await cfg()).use, "builtin-glass");

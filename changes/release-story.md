@@ -41,6 +41,7 @@ A screen runs up to 6 community tiles at once, on the page that's showing. To us
 
 ## Also in this release
 
+- **Easier themes.** Library → Themes now shows ten built-in themes beside your own, including the looks from the starter layouts. Tap one to see it on the preview without saving anything, then use it, schedule it or customize it. **New theme** and **Customize** open an editor where nothing is saved until you press **Save** or **Save & use**.
 - **Share and Submit for themes and effects.** A theme's page and your own effect's page now show **Share** beside the other buttons, and every Share screen has **Submit to the gallery** with the share code filled in.
 - **Better privacy in shared layouts.** The places on a World clock, a Picture tile's caption, Stocks symbols, Your own tile's note and your Home Assistant lock choices no longer travel in a shared layout. Download diagnostics leaves out what you typed into tiles.
 - **Steadier screen and Controls.** The night page stays showing in Controls' preview. Going to Controls and back no longer counts as a restart, and the dashboard stays on your page after **Edit the screen**, **Save** or **Cancel**.

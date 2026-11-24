@@ -46,7 +46,7 @@ function libRail(){
   const item = (v, label, n) => '<button data-l="view" data-id="' + v + '"' + (LIB.view === v ? ' class="on"' : "") + '>' + label + (n != null ? '<small>' + n + '</small>' : "") + '</button>';
   return '<button class="lback" data-l="close">‹ Controls</button><h1>Library</h1>' +
     item("layouts", "Layouts", libBuiltIn().length + savedList().length) + item("tiles", "Tiles", Object.keys(DEFS).length || "") +
-    item("themes", "Themes", looks().length + 1) + item("effects", "Effects", FXLIB.L.filter(d => !(FXDRAFT && FXDRAFT.isNew && d.id === FXDRAFT.id) && fxC(d.id).on).length + " on") +
+    item("themes", "Themes", looks().length + 1 + THEMELIB.L.length) + item("effects", "Effects", FXLIB.L.filter(d => !(FXDRAFT && FXDRAFT.isNew && d.id === FXDRAFT.id) && fxC(d.id).on).length + " on") +
     '<div class="lsep">Yours</div>' + item("mine", "My layouts", savedList().length) +
     '<div class="lsep">Make</div>' + '<button data-l="s-new"' + (LIB.view === "studio" ? ' class="on"' : "") + '>New tile</button>' + item("share", "Share a layout") + item("import", "Import a file") +
     '<div class="lsep">Community</div>' + item("community", "Browse community", COMM.data && commUpdates() ? commUpdates() + " new" : null);

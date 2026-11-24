@@ -77,6 +77,7 @@ The dashboard (`/dash`) and Controls (`/control`) are each a folder of plain fil
 - `tools/dash/`: `style.css`; `core.js` (start-up, settings, language, weather words, sky colors); `tile-api.js` (what every tile can use, see [Writing a tile](tile-api.md)); `screen.js` (pages, data feeds, the night page, the clock tick, boot); `grid.js` (boxes on the 48×32 grid); `editor.js`; `designer.js` (laying out a tile's parts); `demo.js` (made-up data for the Library's examples); `looks.js`.
 - `tools/control/`: `style.css`; `core.js` (start-up and helpers); `screens.js`; `lists.js`; `status.js`; `setup-guide.js`; `edits.js`; `look.js`; `emoji.js`; `library.js`; `preview.js`.
 - `tools/shared/effects.js`: the effects library, used by both pages (full-screen on the dashboard, small previews in Controls).
+- `tools/shared/themes.js`: the built-in themes, used by both pages. Each is complete and has a fixed `builtin-` id that `look.use`, schedule rules and `?theme=` can name; they are never copied into settings.
 
 Each page is still one script, so a name defined in one file can be used in the others. Keep each file whole top-level statements, and add a new file to the page's `index.html` where it should run. `node tests/check-js.js` checks every part on its own and each page put together.
 

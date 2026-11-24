@@ -119,6 +119,19 @@ async function main() {
       return ok === "Hi from the Studio" ? ok : null;
     }, "the preview drawing the tile", 30000);
     assert.equal(preview, "Hi from the Studio");
+    // the tile sits centred in the preview box, nothing cut off, at every size
+    for (const sz of ["usual", "small", "big"]) {
+      await ctl.evaluate(k => { STU.size = k; stuPreview(); }, sz);
+      const m = await until(() => ctl.evaluate(() => {
+        const f = document.querySelector("#lib .lstu-shot iframe"), box = f && f.parentNode;
+        let slot; try { slot = f.contentDocument.querySelector(".slot"); } catch (e) {}
+        if (!slot) return null;
+        const b = box.getBoundingClientRect(), r = f.getBoundingClientRect(), k = r.width / 1920, s = slot.getBoundingClientRect();
+        return {l: r.left + s.left * k - b.left, t: r.top + s.top * k - b.top, rt: b.right - (r.left + s.right * k), bt: b.bottom - (r.top + s.bottom * k)};
+      }), "the " + sz + " preview measured");
+      assert.ok(Math.abs(m.l - m.rt) < 3 && Math.abs(m.t - m.bt) < 3, sz + " preview centred: " + JSON.stringify(m));
+      assert.ok(m.l >= 0 && m.rt >= 0 && m.t >= 0 && m.bt >= 0, sz + " preview not cut off: " + JSON.stringify(m));
+    }
     await ctl.locator('#lib [data-l="s-save"]').click();
     const hello = await until(() => ctl.evaluate(() => STU.id && !stuDirty() ? STU.id : null), "saved");
     assert.equal(hello, "my-hello-there");

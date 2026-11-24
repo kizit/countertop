@@ -1,0 +1,1 @@
+- **Tile previews are centred.** The preview in Tile Studio and the tile examples in the Library now sit in the middle of their box, at every size, instead of shifted to the right and cut off.

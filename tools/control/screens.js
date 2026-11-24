@@ -45,33 +45,28 @@ const STARTERS = {
   },
   atmospheric: {
     name:"Atmospheric", sub:"A serif clock over the changing sky, with meal ideas and moon phases.",
-    look:{bg:"Sky", tiles:"See-through", opacity:38, accent:"#ffcc91"},
     boxes:[starterBox("clock",0,0,48,9,{style:"Serif",align:"Center",greeting:false,countdowns:false}),
       starterBox("agenda",1,10,14,19,{count:7}), starterBox("dinner",15,10,18,19),
       starterBox("weather",33,10,14,7,{style:"Compact",align:"Left",sun:false,air:false}), starterBox("sunmoon",33,17,14,12)]
   },
   minimal: {
     name:"Minimal", sub:"An oversized clock, a quiet forecast and the next few plans on warm paper.",
-    look:{mode:"Light", bg:"Color", bgColor:"#f4f0e8", tiles:"Clear", accent:"#376a63", fx:"Off"},
     boxes:[starterBox("clock",1,7,23,14,{style:"Serif",align:"Center",ampm:false,greeting:false,countdowns:false,
         design:{on:true,name:"Minimal clock",parts:{time:{x:50,y:8,s:48,a:"c",f:"DM Serif Display",c:"var(--accent)",w:400},date:{x:50,y:70,s:8,a:"c",c:"var(--accent)",w:500}}}}),
       starterBox("weather",2,22,21,5,{style:"Minimal",align:"Center",air:false,sun:false}), starterBox("agenda",25,6,21,21,{count:6})]
   },
   kitchen: {
     name:"Kitchen table", sub:"Meal ideas beside the shopping list, with seasonal produce and kitchen tips taking turns.",
-    look:{mode:"Light", bg:"Color", bgColor:"#dce4cf", accent:"#56703b", fx:"Off"},
     boxes:[starterBox("clock",0,0,24,7,{style:"Rounded",greeting:false,countdowns:false}), starterBox("nextevent",24,0,24,7),
       starterBox("dinner",0,7,28,25), starterBox("list",28,7,20,16), starterBox("inseason",28,23,20,9,{},["tip"])]
   },
   weather: {
     name:"Weather station", sub:"A wide hourly chart, a ten-day forecast and the rising and setting sun.",
-    look:{bg:"Color", bgColor:"#132d38", accent:"#69daca", tiles:"See-through", opacity:55},
     boxes:[starterBox("weather",0,0,24,9,{style:"Big temperature",align:"Left"}), starterBox("clock",24,0,24,9,{style:"Digital",align:"Right",countdowns:false}),
       starterBox("nexthours",0,9,30,16), starterBox("sunmoon",0,25,30,7), starterBox("forecast",30,9,18,23)]
   },
   planner: {
     name:"Family planner", sub:"A full month beside the family agenda, with the next event up top.",
-    look:{mode:"Light", bg:"Color", bgColor:"#e4dfed", accent:"#76508a", fx:"Off"},
     boxes:[starterBox("clock",0,0,19,7,{style:"Bold",countdowns:false,greeting:false}), starterBox("nextevent",19,0,29,7),
       starterBox("month",0,7,32,25), starterBox("agenda",32,7,16,25,{count:10})]
   },
@@ -85,6 +80,8 @@ const STARTERS = {
   side:{name:"Big + side stack", sub:"One large box beside two smaller ones.", grid:[[0,0,32,32],[32,0,16,16],[32,16,16,16]]},
   squares:{name:"Four squares", sub:"Four equal boxes.", grid:[[0,0,24,16],[24,0,24,16],[0,16,24,16],[24,16,24,16]]}
 };
+// a starter layout comes with its built-in theme (tools/shared/themes.js), so each look is defined once
+for (const [k, c] of Object.entries(STARTERS)){ const b = THEMELIB.forStarter(k); if (b){ c.look = b.values; c.theme = b.id; } }
 const GROUPS = [["dash", "Dashboards"], ["full", "Full-screen"], ["grid", "Empty grids"], ["saved", "Saved"]];
 const starterGroup = s => s.grid ? "grid" : s.full ? "full" : "dash";
 let galTab = "dash";
@@ -210,7 +207,8 @@ function layoutTheme(key, c){            // the theme a layout would bring: {id}
   if (key === "everyday") return {id:"default"};
   if (c.saved && c.page.theme && (c.page.theme === "default" || lookById(c.page.theme))) return {id:c.page.theme};
   const from = c.saved ? "saved:" + c.page.id : c.imported ? "" : "starter:" + key;
-  const had = from && looks().find(x => x.from === from); if (had) return {id:had.id};
+  const had = from && looks().find(x => x.from === from); if (had) return {id:had.id};      // a copy made before starters had built-in themes
+  if (!c.saved && !c.imported && c.theme && THEMELIB.has(c.theme)) return {id:c.theme};
   const values = Object.assign(lookVals("default"), c.saved || c.imported ? {} : {mode:"Dark", tiles:"Solid", fx:"On", opacity:60}, c.look);
   const same = ["default"].concat(looks().map(x => x.id)).find(id => { const v = lookVals(id); return LOOK_KEYS.every(k => String(v[k]) === String(values[k])); });
   if (same) return {id:same};

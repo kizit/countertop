@@ -43,12 +43,17 @@ function themeMatches(t, d){
   }
   return true;
 }
+// a theme by id: one of yours, or a built-in one (tools/shared/themes.js); "default" or an unknown id = Everyday (null)
+const themeById = (items, id) => (id && id !== "default" && (items.find(x => x.id === id) || THEMELIB.get(id))) || null;
 function activeTheme(d){
   const L = S("look"), items = L.items || [], rules = L.rules || [];
-  if (FORCE_THEME) return FORCE_THEME === "default" ? null : items.find(t => t.id === FORCE_THEME) || null;
+  if (FORCE_THEME) return themeById(items, FORCE_THEME);
   if (SOLO) return null;
-  for (let i = rules.length - 1; i >= 0; i--){ const r = rules[i], t = items.find(x => x.id === r.look); if (t && themeMatches(r, d || new Date())) return t; }
-  return items.find(x => x.id === L.use) || null;          // the theme picked with Use this theme; none = Everyday
+  for (let i = rules.length - 1; i >= 0; i--){       // a rule for Everyday counts too: it shows Everyday over the theme in use
+    const r = rules[i]; if (!(r.look === "default" || themeById(items, r.look)) || !themeMatches(r, d || new Date())) continue;
+    return themeById(items, r.look);
+  }
+  return themeById(items, L.use);          // the theme picked with Use this theme; none = Everyday
 }
 let THEME = null, THEMEV = {};
 const PREFS = ["dateFmt", "weekStart", "h24", "emoji", "swap"];      // set once in Setup, the same in every look

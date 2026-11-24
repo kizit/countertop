@@ -53,11 +53,16 @@ document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
   if (t.id === "display-orientation"){ displaySet(t); return; }
   if ((d.lk && d.lv === undefined) || d.lfrom || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
-  if (d.sf){       // show only the fields that apply (e.g. the Reminders list name)
+  if (d.sf){       // show only the fields that apply, and refresh per-kind labels and help text
     const cur = stack[stack.length - 1].split(":"), K = KINDS[cur[1]]; if (!K) return;
-    for (const f in K.fields){ const F = K.fields[f]; if (!F.when) continue;
-      const ok = Object.keys(F.when).every(w => { const el = document.querySelector('[data-sf="' + w + '"]'); return el && el.value === F.when[w]; });
-      const wrap = document.querySelector('[data-fw="' + f + '"]'); if (wrap) wrap.hidden = !ok; }
+    const getVal = w => { const el = document.querySelector('[data-sf="' + w + '"]'); return el ? el.value : ""; };
+    const curKind = getVal("kind");
+    for (const f in K.fields){ const F = K.fields[f];
+      const wrap = document.querySelector('[data-fw="' + f + '"]'); if (!wrap) continue;
+      if (F.when) wrap.hidden = !srcWhenOk(F, getVal);
+      if (F.labelBy && F.labelBy[curKind]){ const b = wrap.querySelector(".t b"); if (b) b.textContent = F.labelBy[curKind]; }
+      if (F.helpBy && F.helpBy[curKind]){ const hp = wrap.querySelector(".help"); if (hp) hp.textContent = F.helpBy[curKind]; }
+    }
     return;
   }
   if (d.pg){ const p = cpById(d.pg); if (!p) return;

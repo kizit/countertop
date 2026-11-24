@@ -59,9 +59,16 @@ class Handler(BaseHTTPRequestHandler):
                           headers={"x-api-key": src.get("apiKey") or "", "Accept": "image/*"})
             with urlopen(req, timeout=25) as r:
                 self._send(200, r.read(30_000_000), r.headers.get("Content-Type", "image/jpeg"),
-                           {"Cache-Control": "public, max-age=86400"})
+                           {"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"})
         except Exception:
             self._send(404, b"not found")
+
+    def _album_item_image(self, sid, fid):
+        """One allowlisted photo from a local folder or self-hosted album source (Nextcloud, Plex, Jellyfin, PhotoPrism)."""
+        got = album_image(sid, fid)
+        if not got:
+            return self._send(404, b"not found")
+        self._send(200, got[0], got[1], {"Cache-Control": got[2], "X-Content-Type-Options": "nosniff"})
 
     def do_GET(self):
         p = self.path.split("?")[0]
@@ -121,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(album_photos(parse_qs(urlparse(self.path).query).get("id", [""])[0]))
         elif re.fullmatch(r"/photos/immich/[\w-]+/[\w-]+\.jpg", p):
             self._immich_image(p.split("/")[-2], p.rsplit("/", 1)[-1][:-4])
+        elif re.fullmatch(r"/photos/item/[\w-]+/[0-9a-f]{16}", p):
+            self._album_item_image(p.split("/")[-2], p.rsplit("/", 1)[-1])
         elif p == "/tiles.js":
             # every tile type is one file in tools/tiles; adding a file adds a tile, no build step
             parts = []
@@ -307,7 +316,13 @@ class Handler(BaseHTTPRequestHandler):
             code, out = tile_act(p[len("/tile-act/"):], body)
             self._json(out, code)
         elif p == "/sources/test":
-            self._json(recipes_test(body.get("item") or {}) if body.get("kind") == "recipes" else ha_test(body))
+            k = body.get("kind")
+            if k == "recipes":
+                self._json(recipes_test(body.get("item") or {}))
+            elif k == "albums":
+                self._json(album_test(body.get("item") or {}))
+            else:
+                self._json(ha_test(body))
         elif p == "/lists/push":
             code, out = list_push(body)
             self._json(out, code)
@@ -502,7 +517,7 @@ from server.core import CAL_STATUS, HERE, ICS_CACHE, LOG, OLD_LOG, SCREEN, WORK,
 from server.feeds.calendar import SAMPLE_ICS, parse_ics  # noqa: E402
 from server.feeds.cams import live_cams  # noqa: E402
 from server.feeds.meals import meal_ideas, recipes_test  # noqa: E402
-from server.feeds.photos import PHOTO_CACHES, album_photos  # noqa: E402
+from server.feeds.photos import PHOTO_CACHES, album_image, album_photos, album_test  # noqa: E402
 from server.feeds.sales import _flipp, purchases_library, sales_view  # noqa: E402
 from server.feeds.sky import iss_now, planes_near, radar_frames, space_picture  # noqa: E402
 from server.feeds.sports import team_matches  # noqa: E402

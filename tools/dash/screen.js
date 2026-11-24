@@ -164,13 +164,18 @@ async function loadSales(){
   renderFeed("sales", "notes");
   if (STATE.sales && (STATE.sales.loading || STATE.sales.busy)) setTimeout(loadSales, 60e3);
 }
+let photoTimer = null;
 async function loadPhotos(){
+  clearTimeout(photoTimer); photoTimer = null;
   const bg = typeof THEMEV !== "undefined" && THEMEV.bg === "Photos";
   if (!usesFeed("photos") && !bg) return;
   const ids = [...new Set(Object.values(MODULES).filter(m => (m.feeds || []).includes("photos")).map(m => m.s.album || "").concat(bg ? [""] : []))];
   await Promise.all(ids.map(async id => { try{ STATE.albums[id] = await getJSON("/photos?id=" + encodeURIComponent(id)); }catch(e){ STATE.albums[id] = {photos:[], error:String(e)}; } }));
-  for (const id in MOUNTED) if (MODULES[id] && MODULES[id].type === "photos"){ MOUNTED[id]._layers = null; MOUNTED[id]._shown = null; }
+  for (const id in MOUNTED) if (MODULES[id] && MODULES[id].type === "photos" && !MOUNTED[id]._layers){ MOUNTED[id]._shown = null; }
   renderFeed("photos"); themePhotos();
+  // CloudKit signed URLs expire in ~15 min and local folders update often: refresh sooner when an album asks for a shorter ttl
+  const ttls = ids.map(id => +(STATE.albums[id] && STATE.albums[id].ttl || 0)).filter(t => t > 0 && t < 1800);
+  if (ttls.length) photoTimer = setTimeout(loadPhotos, Math.max(60, Math.min(...ttls)) * 1000);
 }
 const FEEDS = [[loadWeather, 600], [loadAqi, 1800], [loadEvents, 300], [loadNotes, 30], [loadTeams, 600], [loadPhotos, 1800], [loadSales, 1800], [loadTileData, 15]];
 

@@ -314,23 +314,35 @@ function srcScreen(k){
     "Then pick it in a tile's settings: Edit dashboard on screen, tap the tile.");
   return h;
 }
+function srcWhenOk(F, getVal){
+  if (!F.when) return true;
+  return Object.keys(F.when).every(w => {
+    const want = F.when[w], cur = getVal(w);
+    return Array.isArray(want) ? want.includes(cur) : cur === want;
+  });
+}
 function srcItemScreen(k, id){
   const K = KINDS[k], x = id === "new" ? {} : (SRC[k] || []).find(v => v.id === id);
   if (!x) return '<div class="big">Not found</div>';
   let h = '<div class="big">' + (id === "new" ? "New " + esc(K.one) : esc(x.name || K.one)) + '</div>';
   let rows = "";
+  const fieldVal = w => { const ch = (K.fields[w].choices || [])[0]; return x[w] || (Array.isArray(ch) ? ch[0] : ch); };
+  const curKind = K.fields.kind ? fieldVal("kind") : "";
   for (const f in K.fields){
-    const F = K.fields[f], a = 'data-sf="' + f + '"', help = F.help ? '<div class="help">' + esc(F.help) + '</div>' : "";
-    const hide = F.when && Object.keys(F.when).some(w => (x[w] || (K.fields[w].choices || [])[0]) !== F.when[w]);
+    const F = K.fields[f], a = 'data-sf="' + f + '"';
+    const lbl = (F.labelBy && F.labelBy[curKind]) || F.label;
+    const htxt = (F.helpBy && F.helpBy[curKind]) || F.help;
+    const help = htxt ? '<div class="help">' + esc(htxt) + '</div>' : "";
+    const hide = !srcWhenOk(F, fieldVal);
     let inp;
-    if (F.type === "color") inp = row({t:F.label, sub:F.help, post:'<input type="color" ' + a + ' value="' + esc(x[f] || "#7cb7ff") + '">'});
-    else if (F.type === "bool") inp = row({t:F.label, sub:F.help, post: sw(!!x[f], a + ' data-swt="1"')});
+    if (F.type === "color") inp = row({t:lbl, sub:htxt, post:'<input type="color" ' + a + ' value="' + esc(x[f] || "#7cb7ff") + '">'});
+    else if (F.type === "bool") inp = row({t:lbl, sub:htxt, post: sw(!!x[f], a + ' data-swt="1"')});
     else if (F.type === "choice"){
       const ch = F.choices.map(c => Array.isArray(c) ? c : [c, c]), cur = x[f] || ch[0][0];
-      inp = '<div class="row col"><div class="t"><b>' + esc(F.label) + '</b></div><select ' + a + '>' + ch.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select>' + help + '</div>';
+      inp = '<div class="row col"><div class="t"><b>' + esc(lbl) + '</b></div><select ' + a + '>' + ch.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select>' + help + '</div>';
     } else {
       const ph = F.secret && x[f + "Set"] ? (f === "url" ? "Saved and hidden. Paste a new link to replace it." : "Saved and hidden. Paste a new one to replace it.") : "";
-      inp = '<div class="row col"><div class="t"><b>' + esc(F.label) + '</b></div><input type="text" ' + a + ' value="' + esc(F.secret ? "" : x[f] || "") + '" placeholder="' + esc(ph) + '" autocapitalize="off" spellcheck="false">' + help + '</div>';
+      inp = '<div class="row col"><div class="t"><b>' + esc(lbl) + '</b></div><input type="text" ' + a + ' value="' + esc(F.secret ? "" : x[f] || "") + '" placeholder="' + esc(ph) + '" autocapitalize="off" spellcheck="false">' + help + '</div>';
     }
     rows += '<div data-fw="' + f + '"' + (hide ? " hidden" : "") + '>' + inp + '</div>';
   }
@@ -347,6 +359,8 @@ function srcItemScreen(k, id){
     "Checks the address and token without saving. Leave the token blank to test the one already saved.");
   if (k === "recipes") h += sec("", '<button class="btnrow blue" data-sact="test" data-k="' + k + '" data-id="' + id + '">Test the key</button><div class="row" id="hatest" hidden></div>',
     "Asks the service for one small thing without saving. Leave the key blank to test the one already saved.");
+  if (k === "albums") h += sec("", '<button class="btnrow blue" data-sact="test" data-k="' + k + '" data-id="' + id + '">Test album</button><div class="row" id="hatest" hidden></div>',
+    "Checks the album or folder and counts how many photos it finds, without saving. Leave a saved key or password blank to test with it.");
   h += '<div class="saverow">' + (id === "new" ? "" : '<button class="red" data-sact="del" data-k="' + k + '" data-id="' + id + '" style="color:var(--bad)">Delete</button>') +
     '<button class="pri" data-sact="save" data-k="' + k + '" data-id="' + id + '">' + (id === "new" ? "Add " + esc(K.one) : "Save") + '</button></div>';
   if (id !== "new"){ const u = usedBy(k, id); if (u.length) h += '<div class="sec"><div class="foot">Used by ' + esc(u.join(", ")) + '.</div></div>'; }
@@ -374,7 +388,9 @@ async function srcAction(act, k, id){
 }
 async function srcTest(k, id){
   const item = {id: id === "new" ? undefined : id}, out = document.getElementById("hatest");
-  document.querySelectorAll("[data-sf]").forEach(el => { item[el.dataset.sf] = el.value.trim(); });
+  document.querySelectorAll("[data-sf]").forEach(el => {
+    item[el.dataset.sf] = el.classList.contains("sw") ? el.classList.contains("on") : el.value.trim();
+  });
   out.hidden = false; out.innerHTML = '<div class="t"><small>Checking…</small></div>';
   try{
     const r = await fetch("/sources/test", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:k, item})});

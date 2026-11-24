@@ -6,7 +6,7 @@
    Tiles that came from someone else (a shared layout or file) wait until you let them run.
    Your own tile is retired: the ones that will work here were converted by the server, keeping the original for
    Restore; the rest are listed in Library → Tiles with why, and Convert. */
-const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", reply:"", fill:null, undo:null, log:[], timer:null, poll:null, size:"usual"};
+const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", reply:"", fill:null, undo:[], log:[], timer:null, poll:null, size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""};
 let MINEC = {};          // type → its whole file (for sharing a layout that uses it), from GET /studio/tile/<id>
 let LEGACYC = {};        // Your own tiles still on the dashboard: id → {ok, reasons, kept}
 const STU_FEEDS = [["wx", "Weather", "this.feed(\"weather\")"], ["aqi", "Air quality", "this.feed(\"air\")"], ["team", "Your teams' games", "this.feed(\"teams\")"],
@@ -66,7 +66,7 @@ function stuRow(t, d){
 /* ----- the Studio ----- */
 async function stuOpen(id){
   clearTimeout(STU.timer);
-  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", reply:"", fill:null, undo:null, size:"usual"});
+  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", reply:"", fill:null, undo:[], size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""});
   if (id){
     try{
       const r = await fetch("/studio/tile/" + encodeURIComponent(id), {cache:"no-store"});
@@ -108,7 +108,7 @@ function stuView(){
     '<div class="lact"><button class="lbtn pri" data-l="s-ai">Copy for chat</button></div>' +
     '<p class="lnote">Paste it into ChatGPT (or another assistant). It sends your words, everything this page can set, and the shape its answer must have.</p>' +
     '<label class="lfield">2. Paste its answer here<textarea data-s="reply" rows="4" spellcheck="false" placeholder="Paste the whole answer">' + esc(STU.reply) + '</textarea></label>' +
-    '<div class="lact"><button class="lbtn pri" data-l="s-fill">Fill in the form</button>' + (STU.undo ? '<button class="lbtn" data-l="s-unfill">Undo</button>' : "") + '</div>' + stuFillHTML() +
+    '<div class="lact"><button class="lbtn pri" data-l="s-fill">Fill in the form</button>' + (STU.undo.length ? '<button class="lbtn" data-l="s-unfill">Back</button>' : "") + '</div>' + stuFillHTML() +
     '<p class="lnote">This only fills in the form below. Nothing is saved, and the tile runs sealed off in the preview, until you press Save. Its answer can\'t turn anything on for you: the tile still asks for each thing in its settings, and API keys are never filled in.</p></div>';
   // what it is
   h += '<div class="lpanel"><h3>What it is</h3>' + stuInput("Name", "name", t.name, 'type="text" maxlength="60"') +
@@ -146,8 +146,8 @@ function stuView(){
   h += '<div class="lstu-r"><div class="lstu-pv"><div class="lchips">' + [["usual", "Usual size"], ["small", "Smallest"], ["big", "Large"]].map(([k, l]) =>
       '<button class="lchip' + (STU.size === k ? " on" : "") + '" data-l="s-size" data-id="' + k + '">' + l + '</button>').join("") +
     '<button class="lchip' + (STU.real ? " on" : "") + '" data-l="s-real">' + (STU.real ? "Your data" : "Made-up data") + '</button></div>' +
-    '<div class="tp big lstu-shot">' + (STU.draft ? '<iframe title="Preview" data-w="' + stuPvSize()[0] + '" data-h="' + stuPvSize()[1] + '" src="' + esc(stuPvSrc()) + '"></iframe>' : "") + '</div>' +
-    '<div class="lstu-log">' + stuLogHTML() + '</div></div>' +
+    '<div class="tp big lstu-shot' + (STU.picking ? " pick" : "") + '">' + (STU.draft ? '<iframe title="Preview" data-w="' + stuPvSize()[0] + '" data-h="' + stuPvSize()[1] + '" src="' + esc(stuPvSrc()) + '"></iframe>' : "") + '</div>' +
+    '<div class="lstu-log">' + stuLogHTML() + '</div><div class="lstu-pk">' + stuPickHTML() + '</div></div>' +
     '<div class="lact"><button class="lbtn pri" data-l="s-save">' + (STU.id ? "Save" : "Save to my tiles") + '</button>' +
     (STU.id && !stuDirty() ? '<button class="lbtn" data-l="addtile" data-id="' + esc(STU.id) + '">Add to ' + esc(libAddName()) + '</button>' : "") + '</div>' +
     (STU.id ? '<div class="lact"><button class="lbtn" data-l="s-share">Download file</button><button class="lbtn" data-l="s-copy">Copy as text</button>' +
@@ -207,12 +207,14 @@ function stuPreview(){
   const [w, h] = stuPvSize();
   box.innerHTML = '<iframe title="Preview" data-w="' + w + '" data-h="' + h + '" src="' + esc(stuPvSrc()) + '"></iframe>';
   libFitShots();
+  box.classList.toggle("pick", STU.picking);
   clearInterval(STU.poll);
   // what went wrong inside: the preview is this server's own dashboard page, so its list can be read directly
   STU.poll = setInterval(() => {
     if (LIB.view !== "studio"){ clearInterval(STU.poll); return; }
     const f = libEl().querySelector(".lstu-shot iframe");
     try{
+      stuPickSync(f);
       const L = f.contentWindow.dashSbxLog("demo");
       if (JSON.stringify(L) !== JSON.stringify(STU.log)){ STU.log = L.slice(); const lg = libEl().querySelector(".lstu-log"); if (lg) lg.innerHTML = stuLogHTML(); }
     }catch(e){}
@@ -224,6 +226,9 @@ function stuSet(field, value, el){
   let redraw = false;
   if (field === "ask"){ STU.ask = value; return; }
   if (field === "reply"){ STU.reply = value; return; }
+  if (field === "gen"){ STU.gen = value.slice(0, 600); return; }
+  if (field === "pend"){ STU.pendNote = value.slice(0, 400); return; }
+  if (p[0] === "note"){ if (STU.notes[+p[1]]) STU.notes[+p[1]].note = value.slice(0, 400); return; }
   if (p[0] === "size"){ t.size = (t.size || [12, 8, 6, 4]).slice(); t.size[+p[1]] = Math.max(2, Math.min(+p[1] % 2 ? 32 : 48, Math.round(+value) || 2)); }
   else if (p[0] === "feed"){
     const F = new Set(t.feeds || []); if (el.classList.contains("on")) F.add(p[1]); else F.delete(p[1]);
@@ -328,13 +333,81 @@ const STU_FEED_NAMES = {wx:"wx", weather:"wx", forecast:"wx", aqi:"aqi", air:"aq
 const STU_TYPE_NAMES = {string:"text", boolean:"bool", toggle:"bool", integer:"int", float:"number", select:"choice", enum:"choice", dropdown:"choice", array:"list"};
 const STU_FIELDS = ["name", "description", "size", "every", "taps", "feeds", "hosts", "settings", "devices", "controls", "code"];
 
+/* ----- change it: point at parts of the preview and say what to change ----- */
+const STU_MAX_NOTES = 8;
+const STU_PHRASES = ["Bigger", "Smaller", "Move up", "Move down", "Move left", "Move right", "Different color", "Remove it",
+  "Bigger text", "Fewer things", "More detail", "Side by side", "Stacked", "Calmer colors", "Bolder colors"];
+const STU_PHRASES_PART = [0, 1, 2, 3, 4, 5, 6, 7], STU_PHRASES_ALL = [8, 9, 10, 11, 12, 13, 14];
+// a part of the tile in words the chat can follow
+function stuPartName(p){
+  if (p.root) return "the whole tile";
+  if (p.text) return 'the text "' + p.text + '"';
+  if (p.tag === "img") return "the picture";
+  if (p.tag === "svg" || p.tag === "canvas") return "the drawing";
+  return "the " + p.tag + (p.cls[0] ? " with class " + p.cls[0] : "");
+}
+function stuPartWhere(p){
+  const b = p.box, x = Math.round(b[0]), y = Math.round(b[1]);
+  return (p.path.length ? p.path.join(" > ") + ", " : "") + (p.fs ? Math.round(p.fs) + "px text, " : "") + "about " + Math.round(b[2]) + "% wide and " + Math.round(b[3]) + "% high, " +
+    x + "% from the left and " + y + "% from the top of the tile";
+}
+function stuChangesText(){
+  const sz = STU.t.size || [12, 8], px = sz[0] * 40 + "x" + sz[1] * 34;
+  let out = "Make these changes and keep everything else the same. The tile is shown about " + px + " pixels. Parts are named the way the tile's own code draws them, so find them in its code; if you can't find one, say so in one short line above the code block.\n";
+  STU.notes.forEach((n, i) => { out += (i + 1) + ". " + stuPartName(n) + " (" + stuPartWhere(n) + "): " + n.note + "\n"; });
+  if (STU.gen.trim()) out += (STU.notes.length ? "Overall: " : "") + STU.gen.trim() + "\n";
+  out += "Send the whole tile again (the settings, then the code), not just what changed. Keep the setting names, the data it reads and the sites it reads unless I asked for something different. A screenshot of the tile may be attached.";
+  return out;
+}
+function stuPhraseChips(list, k){ return '<div class="lchips">' + list.map(i => '<button class="lchip" data-l="s-phrase" data-id="' + i + '"' + (k ? ' data-k="' + k + '"' : "") + '>' + STU_PHRASES[i] + '</button>').join("") + '</div>'; }
+function stuPickHTML(){
+  const t = STU.t;
+  if (!t || !t.code) return '<div class="lpanel"><h3>Change it</h3><p class="lnote">Once the tile has code, you can point at parts of it here and say what to change.</p></div>';
+  let h = '<div class="lpanel"><h3>Change it</h3><p class="lnote">Point at a part of the preview and say what to change, then copy a request for your chat. ' +
+    (STU.real ? "With your own data showing, the request says where each part is but never what it says." : "") + '</p>';
+  h += '<div class="lact"><button class="lbtn' + (STU.picking ? " pri" : "") + '" data-l="s-pick"' + (STU.notes.length >= STU_MAX_NOTES && !STU.picking ? " disabled" : "") + '>' + (STU.picking ? "Tap a part of the tile (cancel)" : "Point at something") + '</button></div>';
+  if (STU.pend){
+    h += '<div class="lpick"><div><b>What should change at ' + esc(stuPartName(STU.pend)) + '?</b></div></div>' +
+      '<label class="lfield"><textarea data-s="pend" rows="2" maxlength="400" placeholder="e.g. make it bigger">' + esc(STU.pendNote) + '</textarea></label>' + stuPhraseChips(STU_PHRASES_PART) +
+      '<div class="lact"><button class="lbtn pri" data-l="s-pickadd">Add note</button><button class="lbtn" data-l="s-pickno">Cancel</button></div>';
+  }
+  STU.notes.forEach((n, i) => { h += '<div class="lstu-n"><b>' + (i + 1) + '</b><span class="lnote">' + esc(stuPartName(n)) + '</span><input data-s="note.' + i + '" type="text" maxlength="400" value="' + esc(n.note) + '">' +
+    '<button class="lbtn red" data-l="s-pickdel" data-id="' + i + '">Remove</button></div>'; });
+  h += '<label class="lfield">Anything about the whole tile?<textarea data-s="gen" rows="2" maxlength="600" placeholder="e.g. put the light on the left, calmer colors">' + esc(STU.gen) + '</textarea></label>' + stuPhraseChips(STU_PHRASES_ALL, "gen");
+  h += '<div class="lact"><button class="lbtn pri" data-l="s-ai2">Copy change request</button></div>' +
+    '<p class="lnote">Paste its answer in box 2 at the top and press Fill in the form. Back undoes the last 5 fills.</p></div>';
+  return h;
+}
+function stuPickCfg(){
+  const pins = STU.notes.map((n, i) => ({n:i + 1, sel:n.sel}));
+  return {on:STU.picking, text:!STU.real, pins, key:JSON.stringify([STU.picking, !STU.real, pins]), cb:stuPicked};
+}
+// tell the preview page what to do (only changes are sent)
+function stuPickSync(f){
+  f = f || libEl().querySelector(".lstu-shot iframe"); if (!f) return;
+  const c = stuPickCfg();
+  try{ if (f.contentWindow.dashSbxPickKey !== c.key && typeof f.contentWindow.dashSbxPick === "function") f.contentWindow.dashSbxPick(c); }catch(e){}
+}
+function stuPickRefresh(){
+  const box = libEl().querySelector(".lstu-pk"); if (box) box.innerHTML = stuPickHTML();
+  const shot = libEl().querySelector(".lstu-shot"); if (shot) shot.classList.toggle("pick", STU.picking);
+  stuPickSync();
+}
+// the part that was tapped (already cut down to plain facts by the preview page)
+function stuPicked(p){
+  if (!STU.picking) return;
+  STU.pend = {sel:p.sel, tag:p.tag, cls:p.cls, path:p.path, box:p.box, root:p.root, fs:p.fs, text:p.text}; STU.pendNote = ""; STU.picking = false;
+  stuPickRefresh();
+}
+
 // the message to paste into a chat: what the person wants, every lever on this page, and the shape the answer must have
-function stuAI(){
-  const t = STU.t, cur = stuTile(), has = !!STU.id || stuDirty();
-  const want = STU.ask.trim() || t.description || "(describe it here)";
-  return "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). Everything you need is below: don't search the web or look anything up, and don't copy from any repository.\n\n" +
-    "What the tile should do:\n" + want + "\n\n" +
-    (has ? "It starts from this tile, change it to fit what I asked:\n```json\n" + JSON.stringify(Object.assign({}, cur, {uses:undefined}), null, 1) + "\n```\n\n" : "") +
+function stuAI(change){
+  const t = STU.t, cur = stuTile(), has = change || !!STU.id || stuDirty();
+  const want = change ? t.description || t.name || "(a tile)" : STU.ask.trim() || t.description || "(describe it here)";
+  return (change ? "Please change a tile on my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). " : "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). ") +
+    "Everything you need is below: don't search the web or look anything up, and don't copy from any repository.\n\n" +
+    (change ? "What the tile does:\n" + want + "\n\n" + stuChangesText() + "\n\n" : "What the tile should do:\n" + want + "\n\n") +
+    (has ? (change ? "Here is the tile as it is now (its settings, then its code):\n```json\n" : "It starts from this tile, change it to fit what I asked:\n```json\n") + JSON.stringify(Object.assign({}, cur, {uses:undefined}), null, 1) + "\n```\n\n" : "") +
     "Reply with ONE code block and nothing else, so I can copy it with one tap: the settings as a JSON object, then a line with -----CODE----- on it, then the tile's code. Like this:\n\n" +
     "```\n" +
     '{\n "name": "Short name",\n "description": "One sentence on what it shows",\n "size": [12, 8, 6, 4],\n "every": 0,\n "taps": false,\n "feeds": [],\n "hosts": [],\n' +
@@ -507,12 +580,14 @@ function stuFill(){
   if (!STU.reply.trim()){ toast("Paste the answer first", "bad"); return; }
   const r = stuParse(STU.reply, STU.t);
   if (r.error){ STU.fill = {err:r.error}; stuRedraw(); return; }
-  STU.undo = JSON.stringify(STU.t); STU.t = r.t; STU.reply = ""; STU.fill = {did:r.did, skip:r.skip};
+  STU.undo.push({t:JSON.stringify(STU.t), notes:STU.notes, gen:STU.gen}); if (STU.undo.length > 5) STU.undo.shift();
+  STU.t = r.t; STU.reply = ""; STU.fill = {did:r.did, skip:r.skip};
+  STU.notes = []; STU.gen = ""; STU.pend = null; STU.picking = false;      // what was asked for has been answered
   stuChanged(true);
 }
 function stuUnfill(){
-  if (!STU.undo) return;
-  STU.t = JSON.parse(STU.undo); STU.undo = null; STU.fill = {undone:true};
+  const b = STU.undo.pop(); if (!b) return;
+  STU.t = JSON.parse(b.t); STU.notes = b.notes; STU.gen = b.gen; STU.pend = null; STU.picking = false; STU.fill = {undone:true};
   stuChanged(true);
 }
 async function stuTap(t){
@@ -527,6 +602,22 @@ async function stuTap(t){
   if (a === "s-copy"){ stuCopyText(JSON.stringify(stuPublic(), null, 1), "Copied the tile as text"); return; }
   if (a === "s-submit"){ stuSubmit(); return; }
   if (a === "s-ai"){ stuCopyText(stuAI(), "Copied. Paste it into ChatGPT, then paste its answer here."); return; }
+  if (a === "s-ai2"){
+    if (!STU.notes.length && !STU.gen.trim()){ toast("Point at a part, or say what to change, first", "bad"); return; }
+    stuCopyText(stuAI(true), "Copied. Paste it into ChatGPT, then paste its answer in box 2 at the top."); return; }
+  if (a === "s-pick"){ STU.picking = !STU.picking; STU.pend = null; stuPickRefresh(); return; }
+  if (a === "s-pickadd"){
+    const n = STU.pend; if (!n) return;
+    if (STU.notes.length >= STU_MAX_NOTES){ toast("That's the most notes for one request", "bad"); return; }
+    if (!STU.pendNote.trim()){ toast("Say what should change first", "bad"); return; }
+    STU.notes.push(Object.assign({}, n, {note:STU.pendNote.trim()})); STU.pend = null; STU.pendNote = ""; stuPickRefresh(); return; }
+  if (a === "s-pickno"){ STU.pend = null; STU.picking = false; STU.pendNote = ""; stuPickRefresh(); return; }
+  if (a === "s-pickdel"){ STU.notes.splice(+d.id, 1); stuPickRefresh(); return; }
+  if (a === "s-phrase"){
+    const w = d.id, ph = STU_PHRASES[+w]; if (!ph) return;
+    if (d.k === "gen"){ STU.gen = (STU.gen.trim() ? STU.gen.trim() + ", " : "") + ph.toLowerCase(); const x = libEl().querySelector('[data-s="gen"]'); if (x) x.value = STU.gen; }
+    else { STU.pendNote = (STU.pendNote.trim() ? STU.pendNote.trim() + ", " : "") + ph.toLowerCase(); const x = libEl().querySelector('[data-s="pend"]'); if (x) x.value = STU.pendNote; }
+    return; }
   if (a === "s-fill"){ stuFill(); return; }
   if (a === "s-unfill"){ stuUnfill(); return; }
   if (a === "s-addset"){ const S = STU.t.settings = STU.t.settings || {}; let n = 1; while (S["setting" + n]) n++; S["setting" + n] = {type:"text", label:"Setting " + n, default:""}; stuChanged(true); return; }

@@ -256,6 +256,8 @@
     try { if (typeof DEF.render === "function") DEF.render.call(ME, ROOT); }
     catch (e) { post({ ct: "error", msg: String(e && e.message || e).slice(0, 200) }); }
     report();
+
+    pinsDraw();
   }
   function soon() { if (!due) { due = true; setTimeout(draw, 0); } }
 
@@ -283,6 +285,99 @@
     if (d.answers && typeof d.answers === "object") for (var k in d.answers) ASK[k] = d.answers[k];
     if (d.theme) theme(d.theme);
   }
+
+  /* ---- 4. Tile Studio's "Point at something" (only ever started by a message from the dashboard page, which sends it
+     only for the Studio preview). While it's on, a touch or click is caught here before the tile's code sees it, the part
+     under it is outlined, and one small description of that part goes back: its tags and class names, where it sits, and
+     (with made-up data only) its words. Pins are numbers drawn over the parts earlier notes were about; they carry no note text. ---- */
+  var PICK = { on: false, text: false, pins: [] }, LAYER = null, OUT = null;
+  function layer() {
+    if (LAYER) return LAYER;
+    LAYER = D.createElement("div");
+    LAYER.style.cssText = "position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2147483647;";
+    OUT = D.createElement("div");
+    OUT.style.cssText = "position:absolute;display:none;box-sizing:border-box;border:3px solid #ffd54a;background:rgba(255,213,74,.16);border-radius:4px;";
+    LAYER.appendChild(OUT);
+    D.documentElement.appendChild(LAYER);
+    return LAYER;
+  }
+  function pinsDraw() {
+    if (!LAYER && !PICK.pins.length) return;
+    var L = layer();
+    Array.prototype.slice.call(L.querySelectorAll("[data-pin]")).forEach(function (n) { n.remove(); });
+    PICK.pins.forEach(function (p) {
+      var el = null;
+      try { el = ROOT.querySelector(p.sel); } catch (e) { /* a part that's gone */ }
+      if (p.sel === ":scope") el = ROOT;
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      var pin = D.createElement("div");
+      pin.setAttribute("data-pin", p.n);
+      pin.textContent = String(p.n);
+      pin.style.cssText = "position:absolute;width:26px;height:26px;line-height:26px;border-radius:13px;text-align:center;font:700 16px/26px system-ui,sans-serif;background:#ffd54a;color:#000;box-shadow:0 1px 4px rgba(0,0,0,.5);" +
+        "left:" + Math.max(2, Math.min(W.innerWidth - 28, r.left - 6)) + "px;top:" + Math.max(2, Math.min(W.innerHeight - 28, r.top - 6)) + "px;";
+      L.appendChild(pin);
+    });
+  }
+  function pickTarget(e) {
+    var t = e.target;
+    return t && t.nodeType === 1 && ROOT.contains(t) && t !== ROOT ? t : ROOT;
+  }
+  function pickSel(el) {
+    var steps = [], n = el;
+    while (n && n !== ROOT && n.parentNode) {
+      steps.unshift(n.tagName.toLowerCase() + ":nth-child(" + (Array.prototype.indexOf.call(n.parentNode.children, n) + 1) + ")");
+      n = n.parentNode;
+    }
+    while (steps.length > 12) { steps.shift(); }          // too deep: the part is the closest ancestor that isn't
+    return { sel: ":scope" + steps.map(function (x) { return ">" + x; }).join(""), steps: steps.length };
+  }
+  function pickHere(el) {
+    var s = pickSel(el), target = el, path = [];
+    // the same steps, found again from the root (so the part named is the one a pin will find later)
+    try { target = s.steps ? ROOT.querySelector(s.sel) || el : ROOT; } catch (e) { target = el; }
+    if (!s.steps) target = ROOT;
+    var n = target;
+    while (n && n !== ROOT) {
+      var c = String(n.getAttribute("class") || "").split(/\s+/).filter(Boolean)[0];
+      path.unshift(n.tagName.toLowerCase() + (c ? "." + c : ""));
+      n = n.parentNode;
+    }
+    var r = target.getBoundingClientRect(), w = W.innerWidth || 1, h = W.innerHeight || 1;
+    var cs = W.getComputedStyle(target);
+    var own = "";
+    if (PICK.text) own = String(target.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
+    return { ct: "picked", sel: s.sel, tag: target === ROOT ? "div" : target.tagName.toLowerCase(),
+      cls: String(target.getAttribute("class") || "").split(/\s+/).filter(Boolean).slice(0, 6), path: path.slice(-6),
+      box: [r.left / w * 100, r.top / h * 100, r.width / w * 100, r.height / h * 100], fs: parseFloat(cs.fontSize) || 0, text: own };
+  }
+  function pickMove(e) {
+    if (!PICK.on) return;
+    var el = pickTarget(e), r = el.getBoundingClientRect(); layer();
+    OUT.style.display = "block"; OUT.style.left = r.left + "px"; OUT.style.top = r.top + "px"; OUT.style.width = r.width + "px"; OUT.style.height = r.height + "px";
+  }
+  function pickCatch(e) {
+    if (!PICK.on) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (e.type === "pointerdown") pickMove(e);
+    if (e.type === "click") post(pickHere(pickTarget(e)));
+  }
+  // on the window, in the capture phase, ahead of everything else (the hold and swipe listeners and the tile's own)
+  ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click", "submit", "contextmenu"].forEach(function (n) { W.addEventListener(n, pickCatch, true); });
+  ["pointermove", "pointerover"].forEach(function (n) { W.addEventListener(n, pickMove, true); });
+  W.addEventListener("resize", pinsDraw);
+  W.addEventListener("message", function (e) {
+    if (e.source !== P) return;
+    var d = e.data;
+    if (!d || typeof d !== "object" || d.ct !== "pick") return;
+    PICK.on = d.on === true; PICK.text = d.text === true;
+    PICK.pins = (Array.isArray(d.pins) ? d.pins : []).slice(0, 8).filter(function (p) {
+      return p && typeof p.n === "number" && typeof p.sel === "string" && p.sel.length <= 400 && /^:scope(>[a-z][a-z0-9]*:nth-child\(\d+\))*$/.test(p.sel);
+    });
+    layer();
+    if (!PICK.on) OUT.style.display = "none";
+    pinsDraw();
+  });
 
   W.addEventListener("message", function (e) {
     if (e.source !== P) return;

@@ -214,12 +214,88 @@ async function main() {
     assert.equal(fed, "28|62");
     await fpg.close();
     console.log("✓ the preview's made-up data has the air quality number and the weather");
-    // Undo puts the form back
+    // Back puts the form back
     await ctl.locator('#lib [data-l="s-unfill"]').click();
-    await until(() => ctl.evaluate(() => STU.t.name === "My tile" && !STU.undo), "Undo restored the form");
+    await until(() => ctl.evaluate(() => STU.t.name === "My tile" && !STU.undo.length), "Back restored the form");
     await ctl.evaluate(id => stuOpen(id), hello);
     await until(() => ctl.evaluate(id => LIB.view === "studio" && STU.id === id && !!STU.t, hello), "the saved tile open again");
-    console.log("✓ let AI fill it in: the message lists the levers, the reply fills the form checked like typing, nothing is saved or granted, Undo restores");
+    console.log("✓ let AI fill it in: the message lists the levers, the reply fills the form checked like typing, nothing is saved or granted, Back restores");
+
+    // --- change it: point at a part of the preview, say what to change, copy the request ---
+    const PICKCODE = 'window.__loaded = 1; document.addEventListener("click", () => { window.__clicks = (window.__clicks || 0) + 1; });\nTile("my-pick", { render(el){ el.innerHTML = \'<div class="card"><div class="big">72</div><span class="why">Windy later</span></div>\'; }, css: ".big{font-size:40px}" });';
+    await ctl.evaluate(code => { libOpen("tiles"); return stuOpen("").then(() => { STU.t.name = "Pick me"; STU.t.code = code; stuChanged(true); }); }, PICKCODE);
+    const tileFrame = () => ctl.frames().filter(f => /\/tile-frame\/draft-/.test(f.url())).pop();
+    await until(async () => { const f = tileFrame(); return f && await f.evaluate(() => (document.querySelector(".big") || {}).textContent === "72").catch(() => false); }, "the preview drawing the tile to point at", 30000);
+    assert.ok(await ctl.evaluate(() => /Point at something/.test(document.querySelector("#lib .lstu-pk").textContent)), "the Change it panel is under the preview");
+    // a frame can't start picking itself, and a forged answer is ignored while nothing was asked
+    await tileFrame().evaluate(() => { window.postMessage({ ct: "pick", on: true, text: true, pins: [] }, "*"); parent.postMessage({ ct: "picked", sel: ":scope", tag: "div", cls: [], path: [], box: [0, 0, 10, 10] }, "*"); });
+    await tileFrame().evaluate(() => document.querySelector(".big").click());
+    assert.equal(await tileFrame().evaluate(() => window.__clicks), 1, "the tile still gets its own clicks when nothing is being picked");
+    assert.equal(await ctl.evaluate(() => STU.pend), null);
+    // point at the big number
+    await ctl.locator('#lib [data-l="s-pick"]').click();
+    await until(() => ctl.evaluate(() => STU.picking && document.querySelector("#lib .lstu-shot").classList.contains("pick")), "picking on");
+    await until(() => ctl.evaluate(() => { const f = document.querySelector("#lib .lstu-shot iframe"); return f.contentWindow.dashSbxPickKey === stuPickCfg().key; }), "the preview page told");
+    await tileFrame().locator(".big").click();
+    await until(() => ctl.evaluate(() => !!STU.pend), "the tapped part came back");
+    const got = await ctl.evaluate(() => STU.pend);
+    assert.equal(got.text, "72");
+    assert.equal(got.tag, "div");
+    assert.deepEqual(got.cls, ["big"]);
+    assert.deepEqual(got.path, ["div.card", "div.big"]);
+    assert.equal(got.sel, ":scope>div:nth-child(1)>div:nth-child(1)");
+    assert.ok(got.fs >= 30, "its text size is reported");
+    assert.equal(await tileFrame().evaluate(() => window.__clicks), 1, "the tile's own click handler didn't run for the pick");
+    // a note on it: pin 1 appears over the part
+    await ctl.locator('#lib [data-s="pend"]').fill("make it bigger");
+    await ctl.locator('#lib [data-l="s-phrase"][data-id="2"]').click();      // "Move up"
+    assert.equal(await ctl.evaluate(() => STU.pendNote), "make it bigger, move up");
+    await ctl.locator('#lib [data-l="s-pickadd"]').click();
+    await until(() => ctl.evaluate(() => STU.notes.length === 1 && !STU.picking), "the note kept");
+    await until(async () => await tileFrame().evaluate(() => { const p = document.querySelector("[data-pin='1']"); return !!p && p.textContent === "1" && !/bigger/.test(document.body.innerHTML); }).catch(() => false), "pin 1 drawn, with no note text in the frame");
+    await ctl.locator('#lib [data-s="gen"]').fill("put the number on the left");
+    // the request
+    const req = await ctl.evaluate(() => stuAI(true));
+    for (const want of ["Please change a tile", "Make these changes and keep everything else the same", '1. the text "72"', "div.card > div.big", "make it bigger, move up", "Overall: put the number on the left", "Send the whole tile again", "ONE code block", "-----CODE-----"]) assert.ok(req.includes(want), "the change request has " + want);
+    // forged answers while picking are cut down: text only with made-up data, bad selectors dropped
+    await ctl.locator('#lib [data-l="s-pick"]').click();
+    await until(() => ctl.evaluate(() => { const f = document.querySelector("#lib .lstu-shot iframe"); return STU.picking && f.contentWindow.dashSbxPickKey === stuPickCfg().key; }), "picking again");
+    await tileFrame().evaluate(() => parent.postMessage({ ct: "picked", sel: "body > img[onerror=x]", tag: "div", cls: [], path: [], box: [0, 0, 10, 10] }, "*"));
+    await tileFrame().evaluate(() => parent.postMessage({ ct: "picked", sel: ":scope>div:nth-child(1)", tag: "div", cls: ["a b", "ok-1", 5, "x".repeat(80)], path: ["p".repeat(500)], box: [-5, 500, 10, 10], text: "t".repeat(300) + "<b>", fs: 9999 }, "*"));
+    await until(() => ctl.evaluate(() => !!STU.pend), "a forged answer, cut down");
+    const forged = await ctl.evaluate(() => STU.pend);
+    assert.equal(forged.sel, ":scope>div:nth-child(1)");
+    assert.deepEqual(forged.cls, ["ok-1", "x".repeat(40)]);
+    assert.ok(forged.path[0].length <= 60 && forged.text.length <= 40 && forged.fs === 400);
+    assert.deepEqual(forged.box.slice(0, 2), [0, 100]);
+    await ctl.locator('#lib [data-l="s-pickno"]').click();
+    assert.equal(await ctl.evaluate(() => STU.notes.length), 1);
+    // with your own data showing, the words never leave the frame
+    await ctl.locator('#lib [data-l="s-real"]').click();
+    await until(() => ctl.evaluate(() => STU.real && !!document.querySelector("#lib .lstu-shot iframe")), "real data preview");
+    await until(async () => { const f = tileFrame(); return f && await f.evaluate(() => !!document.querySelector(".big")).catch(() => false); }, "the real-data preview drawn", 30000);
+    await ctl.locator('#lib [data-l="s-pick"]').click();
+    await until(() => ctl.evaluate(() => { const f = document.querySelector("#lib .lstu-shot iframe"); return STU.picking && f.contentWindow.dashSbxPickKey === stuPickCfg().key; }), "picking with real data");
+    await tileFrame().locator(".big").click();
+    await until(() => ctl.evaluate(() => !!STU.pend), "a part with real data");
+    assert.equal(await ctl.evaluate(() => STU.pend.text), "", "no words with real data");
+    await ctl.locator('#lib [data-l="s-pickno"]').click();
+    await ctl.locator('#lib [data-l="s-real"]').click();
+    // a reply answers the notes: the form changes, the notes are done, Back brings both back; Back keeps five
+    const answer = n => "```\n" + JSON.stringify({ name: "Pick " + n }) + "\n-----CODE-----\n" + PICKCODE.replace("72", String(n)) + "\n```";
+    await ctl.evaluate(r => { STU.reply = r; stuFill(); }, answer(1));
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick 1" && STU.notes.length === 0 && STU.gen === ""), "the fill answered the notes");
+    await ctl.locator('#lib [data-l="s-unfill"]').click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick me" && STU.notes.length === 1 && STU.gen === "put the number on the left"), "Back brought the form and the notes back");
+    for (let i = 2; i <= 8; i++) await ctl.evaluate(r => { STU.reply = r; stuFill(); }, answer(i));
+    assert.equal(await ctl.evaluate(() => STU.undo.length), 5, "Back keeps the last five");
+    for (let i = 0; i < 5; i++) await ctl.locator('#lib [data-l="s-unfill"]').click();
+    assert.equal(await ctl.evaluate(() => STU.t.name), "Pick 3");
+    assert.equal(await ctl.evaluate(() => STU.undo.length), 0);
+    await ctl.evaluate(() => { STU.t = null; STU.id = ""; });          // leave it unsaved: the next checks start from the saved tile
+    await ctl.evaluate(id => stuOpen(id), hello);
+    await until(() => ctl.evaluate(id => LIB.view === "studio" && STU.id === id && !!STU.t, hello), "the saved tile open again");
+    console.log("✓ change it: point at a part, note it, a pin shows, the request names it, with real data no words, a frame can't start it, Back keeps five");
 
     // --- a tile file, and Let it run ---
     const file = await ctl.evaluate(() => JSON.stringify(stuPublic()));

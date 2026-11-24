@@ -3,7 +3,7 @@ Tile("worldclock", {
   title:"World clocks", cat:"Time", every:30, size:[12, 8, 8, 4],
   desc:"The time in other places, with whether it's day or night there. Good for family far away.",
   settings:{
-    places:{type:"list", label:"Places", help:"One per line: a name, then its time zone. For example: Grandma, Europe/London", placeholder:"Grandma, Europe/London", default:["London, Europe/London", "Tokyo, Asia/Tokyo"]},
+    places:{type:"list", share:false, label:"Places", help:"One per line: a name, then its time zone. For example: Grandma, Europe/London", placeholder:"Grandma, Europe/London", default:["London, Europe/London", "Tokyo, Asia/Tokyo"]},
     day:{type:"bool", label:"Show the day if it's different from here", default:true}
   },
   css:`.m-world .wc{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}

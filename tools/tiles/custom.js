@@ -5,7 +5,7 @@ Tile("custom", {
   title:"Your own tile", cat:"Your own", cls:"m-mine", every:60, size:[12, 8, 4, 4], hidden:true,
   desc:"Paste HTML, CSS and JavaScript to make any tile you like, or have ChatGPT write it with the instructions in its settings. It runs in its own frame: it can't see or change the rest of the dashboard, and it can only load things from secure https:// addresses. Plain http:// addresses, which is how most devices on a home network answer, are blocked.",
   settings:{
-    ask:{type:"text", label:"What should it show?", help:"Goes into the ChatGPT instructions below", placeholder:"e.g. days until summer vacation", default:""},
+    ask:{type:"text", share:false, label:"What should it show?", help:"Goes into the ChatGPT instructions below", placeholder:"e.g. days until summer vacation", default:""},
     html:{type:"code", label:"Code (HTML)", default:'<div style="display:grid;place-items:center;height:100%;font-size:40px">Hello 👋</div>'},
     every:{type:"int", label:"Reload every (minutes, 0 = never)", default:0, min:0, max:1440},
     taps:{type:"bool", label:"Let it respond to taps", default:false},

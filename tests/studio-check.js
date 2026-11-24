@@ -219,7 +219,7 @@ async function main() {
     const feedDraft = await (await fetch(srv.base + "/studio/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tile: { name: "Feeds", size: [12, 8, 6, 4], feeds: ["wx", "aqi"], hosts: [], settings: {}, code: 'Tile("my-feeds", { render(el){ el.innerHTML = "<b id=o>" + JSON.stringify(this.feed("air")) + "|" + (this.feed("weather") && this.feed("weather").current.temperature_2m) + "</b>"; } });' }, of: "" }) })).json();
     const fpg = await ctx.newPage();
     await fpg.goto(srv.base + "/dash/content?preview=1&solo=" + feedDraft.id + "&draft=" + feedDraft.id + "&w=12&h=8");
-    const fed = await until(async () => { for (const f of fpg.frames()) { const t = await f.evaluate(() => { const o = document.querySelector("#o"); return o && o.textContent; }).catch(() => null); if (t && !/^null\|null/.test(t)) return t; } return null; }, "the preview feeds");
+    const fed = await until(async () => { for (const f of fpg.frames()) { const t = await f.evaluate(() => { const o = document.querySelector("#o"); return o && o.textContent; }).catch(() => null); if (t && /^28\|\d/.test(t)) return t; } return null; }, "the preview feeds");
     assert.equal(fed, "28|62");
     await fpg.close();
     console.log("✓ the preview's made-up data has the air quality number and the weather");

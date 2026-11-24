@@ -219,16 +219,17 @@ async function main() {
     const feedDraft = await (await fetch(srv.base + "/studio/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tile: { name: "Feeds", size: [12, 8, 6, 4], feeds: ["wx", "aqi"], hosts: [], settings: {}, code: 'Tile("my-feeds", { render(el){ el.innerHTML = "<b id=o>" + JSON.stringify(this.feed("air")) + "|" + (this.feed("weather") && this.feed("weather").current.temperature_2m) + "</b>"; } });' }, of: "" }) })).json();
     const fpg = await ctx.newPage();
     await fpg.goto(srv.base + "/dash/content?preview=1&solo=" + feedDraft.id + "&draft=" + feedDraft.id + "&w=12&h=8");
-    const fed = await until(async () => { for (const f of fpg.frames()) { const t = await f.evaluate(() => { const o = document.querySelector("#o"); return o && o.textContent; }).catch(() => null); if (t && !/^null\|null/.test(t)) return t; } return null; }, "the preview feeds");
+    const fed = await until(async () => { for (const f of fpg.frames()) { const t = await f.evaluate(() => { const o = document.querySelector("#o"); return o && o.textContent; }).catch(() => null); if (t && /^28\|\d/.test(t)) return t; } return null; }, "the preview feeds");
     assert.equal(fed, "28|62");
     await fpg.close();
     console.log("✓ the preview's made-up data has the air quality number and the weather");
-    // Back puts the form back
-    await ctl.locator('#lib [data-l="s-unfill"]').click();
-    await until(() => ctl.evaluate(() => STU.t.name === "My tile" && !STU.undo.length), "Back restored the form");
+    // the fill left two versions under the preview, and v1 shows the form as it was
+    assert.equal(await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').allTextContents().then(t => t.join(",")), "v1,v2");
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').first().click();
+    await until(() => ctl.evaluate(() => STU.t.name === "My tile" && STU.cur === 0), "v1 restored the form");
     await ctl.evaluate(id => stuOpen(id), hello);
     await until(() => ctl.evaluate(id => LIB.view === "studio" && STU.id === id && !!STU.t, hello), "the saved tile open again");
-    console.log("✓ let AI fill it in: the message lists the levers, the reply fills the form checked like typing, nothing is saved or granted, Back restores");
+    console.log("✓ let AI fill it in: the message lists the levers, the reply fills the form checked like typing, nothing is saved or granted, versions restore");
 
     // --- change it: point at a part of the preview, say what to change, copy the request ---
     const PICKCODE = 'window.__loaded = 1; document.addEventListener("click", () => { window.__clicks = (window.__clicks || 0) + 1; });\nTile("my-pick", { render(el){ el.innerHTML = \'<div class="card"><div class="big">72</div><span class="why">Windy later</span></div>\'; }, css: ".big{font-size:40px}" });';
@@ -290,21 +291,42 @@ async function main() {
     assert.equal(await ctl.evaluate(() => STU.pend.text), "", "no words with real data");
     await ctl.locator('#lib [data-l="s-pickno"]').click();
     await ctl.locator('#lib [data-l="s-real"]').click();
-    // a reply answers the notes: the form changes, the notes are done, Back brings both back; Back keeps five
+    // a reply answers the notes: it adds a version, each version keeps its own notes; five versions are kept
     const answer = n => "```\n" + JSON.stringify({ name: "Pick " + n }) + "\n-----CODE-----\n" + PICKCODE.replace("72", String(n)) + "\n```";
+    const vers = () => ctl.locator('#lib .lstu-ver [data-l="s-ver"]').allTextContents().then(t => t.join(","));
     await ctl.evaluate(r => { STU.reply = r; stuFill(); }, answer(1));
     await until(() => ctl.evaluate(() => STU.t.name === "Pick 1" && STU.notes.length === 0 && STU.gen === ""), "the fill answered the notes");
-    await ctl.locator('#lib [data-l="s-unfill"]').click();
-    await until(() => ctl.evaluate(() => STU.t.name === "Pick me" && STU.notes.length === 1 && STU.gen === "put the number on the left"), "Back brought the form and the notes back");
+    assert.equal(await vers(), "v1,v2");
+    assert.ok(await ctl.evaluate(() => document.querySelector("#lib .lstu-ver [data-l='s-ver'].on").textContent === "v2"), "the new version is the one shown");
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').first().click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick me" && STU.notes.length === 1 && STU.gen === "put the number on the left"), "v1 brought the form and its notes back");
+    await until(async () => await tileFrame().evaluate(() => !!document.querySelector("[data-pin='1']")).catch(() => false), "v1's pin is back in the preview", 30000);
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').nth(1).click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick 1" && STU.notes.length === 0), "v2 shown again");
+    await until(async () => await tileFrame().evaluate(() => (document.querySelector(".big") || {}).textContent === "1" && !document.querySelector("[data-pin]")).catch(() => false), "v2 is what the preview draws", 30000);
     for (let i = 2; i <= 8; i++) await ctl.evaluate(r => { STU.reply = r; stuFill(); }, answer(i));
-    assert.equal(await ctl.evaluate(() => STU.undo.length), 5, "Back keeps the last five");
-    for (let i = 0; i < 5; i++) await ctl.locator('#lib [data-l="s-unfill"]').click();
-    assert.equal(await ctl.evaluate(() => STU.t.name), "Pick 3");
-    assert.equal(await ctl.evaluate(() => STU.undo.length), 0);
+    assert.equal(await vers(), "v5,v6,v7,v8,v9", "the last five versions are kept");
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').first().click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick 4"), "the oldest kept version shows");
+    // a change made while a version shows stays with it
+    await ctl.evaluate(() => { STU.t.name = "Edited"; });
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').last().click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Pick 8"), "the newest version shows");
+    await ctl.locator('#lib .lstu-ver [data-l="s-ver"]').first().click();
+    await until(() => ctl.evaluate(() => STU.t.name === "Edited"), "the edit stayed with its version");
+    // Save keeps only the version shown, and the others are let go
+    await ctl.locator('#lib [data-l="s-save"]').click();
+    const kept = await until(() => ctl.evaluate(() => STU.id && !stuDirty() ? STU.id : null), "saved the shown version");
+    assert.equal(await ctl.evaluate(() => STU.vers.length), 0);
+    assert.equal(await ctl.locator("#lib .lstu-ver").count(), 0, "the version chips are gone after Save");
+    const savedFile = await (await fetch(srv.base + "/studio/tile/" + encodeURIComponent(kept))).json();
+    assert.equal(savedFile.name, "Edited");
+    assert.ok(savedFile.code.includes(">4<"), "the saved code is the shown version's");
+    await fetch(srv.base + "/studio/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: kept }) });
     await ctl.evaluate(() => { STU.t = null; STU.id = ""; });          // leave it unsaved: the next checks start from the saved tile
     await ctl.evaluate(id => stuOpen(id), hello);
     await until(() => ctl.evaluate(id => LIB.view === "studio" && STU.id === id && !!STU.t, hello), "the saved tile open again");
-    console.log("✓ change it: point at a part, note it, a pin shows, the request names it, with real data no words, a frame can't start it, Back keeps five");
+    console.log("✓ change it: point at a part, note it, a pin shows, the request names it, with real data no words, a frame can't start it, versions keep five and Save keeps the one shown");
 
     // --- a tile file, and Let it run ---
     const file = await ctl.evaluate(() => JSON.stringify(stuPublic()));

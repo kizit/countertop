@@ -176,7 +176,6 @@ const FEEDS = [[loadWeather, 600], [loadAqi, 1800], [loadEvents, 300], [loadNote
 
 /* ---------- pages ---------- */
 let pageTimer = null, PAGE = 0;
-window.dashPage = () => PAGE;
 // every page in screen order; the night page is always last and isn't swiped to (it takes over at night)
 function pageList(){ return ["main"].concat(SOLO ? [] : cpages().filter(p => p.on !== false).map(p => "c:" + p.id), !SOLO && nightGrid() ? ["night"] : []); }
 const dayCount = () => pageList().filter(n => n !== "night").length;

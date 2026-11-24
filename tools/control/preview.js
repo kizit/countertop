@@ -17,8 +17,10 @@ function pvSize(b){
   }
   pvFit();
 }
-function pvCur(){ try{ return pvWin().dashPage(); }catch(e){ return 0; } }
-function pvLoad(){ PV.page = pvCur(); $("pvf").src = "/dash/content?preview=1" + (PV.trial ? "&trial=" + PV.trial : "") + (PV.theme ? "&theme=" + PV.theme : "") + (PV.night ? "&night=1" : "") + "&t=" + Date.now(); }
+function pvCur(){ try{ const w = pvWin(); return Math.max(0, w.pageList().indexOf(w.dashPage())); }catch(e){ return 0; } }      // the page showing, as its place in the tabs
+function pvName(){ try{ return pvWin().dashPage(); }catch(e){ return ""; } }
+// the night page only shows while the preview is forced to night, so it isn't a page to come back to
+function pvLoad(){ PV.page = pvName() === "night" ? 0 : pvCur(); $("pvf").src = "/dash/content?preview=1" + (PV.trial ? "&trial=" + PV.trial : "") + (PV.theme ? "&theme=" + PV.theme : "") + (PV.night ? "&night=1" : "") + "&t=" + Date.now(); }
 function pvTabs(){
   let L = ["main"];
   try{ L = pvWin().pageList(); }catch(e){}

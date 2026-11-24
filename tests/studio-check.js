@@ -126,6 +126,52 @@ async function main() {
     await until(() => ctl.evaluate(id => gpAll().find(p => p.id === "main").slots.some(s => (tileList().find(t => t.id === s.mod) || {}).type === id), hello), "added to a page");
     console.log("✓ write a tile: the preview draws it, mistakes show, Save keeps it, Add puts it on a page");
 
+    // --- let AI fill it in: Copy for chat, then Fill in the form ---
+    await ctl.evaluate(() => { libOpen("tiles"); return stuOpen(""); });
+    await until(() => ctl.evaluate(() => LIB.view === "studio" && !!document.querySelector("#lib .lstu-ai")), "a new tile open");
+    assert.ok(await ctl.evaluate(() => document.querySelector("#lib .lstu-ai").nextElementSibling.querySelector('[data-s="name"]') !== null), "the AI panel is the first panel");
+    await ctl.locator('#lib [data-s="ask"]').fill("a traffic light for air quality, and how long the dogs can stay out, thinking about the weather");
+    const ask = await ctl.evaluate(() => stuAI());
+    for (const want of ["traffic light for air quality", '"aqi"', '"wx"', "this.feed(\"air\")", "size: [width, height", "every:", "taps:", "devices and controls", "```json", "```js"]) assert.ok(ask.includes(want), "the copied message has " + want);
+    const reply = "Sure!\n```json\n" + JSON.stringify({ name: "Dog time", description: "Air quality light, and how long the dogs can stay out", size: [14, 9, 8, 6], every: 600, taps: false,
+      feeds: ["wx", "aqi", "bogus"], hosts: ["api.example.com", "192.168.1.5"], settings: { dogs: { type: "int", label: "Dogs", default: 2, min: 1, max: 9 }, key: { type: "secret", label: "Key", host: "api.example.com" }, mine: { type: "source", kind: "lists" } }, sneaky: true }) +
+      "\n```\n```js\nTile(\"my-dog-time\", { render(el){ el.innerHTML = '<b class=dog>Dogs out</b>'; } });\n```";
+    await ctl.locator('#lib [data-s="reply"]').fill(reply);
+    await ctl.locator('#lib [data-l="s-fill"]').click();
+    const filled = await ctl.evaluate(() => JSON.parse(JSON.stringify(STU.t)));
+    assert.equal(filled.name, "Dog time");
+    assert.deepEqual(filled.feeds, ["wx", "aqi"]);
+    assert.deepEqual(filled.size, [14, 9, 8, 6]);
+    assert.equal(filled.every, 600);
+    assert.deepEqual(filled.hosts, ["api.example.com"]);
+    assert.deepEqual(Object.keys(filled.settings), ["dogs"]);
+    assert.match(filled.code, /Dogs out/);
+    await until(() => ctl.evaluate(() => document.querySelector('#lib [data-s="name"]').value === "Dog time" && document.querySelector('#lib [data-s="feed.aqi"]').classList.contains("on")), "the form shows the filled values");
+    const summary = await ctl.locator("#lib .lstu-ai").textContent();
+    assert.match(summary, /Filled in: .*name.*reads weather and air quality/);
+    assert.match(summary, /Left out: .*bogus.*192\.168\.1\.5.*secret|Left out: .*bogus/);
+    assert.ok(/never filled in/.test(summary) && /needs notes in what it reads/.test(summary), "ignored settings are listed");
+    assert.equal(await ctl.evaluate(() => stuDirty()), true);
+    assert.equal((await fetch(srv.base + "/studio/tile/my-dog-time")).ok, false);   // nothing saved by filling
+    await until(() => ctl.evaluate(() => { const f = [...document.querySelectorAll("#lib .lstu-shot iframe")][0]; return !!f; }), "the preview shows it");
+    // a reply asking for personal data and sites gets no sites; garbage fills nothing
+    const personal = await ctl.evaluate(() => stuParse(JSON.stringify({ feeds: ["events"], hosts: ["api.example.com"] }), STU.t));
+    assert.deepEqual(personal.t.hosts, []);
+    assert.match(personal.skip.join(" "), /personal data/);
+    assert.ok((await ctl.evaluate(() => stuParse("nope", STU.t))).error);
+    // a reply that is only code goes into the code; buttons are checked
+    const codeOnly = await ctl.evaluate(() => stuParse("Here you go:\n```js\nTile(\"x\", { render(el){} });\n```", STU.t));
+    assert.match(codeOnly.t.code, /^Tile\("x"/);
+    const btns = await ctl.evaluate(() => stuParse(JSON.stringify({ devices: { lamp: { label: "Lamp", domains: ["light"] } }, controls: [{ id: "on", device: "lamp", action: "turn_on" }, { id: "bad", device: "lamp", action: "unlock" }] }), STU.t));
+    assert.equal(btns.t.controls.length, 1);
+    assert.deepEqual(btns.t.hosts, []);
+    // Undo puts the form back
+    await ctl.locator('#lib [data-l="s-unfill"]').click();
+    await until(() => ctl.evaluate(() => STU.t.name === "My tile" && !STU.undo), "Undo restored the form");
+    await ctl.evaluate(id => stuOpen(id), hello);
+    await until(() => ctl.evaluate(id => LIB.view === "studio" && STU.id === id && !!STU.t, hello), "the saved tile open again");
+    console.log("✓ let AI fill it in: the message lists the levers, the reply fills the form checked like typing, nothing is saved or granted, Undo restores");
+
     // --- a tile file, and Let it run ---
     const file = await ctl.evaluate(() => JSON.stringify(stuPublic()));
     assert.equal(JSON.parse(file).id, "hello-there");

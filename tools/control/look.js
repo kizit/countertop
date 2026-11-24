@@ -118,6 +118,7 @@ function looksScreen(){
     '<button class="lcard new" data-go="newlook"><div class="lpic plus">＋</div><b>New theme</b><small>Start from a style</small></button></div>';
   h += sec("", row({t:"Schedule", sub: rules().length ? rules().length + (rules().length === 1 ? " rule" : " rules") + " · now: " + lookName(now) : "Switch themes at certain times", chev:true, attrs:'data-go="sched"'}),
     "Date format, 24-hour time and emoji are the same in every theme: Settings → Language and formats, and Icons and emoji.");
+  h += '<div class="sec"><div class="foot">To share a theme, open it and press Share.</div></div>';
   return h;
 }
 // one theme: see it on the preview, use it, customize it, and when it shows by itself
@@ -128,7 +129,7 @@ function themeScreen(id){
   let h = '<div class="big">' + esc(lookName(id)) + '</div>' + lookPic(lookVals(id), "big");
   h += '<p class="intro">' + esc(themeWhen(id)) + (now !== id ? " · " + esc(lookName(now)) + " is showing now" : "") + "." + (ECHO || now === id ? "" : " The preview shows " + esc(lookName(id)) + ".") + '</p>';
   h += '<div class="saverow">' + (used ? '<button disabled>In use</button>' : '<button class="pri" data-lact="use" data-id="' + id + '">Use this theme</button>') +
-    '<button' + (used ? ' class="pri"' : "") + ' data-go="look:' + id + '">Customize</button></div>';
+    '<button' + (used ? ' class="pri"' : "") + ' data-go="look:' + id + '">Customize</button><button data-go="share:theme:' + id + '">Share</button></div>';
   if (t && t.gallery) h += '<div class="sec"><div class="foot">Downloaded from the community gallery' + (t.gallery.by ? ', made by ' + esc(t.gallery.by) : "") + '. <button class="lnk" data-l="c-open" data-id="' + esc(t.gallery.id) + '">Update or remove it</button></div></div>';
   if (used && now !== id) h += '<div class="sec"><div class="foot">The schedule is showing ' + esc(lookName(now)) + ' right now. ' + esc(lookName(id)) + ' comes back when its time is over.</div></div>';
   if (t){
@@ -248,7 +249,7 @@ function effectsScreen(){
   }
   h += '<div class="sec"><h2>Yours</h2><div class="fxgrid">' + FXLIB.L.filter(d => d.mine).map(card).join("") +
     '<div class="fxc new" data-fxa="new"><div class="fxplus">＋</div><div class="fxt"><div><b>New effect</b><small>Your own emoji, falling or floating</small></div></div></div></div>' +
-    '<div class="foot">Effects you make or open from a file. Share one from its page; open one in Library → Import a file.</div></div>';
+    '<div class="foot">Effects you make or open from a file. Open one and press Share to send it; open a file in Library → Import a file.</div></div>';
   return h;
 }
 function fxScreen(id){
@@ -257,6 +258,7 @@ function fxScreen(id){
   const seg = (k, opts) => '<span class="seg wide">' + opts.map(([l, v]) => '<button ' + a + ' data-fxk="' + k + '" data-fxv="' + v + '"' + (String(f[k]) === String(v) ? ' class="on"' : "") + '>' + esc(l) + '</button>').join("") + '</span>';
   let h = '<div class="big">' + esc(d.name) + '</div><div class="fxc big"><canvas data-fx="' + id + '"></canvas></div><p class="intro">' + esc(d.desc) + '</p>';
   h += sec("", row({t:"On", post: sw(f.on, 'data-fxon="' + id + '"')}));
+  if (d.mine) h += '<div class="saverow"><button data-go="fxedit:' + id + '">Edit</button><button data-go="share:effect:' + id + '">Share</button></div>';
   let rows = '<div class="row col"><div class="t"><b>How much</b></div>' + seg("amount", [["Few", "Few"], ["Some", "Some"], ["Lots", "Lots"]]) + '</div>';
   if (!d.party){
     const W = d.wx ? [[(d.wx[0] === "sun" || d.wx[0] === "stars") ? "Matching weather" : "Matching weather", "weather"], ["Always", "always"]]
@@ -413,7 +415,7 @@ function shareScreen(key){
     (kind === "theme" ? " It holds colors, background, tiles and text size; " + (lookVals(id).bg === "Photos" ? "your photos stay here (theirs show instead)." : "nothing else.") : " It holds the emoji and how they move; no code.") + '</p>';
   h += sec("Name", '<div class="row"><input type="text" data-sh="name" maxlength="80" value="' + esc(SHARE.name) + '" style="flex:1"></div>');
   h += sec("What it\'s for", '<div class="row"><textarea data-sh="desc" maxlength="500" rows="2" style="flex:1" placeholder="' + (kind === "theme" ? "Warm and dim for evenings." : "Pumpkins and bats for October.") + '">' + esc(SHARE.desc) + '</textarea></div>');
-  h += sec("", (ECHO ? "" : '<button class="btnrow blue" data-sha="download">Download file</button>') + '<button class="btnrow' + (ECHO ? " blue" : "") + '" data-sha="copy">Copy share code</button>');
+  h += sec("", (ECHO ? "" : '<button class="btnrow blue" data-sha="download">Download file</button>') + '<button class="btnrow' + (ECHO ? " blue" : "") + '" data-sha="copy">Copy share code</button><button class="btnrow" data-sha="submit">Submit to the gallery</button>');
   h += sec("Share code", '<div class="row"><textarea class="code" readonly data-sh="code" rows="3" style="flex:1;font-size:12px;word-break:break-all">' + esc(libCode(pkg)) + '</textarea></div>', "The same " + what + " as text, for pasting into a message.");
   return h;
 }
@@ -529,7 +531,7 @@ function lookClick(t){
   if (d.lact){ lookAction(d.lact, d.id); return true; }
   if (d.fxa){ fxAction(d.fxa, d.id); return true; }
   if (d.tia){ themeImpAction(d.tia); return true; }
-  if (d.sha){ const pkg = sharePack(SHARE.key); if (!pkg) return true; if (d.sha === "download") fileSave(pkg, pkg.countertop); else textCopy(document.querySelector('[data-sh="code"]'), "Share code copied"); return true; }
+  if (d.sha){ const pkg = sharePack(SHARE.key); if (!pkg) return true; if (d.sha === "download") fileSave(pkg, pkg.countertop); else if (d.sha === "submit") gallerySubmit(SHARE.name.trim() || pkg.name, libCode(pkg)); else textCopy(document.querySelector('[data-sh="code"]'), "Share code copied"); return true; }
   if (d.fxd && d.fxdv !== undefined){ fxDraftSet(d.fxd, d.fxdv); return true; }
   if (d.fxd === "spin"){ fxDraftSet("spin", !(FXDRAFT && FXDRAFT.spin !== false)); return true; }
   if (d.ract){ ruleAction(d.ract, d.id, t); return true; }

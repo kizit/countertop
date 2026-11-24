@@ -273,9 +273,9 @@ function libShare(){
     '<label class="lfield">Layout<select data-l="shareof">' + opts.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === (LIB.shareOf || "main") ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select></label>' +
     '<label class="lfield">Name<input type="text" data-l="sharename" maxlength="80" value="' + esc(LIB.share.name) + '"></label>' +
     '<label class="lfield">What it\'s for<textarea data-l="sharedesc" maxlength="500" placeholder="A month view beside the family agenda, for busy weeks.">' + esc(LIB.share.desc) + '</textarea></label>' +
-    '<div class="lact">' + (ECHO ? "" : '<button class="lbtn pri" data-l="download">Download file</button>') + '<button class="lbtn' + (ECHO ? " pri" : "") + '" data-l="copy">Copy share code</button></div>' +
+    '<div class="lact">' + (ECHO ? "" : '<button class="lbtn pri" data-l="download">Download file</button>') + '<button class="lbtn' + (ECHO ? " pri" : "") + '" data-l="copy">Copy share code</button><button class="lbtn" data-l="gsubmit">Submit to the gallery</button></div>' +
     '<label class="lfield">Share code<textarea class="code" readonly data-l="codebox" rows="4">' + esc(libCode(pkg)) + '</textarea></label>' +
-    '<p class="lnote">A share code is the same layout as text, for pasting into a message. To put one in the community gallery, open Browse community and press Submit yours.</p></div></div>';
+    '<p class="lnote">A share code is the same layout as text, for pasting into a message. Submit to the gallery opens the community gallery\'s form with this code filled in; it\'s checked right away and reviewed before it appears.</p></div></div>';
   return h;
 }
 function libDownload(){
@@ -585,6 +585,7 @@ function libTap(t){
   if (a === "setup"){ libClose(); stack = ["root", "src:" + d.id]; show(); return; }
   if (a === "download"){ libDownload(); return; }
   if (a === "copy"){ libCopy(); return; }
+  if (a === "gsubmit"){ const T = libShareTarget(); if (T){ const nm = LIB.share.name.trim() || "Shared layout"; gallerySubmit(nm, libCode(libPack(T.p, T.look, nm, LIB.share.desc.trim()).pkg)); } return; }
   if (a === "openpaste"){ const box = libEl().querySelector('[data-l="paste"]'); libLoadImport(box ? box.value : ""); return; }
 }
 function libInit(){

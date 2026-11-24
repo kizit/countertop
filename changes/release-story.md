@@ -23,7 +23,9 @@ Not quite right? Press **Point at something**, tap the part you want different, 
 
 Save it, put it on a page, **Download file** to carry it to another Countertop, or **Submit to the gallery** to share it with everyone. Tile Studio replaces **Your own tile**. Tiles that work in the new sealed-off way convert by themselves, with **Restore** if you want the original back, and the rest keep working with a **Convert** button.
 
-![Tile Studio, with a tile being made and its live preview](https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/tile-studio.png)
+![Tile Studio beside a simulated external AI chat: describing a Walk the Dog? tile, pasting the reply to fill the form and live preview, pinning a note to add a golden puppy, and filling in the updated tile](https://raw.githubusercontent.com/kizit/countertop/main/docs/screenshots/tile-studio.gif)
+
+*The chat window on the right is a simulated external assistant (ChatGPT, Claude, etc.), not part of Countertop — Tile Studio copies prompts for whatever assistant you already use.*
 
 ## Safe by design
 

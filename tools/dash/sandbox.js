@@ -184,8 +184,8 @@ function sbxStart(m, el){
     while (SBX.frames.size >= SBX.max && idle.length) sbxDrop(idle.shift().id);
   }
   if (SBX.frames.size >= SBX.max){
-    sbxNote("A screen runs up to " + SBX.max + " community tiles at once, so “" + m.name + "” isn't running. Move it to another page.");
-    sbxSay(el, tr("A screen runs up to {n} community tiles at once, so this one is waiting. Move it to another page.", {n:SBX.max}));
+    sbxNote("A screen runs up to " + SBX.max + " community tiles at once, so “" + m.name + "” isn't running. Move it to another page, or stack it in a box with another tile.");
+    sbxSay(el, tr("A screen runs up to {n} community tiles at once, so this one is waiting. Move it to another page, or stack it in a box with another tile.", {n:SBX.max}));
     return null;
   }
   el._sbxSaid = null; el.innerHTML = "";

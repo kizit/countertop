@@ -189,7 +189,7 @@ async function main() {
     await until(async () => /tried to leave its box/.test(await page.locator('[data-mod="leave_a"]').innerText()), "the leaving tile to be stopped");
     assert.equal(await page.locator('[data-mod="leave_a"] iframe').count(), 0);
     await until(async () => (await (await fetch(base + "/status")).json()).problems.some(p => /“Leaver” tried to leave its box/.test(p)), "Status to say which tile left");
-    assert.ok((await (await fetch(base + "/status")).json()).problems.filter(p => /up to 6 community tiles/.test(p)).join("|").replace(/Spin 6/, "") === "A screen runs up to 6 community tiles at once, so “” isn't running. Move it to another page.", "Status says which tile is waiting, and only that one");
+    assert.ok((await (await fetch(base + "/status")).json()).problems.filter(p => /up to 6 community tiles/.test(p)).join("|").replace(/Spin 6/, "") === "A screen runs up to 6 community tiles at once, so “” isn't running. Move it to another page, or stack it in a box with another tile.", "Status says which tile is waiting, and only that one");
     console.log("✓ a frame that navigates is removed and Status names it");
 
     // --- check-ins while community tiles show ---

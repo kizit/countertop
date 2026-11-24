@@ -40,6 +40,9 @@ async function main() {
     assert.equal(before.n, 2);
     assert.ok(before.ids.every(id => /^builtin-[a-z-]+$/.test(id)), "built-in ids are reserved and fit ?theme=");
     assert.equal(new Set(before.ids).size, before.ids.length, "built-in ids are unique");
+    // a new theme setting must be added to the built-ins too, with the same default as Everyday's
+    const keys = await ctl.evaluate(() => LOOK_KEYS.filter(k => !(k in THEMELIB.BASE) || schema.look.settings[k].default !== THEMELIB.BASE[k]));
+    assert.deepEqual(keys, [], "every theme setting is in THEMELIB.BASE with the schema's default");
 
     // built-ins are complete: Everyday's red accent and bigger text don't leak in
     const glass = await ctl.evaluate(() => lookVals("builtin-glass"));

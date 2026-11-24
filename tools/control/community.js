@@ -9,6 +9,17 @@ const COMM = {data:null, loading:false, error:"", entry:null};
 const GALLERY_SUBMIT = "https://github.com/kizit/countertop-gallery/issues/new?template=submit.yml";
 const COMM_KINDS = {layout:["Layouts", "layouts"], theme:["Themes", "themes"], effect:["Effects", "effects"], tile:["Tiles", "tiles"]};
 
+// Submit to the gallery: its form, with the share code filled in when it fits in an address; otherwise the code is copied to paste there
+async function gallerySubmit(name, code){
+  let url = GALLERY_SUBMIT + "&title=" + encodeURIComponent("Submit: " + name);
+  if (code.length < 6000) url += "&code=" + encodeURIComponent(code);
+  else{
+    try{ await navigator.clipboard.writeText(code); }
+    catch(e){ const ta = document.createElement("textarea"); ta.value = code; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); }catch(e2){} ta.remove(); }
+    toast("Copied the share code. Paste it into the form's Share code box.", "ok");
+  }
+  window.open(url, "_blank", "noopener");
+}
 async function commLoad(refresh){
   if (COMM.loading) return;
   COMM.loading = true; if (!COMM.data) libShow();

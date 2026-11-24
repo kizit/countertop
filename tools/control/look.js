@@ -7,7 +7,7 @@ const lookById = id => looks().find(t => t.id === id) || THEMELIB.get(id);      
 const isBuiltin = id => !looks().some(t => t.id === id) && THEMELIB.has(id);
 const themeKnown = id => id === "default" || !!lookById(id);
 const ruleById = id => rules().find(r => r.id === id);
-const LOOK_KEYS = ["mode", "accent", "holiday", "tiles", "opacity", "textScale", "titles", "bg", "bgColor", "dim", "fx"];
+const LOOK_KEYS = ["mode", "accent", "holiday", "textColor", "bigColor", "themeWins", "tiles", "opacity", "textScale", "titles", "bg", "bgColor", "dim", "fx"];
 function lookVals(id){
   const v = {}; LOOK_KEYS.forEach(k => { v[k] = LS()[k]; });
   const t = id === "default" ? null : lookById(id);
@@ -71,22 +71,51 @@ function useText(id){
 const SWATCHES = ["#7cb7ff", "#5fd3c4", "#7fd18a", "#ffd36e", "#ff9f5a", "#ff7a8a", "#c58bff", "#e9ecf1"];
 const SIZES = [["Smaller", 90], ["Normal", 100], ["Bigger", 115], ["Biggest", 130]];
 
+/* ----- text colors: automatic (from Light or dark) or one color for all tile text; the clock's time and the temperature can have their own ----- */
+const HEX6 = /^#[0-9a-f]{6}$/i;
+const autoText = v => v.mode === "Light" ? "#1a1f26" : "#e9ecf1";
+const textOf = v => HEX6.test(v.textColor || "") ? v.textColor : autoText(v);
+const fadeHex = (hex, a) => { const n = parseInt(hex.slice(1), 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; };
+const bigOf = v => HEX6.test(v.bigColor || "") ? v.bigColor : textOf(v);
+function lum(hex){
+  const n = parseInt(hex.slice(1), 16), f = x => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4); };
+  return .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255);
+}
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+// is a custom text color hard to read on what it sits on: the tiles (when they have a box) and a solid background (the clock and weather sit right on it)
+function textHard(v){
+  if (!HEX6.test(v.textColor || "") && !HEX6.test(v.bigColor || "")) return false;
+  const on = [];
+  if (v.tiles !== "Clear") on.push(v.mode === "Light" ? "#fafbfd" : "#12161c");
+  if (v.bg === "Color" && HEX6.test(v.bgColor || "")) on.push(v.bgColor);
+  return on.some(b => contrast(textOf(v), b) < 3 || contrast(bigOf(v), b) < 3);
+}
+function textColorRows(v, A){
+  const seg = (k, cur, autoLabel, pick) => '<span class="seg"><button ' + A + ' data-lk="' + k + '" data-lv=""' + (cur ? "" : ' class="on"') + '>' + autoLabel + '</button>' +
+    '<button ' + A + ' data-lk="' + k + '" data-lv="' + pick + '"' + (cur ? ' class="on"' : "") + '>Pick</button></span>' + (cur ? '<input type="color" ' + A + ' data-lk="' + k + '" value="' + esc(cur) + '">' : "");
+  const tc = HEX6.test(v.textColor || "") ? v.textColor : "", bc = HEX6.test(v.bigColor || "") ? v.bigColor : "";
+  return row({t:"Text color", sub:tc ? "All tile text. Dimmer lines use a faded version of it." : "Automatic: dark text on Light, light text on Dark", post:seg("textColor", tc, "Automatic", autoText(v))}) +
+    row({t:"Big numbers color", sub:"The clock's time and the temperature", post:seg("bigColor", bc, "Same as text", textOf(v))}) +
+    (textHard(v) ? '<div class="row col"><div class="lnote warn">This text color is hard to read on this background. Check the preview.</div></div>' : "") +
+    row({t:"Theme colors win over tile colors", sub:"On: the Clock's own time color and colors set in tile designs are ignored. Off: a tile you colored keeps its color.", post: sw(!!v.themeWins, A + ' data-lk="themeWins" data-lb="1"')});
+}
+
 /* ----- a small drawing of the dashboard in a look ----- */
 function lookColors(v){
   const light = v.mode === "Light";
   const bg = v.bg === "Color" ? esc(v.bgColor || "#0a0c0f") : v.bg === "Photos" ? "linear-gradient(165deg,#88a6c2 0%,#d7b08a 52%,#4d5e43 53%,#2a3624 100%)"
     : "linear-gradient(180deg,#2f6aa3 0%,#1c4370 45%,#0d1a2b 100%)";
   const op = v.tiles === "Clear" ? 0 : v.tiles === "See-through" ? (v.opacity || 60) / 100 : light ? .92 : .86;
-  return {light, bg, card:(light ? "rgba(250,251,253," : "rgba(18,22,28,") + op + ")", fg:light ? "#1a1f26" : "#e9ecf1", dim:light ? "#5a6470" : "#8a939e",
+  return {light, bg, card:(light ? "rgba(250,251,253," : "rgba(18,22,28,") + op + ")", fg:esc(textOf(v)), big:esc(bigOf(v)), dim:HEX6.test(v.textColor || "") ? fadeHex(v.textColor, .55) : light ? "#5a6470" : "#8a939e",
     bd:v.tiles === "Clear" ? "transparent" : light ? "rgba(0,0,0,.06)" : "rgba(255,255,255,.07)", acc:esc(v.accent || "#7cb7ff")};
 }
 function lookPic(v, cls){
-  const ts = (v.textScale || 100) / 100, {bg, card, fg, dim, bd, acc} = lookColors(v);
+  const ts = (v.textScale || 100) / 100, {bg, card, fg, big, dim, bd, acc} = lookColors(v);
   const box = (x, y, w, h, inner) => '<i style="left:' + x + '%;top:' + y + '%;width:' + w + '%;height:' + h + '%;background:' + card + ';border-color:' + bd + '">' +
     (v.titles !== false ? '<s style="background:' + dim + '"></s>' : "") + inner + '</i>';
   const lines = (n, w) => [...Array(n)].map((_, i) => '<u style="background:' + (i ? dim : fg) + ';width:' + (w - i * 9) + '%;height:' + (.55 * ts) + 'em"></u>').join("");
   return '<div class="lpic ' + (cls || "") + '" style="background:' + bg + '">' +
-    box(3, 5, 41, 31, '<em style="color:' + fg + ';font-size:' + (2.6 * ts) + 'em">9:41</em>') +
+    box(3, 5, 41, 31, '<em style="color:' + big + ';font-size:' + (2.6 * ts) + 'em">9:41</em>') +
     box(46, 5, 51, 31, '<em style="color:' + acc + ';font-size:' + (2 * ts) + 'em">72°</em>') +
     box(3, 40, 60, 55, '<b style="background:' + acc + '"></b>' + lines(3, 80)) +
     box(65, 40, 32, 55, lines(4, 85)) +
@@ -184,7 +213,8 @@ function lookScreen(id){
     '<div class="row col"><div class="t"><b>Accent color</b><small>Highlights, today\'s date, buttons</small></div><div class="sws">' +
       SWATCHES.map(c => '<button class="swc' + (String(v.accent).toLowerCase() === c ? " on" : "") + '" style="background:' + c + '" ' + A + ' data-lk="accent" data-lv="' + c + '"></button>').join("") +
       '<input type="color" ' + A + ' data-lk="accent" value="' + esc(v.accent) + '" title="Any color"></div></div>' +
-    row({t:"Holiday colors", sub:"The accent changes by itself in season: orange in fall, red and green at Christmas, pink for Valentine's", post: sw(v.holiday, A + ' data-lk="holiday" data-lb="1"')}));
+    row({t:"Holiday colors", sub:"The accent changes by itself in season: orange in fall, red and green at Christmas, pink for Valentine's", post: sw(v.holiday, A + ' data-lk="holiday" data-lb="1"')}) +
+    textColorRows(v, A));
   const tilePic = k => '<span class="sample tl ' + k + '"><i></i><i></i></span>';
   h += sec("Tiles", '<div class="opts">' + opt(id, "tiles", "Solid", "Solid", "", v.tiles, tilePic("solid")) + opt(id, "tiles", "See-through", "See-through", "", v.tiles, tilePic("see")) + opt(id, "tiles", "Clear", "Clear", "No boxes", v.tiles, tilePic("clear")) + '</div>' +
     (v.tiles === "See-through" ? row({t:"How solid", sub:"10% is almost clear", post:'<input type="range" min="10" max="100" step="5" ' + A + ' data-lk="opacity" value="' + (v.opacity || 60) + '"><span class="v">' + (v.opacity || 60) + '%</span>'}) : ""));
@@ -559,7 +589,7 @@ function lookClick(t){
   if (d.fxk && d.fxv !== undefined){ const v = d.fxk === "every" ? +d.fxv : d.fxv; fxSet(d.fxid, d.fxk, v); show(); return true; }
   if (d.fxplay){ try{ (libSub() ? $("libpv").contentWindow : pvWin()).FUN.show(d.fxplay); toast("Playing on the preview", "ok"); }catch(e){ toast("The preview isn't ready yet", "bad"); } return true; }
   if (d.lk && d.lv !== undefined){ const v = d.lk === "textScale" ? +d.lv : d.lv; lookSet(d.lid, d.lk, v); show(); return true; }
-  if (d.lk && d.lb){ const cur = lookVals(d.lid)[d.lk], on = d.lb === "OnOff" ? cur !== "Off" : d.lk === "holiday" ? !!cur : cur !== false;
+  if (d.lk && d.lb){ const cur = lookVals(d.lid)[d.lk], on = d.lb === "OnOff" ? cur !== "Off" : d.lk === "holiday" || d.lk === "themeWins" ? !!cur : cur !== false;
     lookSet(d.lid, d.lk, d.lb === "OnOff" ? (on ? "Off" : "On") : !on); show(); return true; }
   if (d.nk && d.nv !== undefined){ mods.night.settings[d.nk] = +d.nv; save(); show(); return true; }
   return false;

@@ -6,7 +6,7 @@
    Tiles that came from someone else (a shared layout or file) wait until you let them run.
    Your own tile is retired: the ones that will work here were converted by the server, keeping the original for
    Restore; the rest are listed in Library → Tiles with why, and Convert. */
-const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", reply:"", fill:null, undo:[], log:[], timer:null, poll:null, size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""};
+const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", reply:"", fill:null, vers:[], cur:0, nextN:2, log:[], timer:null, poll:null, size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""};
 let MINEC = {};          // type → its whole file (for sharing a layout that uses it), from GET /studio/tile/<id>
 let LEGACYC = {};        // Your own tiles still on the dashboard: id → {ok, reasons, kept}
 const STU_FEEDS = [["wx", "Weather", "this.feed(\"weather\")"], ["aqi", "Air quality", "this.feed(\"air\")"], ["team", "Your teams' games", "this.feed(\"teams\")"],
@@ -66,7 +66,7 @@ function stuRow(t, d){
 /* ----- the Studio ----- */
 async function stuOpen(id){
   clearTimeout(STU.timer);
-  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", reply:"", fill:null, undo:[], size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""});
+  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", reply:"", fill:null, vers:[], cur:0, nextN:2, size:"usual", notes:[], gen:"", picking:false, pend:null, pendNote:""});
   if (id){
     try{
       const r = await fetch("/studio/tile/" + encodeURIComponent(id), {cache:"no-store"});
@@ -108,7 +108,7 @@ function stuView(){
     '<div class="lact"><button class="lbtn pri" data-l="s-ai">Copy for chat</button></div>' +
     '<p class="lnote">Paste it into ChatGPT (or another assistant). It sends your words, everything this page can set, and the shape its answer must have.</p>' +
     '<label class="lfield">2. Paste its answer here<textarea data-s="reply" rows="4" spellcheck="false" placeholder="Paste the whole answer">' + esc(STU.reply) + '</textarea></label>' +
-    '<div class="lact"><button class="lbtn pri" data-l="s-fill">Fill in the form</button>' + (STU.undo.length ? '<button class="lbtn" data-l="s-unfill">Back</button>' : "") + '</div>' + stuFillHTML() +
+    '<div class="lact"><button class="lbtn pri" data-l="s-fill">Fill in the form</button>' + "" + '</div>' + stuFillHTML() +
     '<p class="lnote">This only fills in the form below. Nothing is saved, and the tile runs sealed off in the preview, until you press Save. Its answer can\'t turn anything on for you: the tile still asks for each thing in its settings, and API keys are never filled in.</p></div>';
   // what it is
   h += '<div class="lpanel"><h3>What it is</h3>' + stuInput("Name", "name", t.name, 'type="text" maxlength="60"') +
@@ -148,7 +148,7 @@ function stuView(){
     '<button class="lchip' + (STU.real ? " on" : "") + '" data-l="s-real">' + (STU.real ? "Your data" : "Made-up data") + '</button></div>' +
     '<p class="lnote lstu-sz">' + esc(stuSizeNote()) + '</p>' +
     '<div class="tp big lstu-shot' + (STU.picking ? " pick" : "") + '">' + (STU.draft ? '<iframe title="Preview" data-w="' + stuPvSize()[0] + '" data-h="' + stuPvSize()[1] + '" src="' + esc(stuPvSrc()) + '"></iframe>' : "") + '</div>' +
-    '<div class="lstu-log">' + stuLogHTML() + '</div><div class="lstu-pk">' + stuPickHTML() + '</div></div>' +
+    stuVersHTML() + '<div class="lstu-log">' + stuLogHTML() + '</div><div class="lstu-pk">' + stuPickHTML() + '</div></div>' +
     '<div class="lact"><button class="lbtn pri" data-l="s-save">' + (STU.id ? "Save" : "Save to my tiles") + '</button>' +
     (STU.id && !stuDirty() ? '<button class="lbtn" data-l="addtile" data-id="' + esc(STU.id) + '">Add to ' + esc(libAddName()) + '</button>' : "") + '</div>' +
     (STU.id ? '<div class="lact"><button class="lbtn" data-l="s-share">Download file</button><button class="lbtn" data-l="s-copy">Copy as text</button>' +
@@ -300,6 +300,7 @@ async function stuSave(){
     const r = await fetch("/studio/save", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:STU.id, tile:stuTile()})});
     const j = await r.json(); if (!r.ok || j.error) throw new Error(j.error || r.status);
     STU.id = j.id; STU.base = JSON.stringify(stuTile()); LIB.item = j.id;
+    STU.vers = []; STU.cur = 0; STU.nextN = 2;          // only the version shown is kept
     await stuSync();
     toast("Saved " + (STU.t.name || "your tile") + (j.version > 1 ? " (version " + j.version + ")" : ""), "ok");
     libShow(); stuDraft();
@@ -388,7 +389,7 @@ function stuPickHTML(){
     '<button class="lbtn red" data-l="s-pickdel" data-id="' + i + '">Remove</button></div>'; });
   h += '<label class="lfield">Anything about the whole tile?<textarea data-s="gen" rows="2" maxlength="600" placeholder="e.g. put the light on the left, calmer colors">' + esc(STU.gen) + '</textarea></label>' + stuPhraseChips(STU_PHRASES_ALL, "gen");
   h += '<div class="lact"><button class="lbtn pri" data-l="s-ai2">Copy change request</button></div>' +
-    '<p class="lnote">Paste its answer in box 2 at the top and press Fill in the form. Back undoes the last 5 fills.</p></div>';
+    '<p class="lnote">Paste its answer in box 2 at the top and press Fill in the form. Each fill adds a version under the preview.</p></div>';
   return h;
 }
 function stuPickCfg(){
@@ -592,7 +593,7 @@ function stuParse(text, base){
 function stuFillHTML(){
   const f = STU.fill; if (!f) return "";
   if (f.err) return '<div class="lstu-err error">' + esc(f.err) + '</div>';
-  if (f.undone) return '<p class="lnote ok">Put the form back as it was.</p>';
+  if (f.shown) return '<p class="lnote ok">Showing version ' + f.shown + '. Save keeps this one.</p>';
   return '<p class="lnote ok">Filled in: ' + esc(f.did.join(", ")) + '.</p>' + (f.skip.length ? '<p class="lnote">Left out: ' + esc(f.skip.join("; ")) + '.</p>' : "");
 }
 function stuRedraw(){ const sc = libEl().querySelector(".lmain").scrollTop; libShow(); libEl().querySelector(".lmain").scrollTop = sc; }
@@ -600,15 +601,31 @@ function stuFill(){
   if (!STU.reply.trim()){ toast("Paste the answer first", "bad"); return; }
   const r = stuParse(STU.reply, STU.t);
   if (r.error){ STU.fill = {err:r.error}; stuRedraw(); return; }
-  STU.undo.push({t:JSON.stringify(STU.t), notes:STU.notes, gen:STU.gen}); if (STU.undo.length > 5) STU.undo.shift();
+  stuKeepShown();
   STU.t = r.t; STU.reply = ""; STU.fill = {did:r.did, skip:r.skip};
   STU.notes = []; STU.gen = ""; STU.pend = null; STU.picking = false;      // what was asked for has been answered
+  STU.vers.push(Object.assign({n:STU.nextN++}, stuSnap()));
+  while (STU.vers.length > STU_MAX_VERS) STU.vers.shift();
+  STU.cur = STU.vers.length - 1;
   stuChanged(true);
 }
-function stuUnfill(){
-  const b = STU.undo.pop(); if (!b) return;
-  STU.t = JSON.parse(b.t); STU.notes = b.notes; STU.gen = b.gen; STU.pend = null; STU.picking = false; STU.fill = {undone:true};
+// versions: the form as it was before the first fill (v1), then one more after each fill. Pick one and the form and the
+// preview show it, with the notes that went with it. Save keeps only the one shown.
+const STU_MAX_VERS = 5;
+const stuSnap = () => ({t:JSON.stringify(STU.t), notes:STU.notes, gen:STU.gen});
+function stuKeepShown(){      // the shown version as it is now (edits included), or the first one to be kept
+  if (!STU.vers.length){ STU.vers = [Object.assign({n:1}, stuSnap())]; STU.cur = 0; STU.nextN = 2; }
+  else STU.vers[STU.cur] = Object.assign({n:STU.vers[STU.cur].n}, stuSnap());
+}
+function stuVersion(i){
+  const v = STU.vers[i]; if (!v || i === STU.cur) return;
+  stuKeepShown();
+  STU.cur = i; STU.t = JSON.parse(v.t); STU.notes = v.notes; STU.gen = v.gen; STU.pend = null; STU.picking = false; STU.fill = {shown:v.n};
   stuChanged(true);
+}
+function stuVersHTML(){
+  if (STU.vers.length < 2) return "";
+  return '<div class="lchips lstu-ver" title="Save keeps the version shown">' + STU.vers.map((v, i) => '<button class="lchip' + (i === STU.cur ? " on" : "") + '" data-l="s-ver" data-id="' + i + '">v' + v.n + '</button>').join("") + '</div>';
 }
 async function stuTap(t){
   const d = t.dataset, a = d.l;
@@ -639,7 +656,7 @@ async function stuTap(t){
     else { STU.pendNote = (STU.pendNote.trim() ? STU.pendNote.trim() + ", " : "") + ph.toLowerCase(); const x = libEl().querySelector('[data-s="pend"]'); if (x) x.value = STU.pendNote; }
     return; }
   if (a === "s-fill"){ stuFill(); return; }
-  if (a === "s-unfill"){ stuUnfill(); return; }
+  if (a === "s-ver"){ stuVersion(+d.id); return; }
   if (a === "s-addset"){ const S = STU.t.settings = STU.t.settings || {}; let n = 1; while (S["setting" + n]) n++; S["setting" + n] = {type:"text", label:"Setting " + n, default:""}; stuChanged(true); return; }
   if (a === "s-delset"){ delete STU.t.settings[d.id]; stuChanged(true); return; }
   if (a === "s-adddev"){ const D = STU.t.devices = STU.t.devices || {}; let n = 1; while (D["light" + (n > 1 ? n : "")]) n++; D["light" + (n > 1 ? n : "")] = {label:"Light", domains:["light", "switch"]};

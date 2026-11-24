@@ -19,7 +19,7 @@ Downloading adds the tile to Library → Tiles and changes nothing on your scree
 
 **Library → Tiles → New tile** is a place to make your own. Describe the tile and press **Copy for chat**, paste the assistant's answer back, and **Fill in the form** sets everything on the page at once: name, what it shows, size, the data it reads, settings and code. Or fill in the form and write the code yourself. Either way you watch the tile run in a preview with made-up data or your own. Problems are listed as you go.
 
-Not quite right? Press **Point at something**, tap the part you want different, like the light or the reason line, and say what to change, such as "bigger" or "move up". Your notes show as numbered pins, **Copy change request** sends them with the tile to the assistant, and the new answer fills the form. **Back** undoes up to 5 fills. You never have to touch the code.
+Not quite right? Press **Point at something**, tap the part you want different, like the light or the reason line, and say what to change, such as "bigger" or "move up". Your notes show as numbered pins, **Copy change request** sends them with the tile to the assistant, and the new answer fills the form. Every fill adds a **version** under the preview, so you can click back to an earlier one (the last 5 are kept); **Save** keeps the one showing. You never have to touch the code.
 
 Save it, put it on a page, **Download file** to carry it to another Countertop, or **Submit to the gallery** to share it with everyone. Tile Studio replaces **Your own tile**. Tiles that work in the new sealed-off way convert by themselves, with **Restore** if you want the original back, and the rest keep working with a **Convert** button.
 

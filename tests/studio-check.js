@@ -233,7 +233,7 @@ async function main() {
     // --- change it: point at a part of the preview, say what to change, copy the request ---
     const PICKCODE = 'window.__loaded = 1; document.addEventListener("click", () => { window.__clicks = (window.__clicks || 0) + 1; });\nTile("my-pick", { render(el){ el.innerHTML = \'<div class="card"><div class="big">72</div><span class="why">Windy later</span></div>\'; }, css: ".big{font-size:40px}" });';
     await ctl.evaluate(code => { libOpen("tiles"); return stuOpen("").then(() => { STU.t.name = "Pick me"; STU.t.code = code; stuChanged(true); }); }, PICKCODE);
-    const tileFrame = () => ctl.frames().filter(f => /\/tile-frame\/draft-/.test(f.url())).pop();
+    const tileFrame = () => ctl.frames().filter(f => /\/tile-frame\/draft-/.test(f.url()) && /&w=12&h=8/.test(f.parentFrame().url())).pop();      // the one in the preview, not the hidden smallest-size check
     await until(async () => { const f = tileFrame(); return f && await f.evaluate(() => (document.querySelector(".big") || {}).textContent === "72").catch(() => false); }, "the preview drawing the tile to point at", 30000);
     assert.ok(await ctl.evaluate(() => /Point at something/.test(document.querySelector("#lib .lstu-pk").textContent)), "the Change it panel is under the preview");
     // a frame can't start picking itself, and a forged answer is ignored while nothing was asked

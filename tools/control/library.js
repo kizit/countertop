@@ -109,15 +109,21 @@ function libTileShot(t, d, big){
   if (ECHO && !big) return '<span class="tp"><span class="tpname">' + esc(d.title || t) + '</span></span>';
   return '<span class="tp' + (big ? " big" : "") + '"><iframe tabindex="-1" aria-hidden="true" data-w="' + w + '" data-h="' + h + '" data-src="/dash/content?preview=1&solo=' + t + (big ? "" : "&still=1") + '"></iframe></span>';
 }
+// where a w x h tile really sits in the 1920x1080 preview page: inside its 36/22px margins, on a 48 x 32 grid with 16px gaps
+function libTileRect(w, h){
+  const cw = (1920 - 72 - 47 * 16) / 48, ch = (1080 - 22 - 26 - 31 * 16) / 32;
+  w = Math.max(1, Math.min(48, w)); h = Math.max(1, Math.min(32, h));
+  return {x:36, y:22, w:w * cw + (w - 1) * 16, h:h * ch + (h - 1) * 16};
+}
 function libFitShots(){
   const root = libEl().querySelector(".lmain");
   if (libFitShots.io) libFitShots.io.disconnect();
   const io = libFitShots.io = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting && !e.target.src){ e.target.src = e.target.dataset.src; io.unobserve(e.target); } }), {root, rootMargin:"300px"}) : null;
   libEl().querySelectorAll(".tp iframe").forEach(f => {
-    const box = f.parentNode, rw = (+f.dataset.w || 12) * 40, rh = (+f.dataset.h || 8) * 33.75;
-    const k = Math.min(box.clientWidth / rw, box.clientHeight / rh);
-    f.style.transform = "translate(" + (box.clientWidth - rw * k) / 2 + "px," + (box.clientHeight - rh * k) / 2 + "px) scale(" + k + ")";
+    const box = f.parentNode, r = libTileRect(+f.dataset.w || 12, +f.dataset.h || 8);
+    const k = Math.min(box.clientWidth / r.w, box.clientHeight / r.h) * .94;    // a little air around the tile
+    f.style.transform = "translate(" + (box.clientWidth - r.w * k) / 2 + "px," + (box.clientHeight - r.h * k) / 2 + "px) scale(" + k + ") translate(" + -r.x + "px," + -r.y + "px)";
     if (!f.src){ if (io) io.observe(f); else f.src = f.dataset.src; }
   });
 }

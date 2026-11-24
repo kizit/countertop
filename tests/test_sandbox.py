@@ -105,9 +105,10 @@ class FramePage(Base):
         install("moon-facts")
         code, html1, h1 = sbx.tile_frame_page("moon-facts", "kitchen.local:8090")
         self.assertEqual(code, 200)
-        # scripts by their exact address, never a nonce: tile code can read a nonce and load a script from anywhere with it
+        # scripts by their exact address (http and https, for --tls on a custom port), never a nonce
         self.assertEqual(h1["Content-Security-Policy"], POLICY % (
-            "http://kitchen.local:8090/tile-frame/moon-facts/runtime.js http://kitchen.local:8090/tile-frame/moon-facts/tile.js"))
+            "http://kitchen.local:8090/tile-frame/moon-facts/runtime.js http://kitchen.local:8090/tile-frame/moon-facts/tile.js "
+            "https://kitchen.local:8090/tile-frame/moon-facts/runtime.js https://kitchen.local:8090/tile-frame/moon-facts/tile.js"))
         self.assertNotIn("nonce", h1["Content-Security-Policy"] + html1.decode())
         text = html1.decode()
         self.assertIn('src="/tile-frame/moon-facts/tile.js?v=1"', text)

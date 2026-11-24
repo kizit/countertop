@@ -274,9 +274,9 @@ function sbxInit(rec){
 async function sbxFetch(rec, url, maxAge){
   const m = rec.m, c = (m._sf = m._sf || {})[url] = m._sf[url] || {data:null, error:"", at:0, busy:false};
   const reply = () => { const r = SBX.frames.get(m.id); if (r && r.ready) sbxPost(r, {ct:"fetched", url, data:c.data, error:c.error}); };
-  if (!(m.hosts || []).length){ c.error = tr("This tile can't reach the internet."); c.at = Date.now(); return reply(); }
+  if (!(m.hosts || []).length){ c.error = tr("This tile can't reach the internet."); c.at = Date.now(); sbxLog(m, "error", c.error + " (" + url.slice(0, 80) + ")"); return reply(); }
   if (c.busy) return;
-  if (c.at && Date.now() - c.at < Math.max(30, +maxAge || 0) * 1000) return reply();
+  if (c.at && Date.now() - c.at < (c.error ? 30 : Math.max(30, +maxAge || 0)) * 1000) return reply();
   c.busy = true;
   try{ c.data = await tileGet(m, url, maxAge); c.error = ""; }
   catch(e){ c.error = String(e.message || e).slice(0, 200); sbxLog(m, "error", tr("Reading {url}: {why}", {url:url.slice(0, 80), why:c.error})); }

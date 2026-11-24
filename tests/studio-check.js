@@ -172,6 +172,57 @@ async function main() {
     assert.equal(raw.mine.review, true);
     console.log("✓ a shared layout carries the tile's code, and it arrives waiting for Let it run");
 
+    // --- Tile Studio form polish: setting key focus, personal feed clears hosts, clean errors, secret query sync, no-hosts fetch log, Escape confirm ---
+    await ctl.evaluate(() => stuOpen(""));
+    await ctl.locator('#lib [data-s="set.text.key"]').click();
+    await ctl.locator('#lib [data-s="set.text.key"]').fill("greeting");
+    await ctl.locator('#lib [data-s="set.text.key"]').blur();
+    assert.deepEqual(await ctl.evaluate(() => Object.keys(STU.t.settings)), ["greeting"]);
+    await ctl.locator('#lib [data-l="s-adddev"]').click();
+    await until(() => ctl.locator("#lib .lstu-log").textContent().then(t => /its controls must list 1 to 12 buttons/.test(t)), "clean control error");
+    assert.doesNotMatch(await ctl.locator("#lib .lstu-log").textContent(), /\bit its\b/);
+    await ctl.locator('#lib [data-l="s-deldev"]').click();
+    await ctl.locator('#lib [data-s="hosts"]').fill("api.example.com");
+    await ctl.locator('#lib button.sw[data-s="feed.events"]').click();
+    assert.deepEqual(await ctl.evaluate(() => STU.t.hosts), []);
+    await ctl.locator('#lib button.sw[data-s="feed.events"]').click();
+    await ctl.locator('#lib [data-s="set.greeting.type"]').selectOption("secret");
+    await ctl.locator('#lib [data-s="set.greeting.query"]').fill("apikey");
+    assert.equal(await ctl.locator('#lib [data-s="set.greeting.header"]').inputValue(), "");
+    await ctl.evaluate(() => stuOpen(""));
+    await ctl.locator('#lib [data-s="code"]').fill('Tile("my-tile", { render(el) { this.fetch("https://api.example.com/x"); el.textContent = "hi"; } });');
+    await until(() => ctl.locator("#lib .lstu-log").textContent().then(t => /can't reach the internet/.test(t)), "no-hosts fetch logged");
+    let escDialogs = 0;
+    const onDlg = d => { escDialogs++; d.dismiss(); };
+    ctl.removeAllListeners("dialog");
+    ctl.on("dialog", onDlg);
+    await ctl.keyboard.press("Escape");
+    assert.equal(escDialogs, 1);
+    assert.equal(await ctl.evaluate(() => LIB.view === "studio" && !libEl().hidden), true);
+    ctl.removeListener("dialog", onDlg);
+    ctl.on("dialog", d => d.accept());
+    await ctl.keyboard.press("Escape");
+    await until(() => ctl.evaluate(() => LIB.view === "tiles" && STU.t === null), "Escape leaves Studio after confirm");
+    console.log("✓ Tile Studio form editing, error wording, no-hosts fetch log, and Escape guard work");
+
+    // --- Controls save() serialization: an in-flight POST /config must never overwrite a newer edit ---
+    let slowOnce = true;
+    await ctx.route(srv.base + "/config", async route => {
+      if (route.request().method() === "POST" && slowOnce) {
+        slowOnce = false;
+        const resp = await route.fetch();
+        await new Promise(r => setTimeout(r, 250));
+        return route.fulfill({ response: resp });
+      }
+      return route.continue();
+    });
+    await ctl.evaluate(() => { mods.general.settings.name = "First"; save(true); });
+    await new Promise(r => setTimeout(r, 500));
+    await ctl.evaluate(() => { mods.general.settings.name = "Second"; save(true); });
+    await until(async () => (await cfg()).modules.general.settings.name === "Second", "newer edit preserved over in-flight save");
+    assert.equal(await ctl.evaluate(() => mods.general.settings.name), "Second");
+    console.log("✓ an in-flight Controls save never clobbers a newer edit");
+
     assert.deepEqual(cerrs, []);
     assert.deepEqual(errs, []);
   });

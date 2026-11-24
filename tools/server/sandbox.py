@@ -367,8 +367,8 @@ def tile_frame_page(tid, host="localhost"):
     base = "/tile-frame/%s/" % t["id"]
     html = (_sbx_read("frame.html").replace("__RUNTIME__", base + "runtime.js?v=%d" % zlib.crc32(_sbx_read("runtime.js").encode()))
             .replace("__CODE__", base + "tile.js?v=%d" % t["version"]))
-    # http:// also matches the same address over https:// (a screen behind a proxy that adds HTTPS)
-    src = " ".join("http://%s%s%s" % (host, base, f) for f in ("runtime.js", "tile.js"))
+    # both http:// and https:// for the two exact script addresses: with a port (like --tls on :8443), http:// doesn't match https://
+    src = " ".join("%s://%s%s%s" % (sch, host, base, f) for sch in ("http", "https") for f in ("runtime.js", "tile.js"))
     return 200, html.encode("utf-8"), {"Content-Security-Policy": SBX_FRAME_POLICY % src, "X-Content-Type-Options": "nosniff",
                                        "Referrer-Policy": "no-referrer"}
 

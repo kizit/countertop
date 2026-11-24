@@ -84,19 +84,25 @@ function pvRefresh(){
   let ed = false; try{ ed = pvWin().dashEditing(); }catch(e){}
   if (ed){ try{ pvWin().dashApply(mods); }catch(e){} } else pvLoad();
 }
+let saveGen = 0, saveBusy = Promise.resolve();
 function save(quiet){          // quiet: an Undo toast is showing, so don't cover it with "Saved"
+  const gen = ++saveGen;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try{
-      const r = await fetch("/config", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({modules: mods})});
-      const j = await r.json();
-      if (!r.ok || j.error) throw new Error(j.error || r.status);
-      const had = tileList().some(t => t.type === "custom");
-      mods = j.modules;
-      if (had && !tileList().some(t => t.type === "custom" && LEGACYC[t.id])) stuSync().then(() => { if (!libEl().hidden) libShow(); });     // the server converted a Your own tile
-      else if (had) stuSync();
-      if (!quiet) toast("Saved", "ok"); pvRefresh();
-    }catch(e){ toast("Didn't save: " + e.message, "bad"); }
+  saveTimer = setTimeout(() => {
+    saveBusy = saveBusy.then(async () => {
+      if (gen !== saveGen) return;
+      try{
+        const r = await fetch("/config", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({modules: mods})});
+        const j = await r.json();
+        if (!r.ok || j.error) throw new Error(j.error || r.status);
+        if (gen !== saveGen) return;     // another edit arrived while this save was in flight: don't clobber it
+        const had = tileList().some(t => t.type === "custom");
+        mods = j.modules;
+        if (had && !tileList().some(t => t.type === "custom" && LEGACYC[t.id])) stuSync().then(() => { if (!libEl().hidden) libShow(); });     // the server converted a Your own tile
+        else if (had) stuSync();
+        if (!quiet) toast("Saved", "ok"); pvRefresh();
+      }catch(e){ if (gen === saveGen) toast("Didn't save: " + e.message, "bad"); }
+    });
   }, 450);
 }
 

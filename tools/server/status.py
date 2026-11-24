@@ -182,8 +182,8 @@ _PRIVATE_TILE_TEXT = ("text", "note", "body", "dates", "extra")
 
 
 def _secret_fields(kind):
-    """Fields never shown in full: every field Setup marks secret, plus links and sync keys of any kind."""
-    return sorted({"url", "pushKey"} | {f for f, v in (SOURCE_KINDS.get(kind) or {}).get("fields", {}).items() if v.get("secret")})
+    """Fields never shown in full: every field Setup marks secret, plus links, folder paths and sync keys of any kind."""
+    return sorted({"url", "pushKey", "path"} | {f for f, v in (SOURCE_KINDS.get(kind) or {}).get("fields", {}).items() if v.get("secret")})
 
 
 def _secrets():

@@ -41,19 +41,76 @@ SOURCE_KINDS = {
             "league": {"label": "League", "type": "choice", "choices": [["usa.1", "MLS"], ["usa.nwsl", "NWSL"], ["usa.usl.1", "USL Championship"], ["mex.1", "Liga MX"],
                        ["eng.1", "Premier League"], ["esp.1", "LaLiga"], ["ger.1", "Bundesliga"], ["ita.1", "Serie A"], ["fra.1", "Ligue 1"], ["uefa.champions", "Champions League"]]}}},
     "albums": {"title": "Photo albums", "one": "album",
-        "desc": "Shared photo albums for the Photo frame tile and the Photos background: an iCloud Shared Album, or an album on your own Immich server.",
+        "desc": "Photo albums and folders for the Photo frame tile and the Photos background: iCloud, a local folder, Nextcloud or ownCloud, Immich, Plex, Jellyfin or PhotoPrism.",
         "fields": {
             "name": {"label": "Name", "type": "text"},
-            "kind": {"label": "Kept in", "type": "choice", "choices": ["iCloud shared album", "Immich"],
-                     "help": "iCloud: turn the shared album's Public Website on and paste the link. Immich: your own server's address, an API key from your account, and the album's name. This server fetches the photos; the screen never talks to Immich and the key is never shown again."},
-            "url": {"label": "iCloud shared album link", "type": "text", "when": {"kind": "iCloud shared album"},
-                    "help": "In Photos: open the shared album, tap the people icon, turn on Public Website and copy the link. A shared Photo Library has no public link and can't be used."},
-            "server": {"label": "Immich address", "type": "text", "when": {"kind": "Immich"},
-                       "help": "Where you open Immich, e.g. http://192.168.1.20:2283. If Countertop runs in Docker, use the IP address: names ending in .local often don't work there."},
-            "apiKey": {"label": "Immich API key", "type": "text", "secret": True, "when": {"kind": "Immich"},
-                       "help": "In Immich: your account → API keys → New API key. Name it Countertop and paste it here. It stays on the dashboard server and is never shown again."},
-            "album": {"label": "Immich album name", "type": "text", "when": {"kind": "Immich"},
-                      "help": "Exactly as the album is named in Immich. Make one just for the dashboard if you like."}}},
+            "kind": {"label": "Kept in", "type": "choice",
+                     "choices": ["iCloud shared album", "Local folder", "Nextcloud / ownCloud", "Immich", "Plex", "Jellyfin", "PhotoPrism"],
+                     "help": "Pick where your photos live. For local folders and self-hosted servers, this server fetches the photos so keys and passwords stay off the screen."},
+            "url": {"label": "iCloud shared album link", "type": "text",
+                    "when": {"kind": ["iCloud shared album", "Nextcloud / ownCloud"]},
+                    "labelBy": {
+                        "iCloud shared album": "iCloud shared album link",
+                        "Nextcloud / ownCloud": "Shared folder link",
+                    },
+                    "helpBy": {
+                        "iCloud shared album": "In Photos: open the shared album, tap the people icon, turn on Public Website and copy the link. Works with both newer photos.icloud.com and older icloud.com/sharedalbum links. A shared Photo Library has no public link and can't be used.",
+                        "Nextcloud / ownCloud": "Share a folder as a public link and paste it here, e.g. https://cloud.example.com/s/AbCdEf123. This server fetches the photos so the screen never talks to your cloud directly.",
+                    },
+                    "help": "In Photos: open the shared album, tap the people icon, turn on Public Website and copy the link."},
+            "password": {"label": "Share password (optional)", "type": "text", "secret": True,
+                         "when": {"kind": "Nextcloud / ownCloud"},
+                         "help": "Leave blank if the shared folder has no password. It stays on the dashboard server and is never shown again."},
+            "path": {"label": "Folder path", "type": "text", "when": {"kind": "Local folder"},
+                     "help": "A folder on the computer running Countertop, e.g. /photos or /home/pi/Pictures. In Docker or Unraid, mount your photo folder into the container first (for example at /photos)."},
+            "subdirs": {"label": "Include subfolders", "type": "bool",
+                        "when": {"kind": ["Local folder", "Nextcloud / ownCloud"]},
+                        "help": "Also show photos kept inside subfolders."},
+            "server": {"label": "Server address", "type": "text",
+                       "when": {"kind": ["Immich", "Plex", "Jellyfin", "PhotoPrism"]},
+                       "labelBy": {
+                           "Immich": "Immich address",
+                           "Plex": "Plex address",
+                           "Jellyfin": "Jellyfin address",
+                           "PhotoPrism": "PhotoPrism address",
+                       },
+                       "helpBy": {
+                           "Immich": "Where you open Immich, e.g. http://192.168.1.20:2283. If Countertop runs in Docker, use the IP address: names ending in .local often don't work there.",
+                           "Plex": "Where you open Plex, e.g. http://192.168.1.20:32400. In Docker, use the IP address rather than a .local name.",
+                           "Jellyfin": "Where you open Jellyfin, e.g. http://192.168.1.20:8096. In Docker, use the IP address rather than a .local name.",
+                           "PhotoPrism": "Where you open PhotoPrism, e.g. http://192.168.1.20:2342. In Docker, use the IP address rather than a .local name.",
+                       },
+                       "help": "Where you open the photo server on your home network."},
+            "apiKey": {"label": "API key", "type": "text", "secret": True,
+                       "when": {"kind": ["Immich", "Plex", "Jellyfin", "PhotoPrism"]},
+                       "labelBy": {
+                           "Immich": "Immich API key",
+                           "Plex": "Plex token",
+                           "Jellyfin": "Jellyfin API key",
+                           "PhotoPrism": "PhotoPrism access token",
+                       },
+                       "helpBy": {
+                           "Immich": "In Immich: your account → API keys → New API key. Name it Countertop and paste it here. It stays on the dashboard server and is never shown again.",
+                           "Plex": "Your X-Plex-Token (open any item in Plex → Get Info → View XML, and copy the X-Plex-Token value from the address bar). It stays on the server and is never shown again.",
+                           "Jellyfin": "In Jellyfin: Dashboard → API Keys → + to make a key named Countertop. It stays on the dashboard server and is never shown again.",
+                           "PhotoPrism": "An app password or API access token from Settings → Account → Apps and Devices (leave blank only if your PhotoPrism runs in public mode). It stays on the server and is never shown again.",
+                       },
+                       "help": "Stays on the dashboard server and is never shown again."},
+            "album": {"label": "Album name", "type": "text",
+                      "when": {"kind": ["Immich", "Plex", "Jellyfin", "PhotoPrism"]},
+                      "labelBy": {
+                          "Immich": "Immich album name",
+                          "Plex": "Library or album name (optional)",
+                          "Jellyfin": "Folder or album name (optional)",
+                          "PhotoPrism": "Album name (optional)",
+                      },
+                      "helpBy": {
+                          "Immich": "Exactly as the album is named in Immich. Make one just for the dashboard if you like.",
+                          "Plex": "The name of a Plex photo library, album, collection or photo playlist. Leave blank to use the first photo library.",
+                          "Jellyfin": "The name of a Jellyfin photo library, folder or album. Leave blank to show photos from across Jellyfin.",
+                          "PhotoPrism": "Exactly as the album is named in PhotoPrism (or leave blank to show photos from your library).",
+                      },
+                      "help": "Exactly as the album is named on your photo server."}}},
     "homeassistant": {"title": "Home Assistant", "one": "Home Assistant",
         "desc": "Your Home Assistant, for the Home and Sensor tiles: show lights, doors and sensors, and switch lights and scenes from the screen.",
         "fields": {
@@ -182,6 +239,7 @@ def sources_apply(body):
     URL_LISTS.clear()
     HA_CACHE.clear()
     MEAL_CACHE.clear()
+    PHOTO_CACHES.clear()
     return sources_public()
 
 
@@ -189,5 +247,6 @@ def sources_apply(body):
 from server.config import CONFIG_FILE  # noqa: E402
 from server.core import ICS_CACHE  # noqa: E402
 from server.feeds.meals import MEAL_CACHE  # noqa: E402
+from server.feeds.photos import PHOTO_CACHES  # noqa: E402
 from server.homeassistant import HA_CACHE  # noqa: E402
 from server.lists import REM_FILE, URL_LISTS  # noqa: E402

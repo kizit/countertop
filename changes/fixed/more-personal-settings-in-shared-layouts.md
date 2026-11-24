@@ -1,1 +1,0 @@
-- **Shared layouts keep more of your personal text to yourself.** The places on a World clock, a Picture tile's caption, the symbols on a Stocks tile and the "What should it show?" note on Your own tile are no longer saved in shared layouts.

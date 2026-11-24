@@ -1,1 +1,0 @@
-- **API keys for community tiles.** A community tile that reads a site needing a key now asks for it in its settings. Countertop keeps the key on its server and adds it only to requests to the one site the tile names, so the tile's code, the screen and shared layouts never see it. Diagnostics also blanks out saved keys and your sources' links and keys more reliably.

@@ -1,1 +1,0 @@
-- **Dragging boxes and tile parts by touch works inside the Echo shell.** Moving or resizing a box in the on-screen editor, or dragging parts in the tile designer, now keeps the touch gesture active when the handles redraw.

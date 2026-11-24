@@ -1,1 +1,0 @@
-- **Sharing themes and effects is easier to find.** A theme's page and your own effect's page now show Share beside the other buttons, and every Share screen has "Submit to the gallery", which opens the gallery form with the share code filled in.

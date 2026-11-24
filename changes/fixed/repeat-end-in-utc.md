@@ -1,1 +1,0 @@
-- **Repeating events end on the right day without python-dateutil.** When a calendar gave a repeating event's end in UTC, the built-in repeat reader took that time as local time, so an evening event could show one extra time after its series ended. Docker and the Mac app, which have python-dateutil, were not affected.

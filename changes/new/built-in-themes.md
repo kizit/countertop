@@ -1,1 +1,0 @@
-- **Built-in themes.** Library → Themes now lists ten ready-made themes, including the looks from the starter layouts. Use one or schedule one as it is, without making a copy first, and each looks the same whatever your own theme looks like. Everyday can be scheduled too.

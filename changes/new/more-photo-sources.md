@@ -1,1 +1,0 @@
-- **More photo album sources.** Setup → Photo albums now works with newer iCloud shared album links (`photos.icloud.com/shared/album/...`), local folders on your server, Nextcloud or ownCloud shared folders, Plex, Jellyfin and PhotoPrism, alongside older iCloud links and Immich. A new Test album button checks the album and counts how many photos it finds before you save.

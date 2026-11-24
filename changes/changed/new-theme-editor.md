@@ -1,1 +1,0 @@
-- **New theme and Customize save nothing until you say so.** New theme opens the editor straight away with a **Start from** picker, Customize on a built-in theme starts a new theme from it, and **Cancel** leaves nothing behind. New themes have **Save & use**. When the schedule is showing another theme, **Use this theme** says when yours will show.

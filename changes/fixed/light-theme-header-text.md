@@ -1,1 +1,0 @@
-- **Readable date and weather details on light themes.** On Light, Kitchen table, Minimal and Family planner, the Clock's date, greeting and countdowns and the Weather's conditions, high and low, and sunrise and sunset were pale gray and hard to see. They now follow the theme.

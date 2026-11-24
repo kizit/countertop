@@ -108,7 +108,7 @@ async function main() {
     await inFrame("moon-facts", ".fact", /drifting away/);
     await inFrame("moon-facts", ".wx", /Weather here/);
     const policy = (await (await fetch(base + "/tile-frame/moon-facts")).headers.get("content-security-policy"));
-    assert.match(policy, /^sandbox allow-scripts; default-src 'none'; script-src http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/runtime\.js http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/tile\.js;/);
+    assert.match(policy, /^sandbox allow-scripts; default-src 'none'; script-src http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/runtime\.js http:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/tile\.js https:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/runtime\.js https:\/\/127\.0\.0\.1:\d+\/tile-frame\/moon-facts\/tile\.js;/);
     assert.equal(await page.locator('[data-mod="moon_a"] iframe').getAttribute("sandbox"), "allow-scripts");
     console.log("✓ a community tile draws in its frame, with its site's answer and the weather");
 

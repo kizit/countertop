@@ -187,14 +187,22 @@ def _fetch_url(url, hosts, keys, image=False):
             raise FetchError("%s couldn't be found" % host)
         if any(address_blocked(ip) for ip in ips):
             raise FetchError("%s points to a private address" % host, 403)
-        if time.monotonic() > deadline:
-            raise FetchError("took longer than %d seconds" % FETCH_TIMEOUT, 504)
-        try:
-            status, heads, body = FETCH_OPEN(host, ips[0], path, deadline, extra) if extra else FETCH_OPEN(host, ips[0], path, deadline)
-        except FetchError:
-            raise
-        except (OSError, http.client.HTTPException, ssl.SSLError) as e:
-            raise FetchError("%s didn't answer (%s)" % (host, str(e)[:80]))
+        last_err = None
+        for ip in dict.fromkeys(ips):
+            if time.monotonic() > deadline:
+                raise FetchError("took longer than %d seconds" % FETCH_TIMEOUT, 504)
+            try:
+                status, heads, body = FETCH_OPEN(host, ip, path, deadline, extra) if extra else FETCH_OPEN(host, ip, path, deadline)
+                last_err = None
+                break
+            except FetchError:
+                raise
+            except ssl.SSLError as e:
+                raise FetchError("%s didn't answer (%s)" % (host, str(e)[:80]))
+            except (OSError, http.client.HTTPException) as e:
+                last_err = e
+        if last_err is not None:
+            raise FetchError("%s didn't answer (%s)" % (host, str(last_err)[:80]))
         if status in (301, 302, 303, 307, 308):
             loc = heads.get("location")
             if not loc:

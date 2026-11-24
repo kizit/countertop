@@ -269,6 +269,7 @@ function sbxInit(rec){
   rec.f.style.pointerEvents = m.taps && !tileQuiet() ? "auto" : "none";
   sbxPost(rec, {ct:"init", id:m.id, s:sbxS(m), name:m.name, quiet:tileQuiet(), taps:!!m.taps && !tileQuiet(), store, fetched,
     lang:I18N.lang, words:I18N.lang === "en" ? {} : I18N.words, locale:I18N.locale || null, theme:sbxTheme(rec.el)});
+  if (SOLO && (SBX_PICK.on || SBX_PICK.pins.length)) sbxPickSend(rec);
 }
 // a web address, read by the server (GET /tile-fetch) for a site the tile declared; kept per tile, so a new frame starts with it
 async function sbxFetch(rec, url, maxAge){
@@ -282,6 +283,39 @@ async function sbxFetch(rec, url, maxAge){
   catch(e){ c.error = String(e.message || e).slice(0, 200); sbxLog(m, "error", tr("Reading {url}: {why}", {url:url.slice(0, 80), why:c.error})); }
   c.busy = false; c.at = Date.now();
   reply();
+}
+/* Tile Studio's "Point at something": only the Studio preview (a solo page) can ask for it, with a direct call from the
+   Controls page. The frame is told with one message and answers with one small description of the part that was tapped.
+   The tile's own code can't start it: the frame only listens to this page, and this page only sends it when Controls asked.
+   Pins carry a number and where to find the part, never what the note says. */
+const SBX_PICK = {key:"", on:false, text:false, pins:[], cb:null};
+window.dashSbxPickKey = "";
+window.dashSbxPick = cfg => {
+  if (!SOLO || !cfg || typeof cfg !== "object") return;
+  SBX_PICK.key = window.dashSbxPickKey = String(cfg.key || "");
+  SBX_PICK.on = cfg.on === true; SBX_PICK.text = cfg.text === true;
+  SBX_PICK.cb = typeof cfg.cb === "function" ? cfg.cb : null;
+  SBX_PICK.pins = (Array.isArray(cfg.pins) ? cfg.pins : []).slice(0, 8).filter(p => p && Number.isInteger(p.n) && p.n >= 1 && p.n <= 8 && sbxSel(p.sel)).map(p => ({n:p.n, sel:p.sel}));
+  for (const r of SBX.frames.values()) if (r.ready) sbxPickSend(r);
+};
+const sbxPickSend = rec => {
+  rec.f.style.pointerEvents = SBX_PICK.on || (rec.m.taps && !tileQuiet()) ? "auto" : "none";      // the frame has to see the touch to describe the part
+  sbxPost(rec, {ct:"pick", on:SBX_PICK.on, text:SBX_PICK.text, pins:SBX_PICK.pins});
+};
+// where to find a part inside the tile: ":scope>" and then tag:nth-child steps, nothing else
+const sbxSel = v => typeof v === "string" && v.length <= 400 && /^:scope(>[a-z][a-z0-9]{0,14}:nth-child\(\d{1,3}\)){0,12}$/.test(v);
+const sbxN = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== "" && typeof v !== "boolean" ? Math.round(Math.max(lo, Math.min(hi, +v)) * 10) / 10 : null;
+const sbxWord = (v, n) => typeof v === "string" ? v.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, n) : "";
+function sbxPicked(d){
+  if (!SBX_PICK.on || !SBX_PICK.cb || !sbxSel(d.sel)) return;
+  const box = Array.isArray(d.box) ? d.box.slice(0, 4).map(v => sbxN(v, 0, 100)) : [];
+  if (box.length !== 4 || box.includes(null)) return;
+  const cls = (Array.isArray(d.cls) ? d.cls : []).slice(0, 6).map(c => sbxWord(c, 40)).filter(c => /^[\w-]+$/.test(c));
+  const path = (Array.isArray(d.path) ? d.path : []).slice(-6).map(c => sbxWord(c, 60)).filter(Boolean);
+  const tag = sbxWord(d.tag, 16).toLowerCase();
+  if (!/^[a-z][a-z0-9]*$/.test(tag)) return;
+  const p = {sel:d.sel, tag, cls, path, box, root:d.sel === ":scope", fs:sbxN(d.fs, 0, 400), text:SBX_PICK.text ? sbxWord(d.text, 40).replace(/\s+/g, " ") : ""};
+  try{ SBX_PICK.cb(p); }catch(e){}
 }
 const SBX_OPS = ["set", "push", "update", "remove", "updateAll", "removeWhere"];
 function sbxOk(ops){
@@ -326,6 +360,7 @@ window.addEventListener("message", e => {
   else if (d.ct === "hold"){      // a finger held on a tile that takes taps: start editing with it, like any tile
     if (!EDIT.on && !SOLO && !PREVIEW && m.taps && now - (SBX.heldAt || 0) > 10e3){ SBX.heldAt = now; editEnter(m.id); }
   }
+  else if (d.ct === "picked") sbxPicked(d);
   else if (d.ct === "error"){ sbxLog(m, "error", String(d.msg || "").slice(0, 200)); if (!m.type.startsWith("draft-")) reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200)); }
   else if (d.ct === "blocked") sbxLog(m, "blocked", tr("Blocked: {what} {uri}", {what:String(d.what || "").slice(0, 40), uri:String(d.uri || "").slice(0, 120)}));
   else if (d.ct === "image" && typeof d.url === "string" && d.url.length <= 2000) sbxImage(rec, d.url);

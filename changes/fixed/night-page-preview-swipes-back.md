@@ -1,0 +1,1 @@
+- **The night page stays showing in Controls' preview.** Opening Night page in Controls no longer slides the preview back to the main page.

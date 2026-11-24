@@ -174,6 +174,17 @@ async function main() {
     await until(() => inner().evaluate(() => typeof EDIT !== "undefined" && EDIT.on && pageList()[PAGE] === "c:two" && EDIT.page === "c:two").catch(() => false), "the editor on the second page");
     console.log("✓ Settings → Edit the screen opens the editor on the page the screen was on");
 
+    // --- the night page in Controls' preview stays on the night page, and leaving it goes back to the main page ---
+    await page.goto(base + "/control");
+    await until(() => page.evaluate(() => typeof go === "function" && typeof pvWin().pageList === "function").catch(e => { console.log(e.message); return false; }), "Controls and its preview");
+    await page.evaluate(() => go("night"));
+    await sleep(3500);
+    assert.equal(await page.evaluate(() => pvWin().dashPage()), "night");
+    assert.equal(await page.evaluate(() => typeof pvCur()), "number");
+    await page.evaluate(() => { stack = ["root"]; show(); });
+    await until(() => page.evaluate(() => pvWin().dashPage() === "main").catch(() => false), "the preview back on the main page");
+    console.log("✓ the night page stays showing in Controls' preview, and the main page returns after it");
+
     assert.deepEqual(errors, []);
     console.log("✓ no page errors");
   } finally {

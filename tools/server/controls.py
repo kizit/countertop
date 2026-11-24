@@ -29,10 +29,14 @@ def control_grants(tile_settings, devices):
 def act_control(tile, args):
     """this button, on this tile: {"control": id, "confirm": token}. Nothing else in the request is used."""
     t = community_tile(str(tile.get("type") or ""))
-    if not t or not t.get("controls"):
+    if not t or t.get("draft") or not t.get("controls"):
         return 403, {"error": "This tile has no controls"}
-    if safe_mode()["on"]:
-        return 403, {"error": "Community tiles are off (safe mode)"}
+    if not tile_runs(t):
+        if safe_mode()["on"]:
+            return 403, {"error": "Community tiles are off (safe mode)"}
+        if (t.get("mine") or {}).get("review"):
+            return 403, {"error": "Allow this tile to run before using its buttons"}
+        return 403, {"error": "This tile was taken down from the community gallery"}
     cid = str(args.get("control") or "")
     c = next((x for x in t["controls"] if x["id"] == cid), None)
     if not c:
@@ -64,4 +68,4 @@ TILE_ACTIONS["tile.control"] = act_control
 # names used only inside functions: imported last, so these modules can use each other
 from server.actions import CONFIRM_SECONDS, confirm_make, confirm_take  # noqa: E402
 from server.homeassistant import HA_ACTIONS, ha_run, ha_secure, ha_source, ha_states  # noqa: E402
-from server.sandbox import community_tile, safe_mode  # noqa: E402
+from server.sandbox import community_tile, safe_mode, tile_runs  # noqa: E402

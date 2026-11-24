@@ -365,8 +365,8 @@ def tile_convert(item_id):
 
 def tile_restore(tid):
     """Restore: put a converted tile's original Your own tile back in every box that has the converted one, with the
-    home-network access it had, and remove the converted tile. The first box gets the original itself; any other box
-    gets a copy without that access."""
+    home-network access it had, and remove the converted tile. The first box gets the original's home-network access;
+    any other box gets a copy without that access."""
     item, lan = mytiles.restore_item(tid)
     with CONFIG_LOCK:
         try:
@@ -374,35 +374,36 @@ def tile_restore(tid):
         except (OSError, ValueError):
             saved = {}
         items = _tile_items(saved.get("modules"))
-        found = 0
+        found, lan_id = 0, ""
         for i, t in enumerate(items if isinstance(items, list) else []):
             if isinstance(t, dict) and t.get("type") == tid:
                 put = json.loads(json.dumps(item))
-                if found:
-                    put["id"] = t.get("id")
-                elif lan:
+                put["id"] = t.get("id") or item["id"]
+                if not found and lan:
                     put["lan"] = True
+                    lan_id = put["id"]
                 if t.get("name"):
                     put["name"] = t["name"]
                 items[i] = put
                 found += 1
-        if found:
-            ledger = lan_ledger(saved)
-            if lan:
-                ledger = {"ids": ledger["ids"] | {item["id"]}, "code": ledger["code"] | {_code_hash(item)}}
-            kept = lan_check(items, ledger)
-            if kept["ids"]:
-                saved[LAN_KEY] = kept
-            else:
-                saved.pop(LAN_KEY, None)
-            saved["saved"] = int(time.time())
-            config_backup()
-            tmp = CONFIG_FILE.with_suffix(".tmp")
-            tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
-            tmp.replace(CONFIG_FILE)
-            tiledata.sync(_tile_ids(saved.get("modules")) or {})
+        if not found:
+            raise ValueError("This tile isn't in any box on your dashboard")
+        ledger = lan_ledger(saved)
+        if lan and lan_id:
+            ledger = {"ids": ledger["ids"] | {lan_id}, "code": ledger["code"] | {_code_hash(item)}}
+        kept = lan_check(items, ledger)
+        if kept["ids"]:
+            saved[LAN_KEY] = kept
+        else:
+            saved.pop(LAN_KEY, None)
+        saved["saved"] = int(time.time())
+        config_backup()
+        tmp = CONFIG_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
+        tmp.replace(CONFIG_FILE)
+        tiledata.sync(_tile_ids(saved.get("modules")) or {})
     mytiles.delete(tid)
-    return {"restored": found, "id": item["id"]}
+    return {"restored": found, "id": lan_id or item["id"]}
 
 
 def _tile_items(mods):

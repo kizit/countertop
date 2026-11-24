@@ -249,7 +249,7 @@ class Handler(BaseHTTPRequestHandler):
             # an API key for a community tile, typed in its settings: saved on the server, never sent back
             t = sandbox.community_tile(str(body.get("type") or ""))
             try:
-                if not t:
+                if not t or t.get("draft"):
                     raise ValueError("No such community tile")
                 self._json({"keys": tilekeys.save_key(t, str(body.get("name") or ""), None if body.get("remove") is True else body.get("value"))})
             except ValueError as e:

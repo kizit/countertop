@@ -269,7 +269,7 @@ function libShare(){
     [["Which calendars, lists and teams it uses", "Whoever opens it picks their own", flags.has("src")], ["Your own text", "Notes, countdown dates, picture links and Home Assistant names", flags.has("own")],
       ["Home Assistant devices", "They're different in every home", flags.has("ha")], ["Calendar links, list items, photos", "Never part of a layout", true]]
       .filter(x => x[2]).map(([t, s]) => '<div class="lrow"><span class="lok">✓</span><div class="t">' + t + '<small>' + s + '</small></div></div>').join("") +
-    (flags.has("code") ? '<div class="lrow"><span class="lok warn">!</span><div class="t">A Your own tile\'s code is included<small>Read it over if it holds anything private</small></div></div>' : "") + '</div></div><div>' +
+    (flags.has("code") ? '<div class="lrow"><span class="lok warn">!</span><div class="t">Includes a tile\'s own code<small>Read it over if it holds anything private</small></div></div>' : "") + '</div></div><div>' +
     '<label class="lfield">Layout<select data-l="shareof">' + opts.map(([v, l]) => '<option value="' + esc(v) + '"' + (v === (LIB.shareOf || "main") ? " selected" : "") + '>' + esc(l) + '</option>').join("") + '</select></label>' +
     '<label class="lfield">Name<input type="text" data-l="sharename" maxlength="80" value="' + esc(LIB.share.name) + '"></label>' +
     '<label class="lfield">What it\'s for<textarea data-l="sharedesc" maxlength="500" placeholder="A month view beside the family agenda, for busy weeks.">' + esc(LIB.share.desc) + '</textarea></label>' +
@@ -597,7 +597,7 @@ function libInit(){
   el.addEventListener("click", e => { const t = e.target.closest("[data-l]"); if (t && t.tagName !== "INPUT" && t.tagName !== "SELECT" && t.tagName !== "TEXTAREA") libTap(t); });
   el.addEventListener("input", e => {
     const t = e.target, a = t.dataset.l;
-    if (t.dataset.s && LIB.view === "studio" && (t.tagName === "TEXTAREA" || t.type === "text")){ stuSet(t.dataset.s, t.value, t); return; }
+    if (t.dataset.s && LIB.view === "studio" && (t.tagName === "TEXTAREA" || t.type === "text") && !/\.(key|slot)$/.test(t.dataset.s)){ stuSet(t.dataset.s, t.value, t); return; }
     if (a === "q"){ LIB.q = t.value; clearTimeout(libInit.qt); libInit.qt = setTimeout(() => { const pos = t.selectionStart; libShow(); const q = el.querySelector('[data-l="q"]'); if (q){ q.focus(); try{ q.setSelectionRange(pos, pos); }catch(err){} } }, 200); }
     if (a === "sharename" || a === "sharedesc"){
       LIB.share[a === "sharename" ? "name" : "desc"] = t.value;
@@ -612,10 +612,21 @@ function libInit(){
     if (d.l === "shareof"){ LIB.shareOf = t.value; libShow(); return; }
     if (d.l === "rename"){ const sp = savedById(d.id); if (sp){ sp.name = t.value.trim().slice(0, 80) || sp.name; t.value = sp.name; save(); } return; }
     if (d.l === "s-file" && t.files && t.files[0]){ t.files[0].text().then(stuImportFile, () => toast("Couldn't read that file", "bad")); return; }
-    if (d.s && LIB.view === "studio" && t.tagName !== "TEXTAREA" && t.type !== "text"){ stuSet(d.s, t.value, t); return; }
+    if (d.s && LIB.view === "studio" && (t.tagName !== "TEXTAREA" && t.type !== "text" || /\.(key|slot)$/.test(d.s))){ stuSet(d.s, t.value, t); return; }
     if (d.l === "file" && t.files && t.files[0]){ t.files[0].text().then(libLoadImport, () => { LIB.impErr = "Couldn't read that file."; libShow(); }); }
   });
-  addEventListener("keydown", e => { if (e.key === "Escape" && !el.hidden){ if (libSub() && libDirty()) return; if (libSub() && LIB.sub.length > 1){ LIB.sub.pop(); libShow(); } else if (LIB.item) libGo(LIB.item === "import" ? "import" : LIB.view); else { libClose(); show(); } } });
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && !el.hidden){
+      if (LIB.view === "studio"){
+        if (stuDirty() && !confirm("Leave Tile Studio without saving your changes?")) return;
+        clearInterval(STU.poll); STU.t = null; libGo("tiles", STU.id ? "tile:" + STU.id : ""); return;
+      }
+      if (libSub() && libDirty()) return;
+      if (libSub() && LIB.sub.length > 1){ LIB.sub.pop(); libShow(); }
+      else if (LIB.item) libGo(LIB.item === "import" ? "import" : LIB.view);
+      else { libClose(); show(); }
+    }
+  });
   addEventListener("resize", () => { if (!el.hidden){ libFitShots(); libPvFit(); } });
 }
 libInit();

@@ -154,7 +154,7 @@
     fetch: function (url, maxAge) {
       url = String(url);
       var c = FETCHED[url], age = maxAge == null ? 300 : +maxAge || 0;
-      if (!c || (!c.busy && Date.now() - c.at > Math.max(30, age) * 1000)) {
+      if (!c || (!c.busy && Date.now() - c.at > (c.error ? 30 : Math.max(30, age)) * 1000)) {
         c = FETCHED[url] = { data: c ? c.data : null, error: c ? c.error : "", at: c ? c.at : 0, busy: true };
         post({ ct: "fetch", url: url, maxAge: age });
       }
@@ -304,7 +304,7 @@
       update(d);
       if (d.draw) draw(); else { report(); }
     } else if (d.ct === "fetched" && typeof d.url === "string") {
-      FETCHED[d.url] = { data: d.data === undefined ? null : d.data, error: d.error || "", at: d.error ? (FETCHED[d.url] || {}).at || Date.now() : Date.now(), busy: false };
+      FETCHED[d.url] = { data: d.data === undefined ? null : d.data, error: d.error || "", at: Date.now(), busy: false };
       if (d.error && FETCHED[d.url].data == null) FETCHED[d.url].data = null;
       answer(d.url, { data: d.data === undefined ? null : d.data, error: d.error || "" });
       soon();

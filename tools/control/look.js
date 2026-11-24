@@ -16,7 +16,14 @@ function lookVals(id){
 // Customize works on a draft: nothing changes on the screen until Save. The preview shows the draft (a trial, as in the Library).
 let DRAFT = null;
 function draftStart(id){ DRAFT = {id, values:{}, name:lookName(id)}; }
-const draftDirty = () => !!DRAFT && (Object.keys(DRAFT.values).length > 0 || DRAFT.name !== lookName(DRAFT.id));
+// a new theme is a draft too (id "new"): a full copy of the theme it starts from, saved only with Save or Save & use
+function draftNew(from){
+  const fresh = !from; if (!themeKnown(from)) from = "builtin-dark";        // no theme given: a fresh start from Countertop's own look
+  const v = lookVals(from), base = fresh || from === "default" ? "My theme" : "My " + lookName(from);
+  let name = base; for (let i = 2; looks().some(t => t.name === name); i++) name = base + " " + i;
+  DRAFT = {id:"new", isNew:true, from, named:false, name, values:Object.fromEntries(LOOK_KEYS.filter(k => v[k] !== undefined).map(k => [k, v[k]]))};
+}
+const draftDirty = () => !!DRAFT && (DRAFT.isNew || Object.keys(DRAFT.values).length > 0 || DRAFT.name !== lookName(DRAFT.id));
 function lookSet(id, k, v){
   if (DRAFT && DRAFT.id === id){ DRAFT.values[k] = v; draftPreview(); return; }
   if (id === "default") LS()[k] = v;
@@ -24,8 +31,15 @@ function lookSet(id, k, v){
   else { const t = lookById(id); t.values = t.values || {}; t.values[k] = v; }
   save();
 }
-function draftSave(){
+function draftSave(use){
   const d = DRAFT; if (!d) return;
+  if (d.isNew){
+    const base = d.name.trim() || "My theme", nid = "t" + Date.now().toString(36);
+    let name = base; for (let i = 2; looks().some(t => t.name === name) || name === "Everyday"; i++) name = base + " " + i;
+    looks().push({id:nid, name, values:Object.assign({}, d.values)});
+    if (use) LS().use = nid;
+    DRAFT = null; save(!!use); toast(use ? useText(nid) : "Saved " + name, "ok"); navStack().pop(); go("theme:" + nid); return;
+  }
   if (d.id === "default") Object.assign(LS(), d.values);
   else if (!isBuiltin(d.id)){ const t = lookById(d.id); if (t){ t.values = Object.assign(t.values || {}, d.values); t.name = d.name.trim() || t.name; } }
   DRAFT = null; save(); toast("Saved " + lookName(d.id), "ok"); navStack().pop(); show();
@@ -47,7 +61,13 @@ function draftPreview(now){
     }catch(e){}
   }, now ? 0 : 400);
 }
-const lookName = id => id === "default" ? "Everyday" : (lookById(id) || {}).name || "Theme";
+const lookName = id => id === "default" ? "Everyday" : id === "new" && DRAFT && DRAFT.isNew ? DRAFT.name : (lookById(id) || {}).name || "Theme";
+// after Use this theme: say so, or say when it will show if the schedule is showing another theme now
+function useText(id){
+  const now = curLook(); if (now === id) return "Using " + lookName(id);
+  const R = rules(), r = [...R].reverse().find(x => x.look === now && themeKnown(x.look) && ruleMatches(x, new Date())), to = r && r.when && r.when.from && r.when.to && r.when.from !== r.when.to ? r.when.to : "";
+  return lookName(id) + " will show " + (to ? "at " + hm12(to) + ", when " : "when ") + lookName(now) + "'s scheduled time ends";
+}
 const SWATCHES = ["#7cb7ff", "#5fd3c4", "#7fd18a", "#ffd36e", "#ff9f5a", "#ff7a8a", "#c58bff", "#e9ecf1"];
 const SIZES = [["Smaller", 90], ["Normal", 100], ["Bigger", 115], ["Biggest", 130]];
 
@@ -111,7 +131,7 @@ function looksScreen(){
   const card = id => '<button class="lcard' + (id === now ? " now" : "") + '" data-go="theme:' + id + '">' + lookPic(lookVals(id)) + '<b>' + esc(lookName(id)) + '</b><small>' + esc(themeWhen(id)) + '</small></button>';
   let h = '<div class="big">Themes</div><p class="intro">Colors, background, tiles and text size for every page. Tap a theme to see it on the preview, then use it or customize it.</p>';
   h += sec("Yours", '<div class="lcards">' + ["default"].concat(looks().map(t => t.id)).map(card).join("") +
-    '<button class="lcard new" data-go="newlook"><div class="lpic plus">＋</div><b>New theme</b><small>Start from a built-in one</small></button></div>');
+    '<button class="lcard new" data-lact="new" data-id=""><div class="lpic plus">＋</div><b>New theme</b><small>Start from any theme</small></button></div>');
   h += sec("Built in", '<div class="lcards">' + THEMELIB.L.map(t => t.id).map(card).join("") + '</div>', "Built-in themes come with Countertop and stay as they are. Customize one to make your own.");
   h += sec("", row({t:"Schedule", sub: rules().length ? rules().length + (rules().length === 1 ? " rule" : " rules") + " · now: " + lookName(now) : "Switch themes at certain times", chev:true, attrs:'data-go="sched"'}),
     "Date format, 24-hour time and emoji are the same in every theme: Settings → Language and formats, and Icons and emoji.");
@@ -126,8 +146,8 @@ function themeScreen(id){
   let h = '<div class="big">' + esc(lookName(id)) + '</div>' + lookPic(lookVals(id), "big");
   h += '<p class="intro">' + esc(themeWhen(id)) + (now !== id ? " · " + esc(lookName(now)) + " is showing now" : "") + "." + (ECHO || now === id ? "" : " The preview shows " + esc(lookName(id)) + ".") + '</p>';
   h += '<div class="saverow">' + (used ? '<button disabled>In use</button>' : '<button class="pri" data-lact="use" data-id="' + id + '">Use this theme</button>') +
-    (bi ? '<button data-lact="dup" data-id="' + id + '">Customize</button>' : '<button' + (used ? ' class="pri"' : "") + ' data-go="look:' + id + '">Customize</button><button data-go="share:theme:' + id + '">Share</button>') + '</div>';
-  if (bi) h += '<div class="sec"><div class="foot">' + esc(t.sub) + '. Built in: it stays as it is, and Customize makes a copy of your own.</div></div>';
+    (bi ? '<button data-lact="new" data-id="' + id + '">Customize</button>' : '<button' + (used ? ' class="pri"' : "") + ' data-go="look:' + id + '">Customize</button><button data-go="share:theme:' + id + '">Share</button>') + '</div>';
+  if (bi) h += '<div class="sec"><div class="foot">' + esc(t.sub) + '. Built in: it stays as it is. Customize starts a new theme from it, saved only when you press Save.</div></div>';
   if (t && t.gallery) h += '<div class="sec"><div class="foot">Downloaded from the community gallery' + (t.gallery.by ? ', made by ' + esc(t.gallery.by) : "") + '. <button class="lnk" data-l="c-open" data-id="' + esc(t.gallery.id) + '">Update or remove it</button></div></div>';
   if (used && now !== id) h += '<div class="sec"><div class="foot">The schedule is showing ' + esc(lookName(now)) + ' right now. ' + esc(lookName(id)) + ' comes back when its time is over.</div></div>';
   {
@@ -140,19 +160,22 @@ function themeScreen(id){
     t ? "" : "Everyday can't be deleted. Duplicate it to start a theme of your own.");
   return h;
 }
-function newLookScreen(){
-  return '<div class="big">New theme</div><p class="intro">Pick a theme to start from. You get a copy of your own to change.</p>' +
-    '<div class="lcards">' + ["default"].concat(THEMELIB.L.map(t => t.id)).map(id => '<button class="lcard" data-lact="make" data-id="' + id + '">' + lookPic(lookVals(id)) + '<b>' + esc(lookName(id)) + '</b><small>' + esc(id === "default" ? "Your everyday theme" : lookById(id).sub) + '</small></button>').join("") + '</div>';
-}
 const opt = (id, k, val, label, sub, cur, pic) => '<button class="opt' + (cur === val ? " on" : "") + '" data-lid="' + id + '" data-lk="' + k + '" data-lv="' + esc(val) + '">' + (pic || "") + '<b>' + esc(label) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : "") + '</button>';
 function lookScreen(id){
-  const t = id === "default" ? null : lookById(id);
-  if (id !== "default" && !t) return '<div class="big">Theme not found</div>';
-  if (!DRAFT || DRAFT.id !== id) draftStart(id);
+  const isNew = id === "new", t = id === "default" || isNew ? null : lookById(id);
+  if (!isNew && id !== "default" && !t) return '<div class="big">Theme not found</div>';
+  if (isBuiltin(id)) return '<div class="big">' + esc(lookName(id)) + '</div><p class="intro">Built-in themes stay as they are. Go back and press Customize to start a new theme from it.</p>';
+  if (isNew){ if (!DRAFT || DRAFT.id !== "new") draftNew(""); }
+  else if (!DRAFT || DRAFT.id !== id) draftStart(id);
   const v = lookVals(id), A = 'data-lid="' + id + '"';
-  let h = '<div class="big">Customize ' + esc(DRAFT.name) + '</div>' + lookPic(v, "big");
-  h += '<p class="intro">' + (ECHO ? "Nothing changes on the screen until you save." : "The preview follows your changes. The screen keeps its theme until you save.") + '</p>';
-  if (t) h += sec("Name", '<div class="row col"><input type="text" ' + A + ' data-lk="__name" value="' + esc(DRAFT.name) + '"></div>');
+  let h = '<div class="big">' + (isNew ? "New theme" : "Customize " + esc(DRAFT.name)) + '</div>' + lookPic(v, "big");
+  h += '<p class="intro">' + (isNew ? "Nothing is saved until you press Save. " : "") + (ECHO ? "Nothing changes on the screen until you save." : "The preview follows your changes. The screen keeps its theme until you save.") + '</p>';
+  if (isNew){
+    const o = x => '<option value="' + esc(x) + '"' + (x === DRAFT.from ? " selected" : "") + '>' + esc(lookName(x)) + '</option>';
+    h += sec("Start from", '<div class="row col"><select data-lfrom="1"><optgroup label="Yours">' + ["default"].concat(looks().map(x => x.id)).map(o).join("") +
+      '</optgroup><optgroup label="Built in">' + THEMELIB.L.map(x => o(x.id)).join("") + '</optgroup></select></div>', "Picking another one starts the colors and settings over from it.");
+  }
+  if (t || isNew) h += sec("Name", '<div class="row col"><input type="text" ' + A + ' data-lk="__name" value="' + esc(DRAFT.name) + '"></div>');
   const bgPic = b => '<span class="sample" style="background:' + (b === "Sky" ? "linear-gradient(180deg,#2f6aa3,#0d1a2b)" : b === "Color" ? esc(v.bgColor) : "linear-gradient(165deg,#88a6c2,#d7b08a 52%,#4d5e43 53%)") + '"></span>';
   h += sec("Background", '<div class="opts">' + opt(id, "bg", "Sky", "Sky", "Follows the sun", v.bg, bgPic("Sky")) + opt(id, "bg", "Color", "Solid color", "", v.bg, bgPic("Color")) + opt(id, "bg", "Photos", "Photos", "From your album", v.bg, bgPic("Photos")) + '</div>' +
     (v.bg === "Color" ? row({t:"Background color", post:'<input type="color" ' + A + ' data-lk="bgColor" value="' + esc(v.bgColor) + '">'}) : ""),
@@ -173,7 +196,8 @@ function lookScreen(id){
     row({t:"Tile titles", sub:"The small heading on each tile", post: sw(v.titles !== false, A + ' data-lk="titles" data-lb="1"')}) +
     row({t:"Effects", sub:"Off pauses every effect while this theme shows", post: sw(v.fx !== "Off", A + ' data-lk="fx" data-lb="OnOff"')}) +
     '</div></details>';
-  h += '<div class="draftbar"><span>' + (draftDirty() ? "Unsaved changes" : "No changes yet") + '</span><button data-lact="cancel">Cancel</button><button class="pri" data-lact="save"' + (draftDirty() ? "" : " disabled") + '>Save</button></div>';
+  h += isNew ? '<div class="draftbar"><span>Not saved yet</span><button data-lact="cancel">Cancel</button><button data-lact="save">Save</button><button class="pri" data-lact="saveuse">Save &amp; use</button></div>'
+    : '<div class="draftbar"><span>' + (draftDirty() ? "Unsaved changes" : "No changes yet") + '</span><button data-lact="cancel">Cancel</button><button class="pri" data-lact="save"' + (draftDirty() ? "" : " disabled") + '>Save</button></div>';
   return h;
 }
 function schedScreen(){
@@ -485,12 +509,7 @@ function fxRead(j){
 
 /* ----- actions ----- */
 function lookAction(act, id){
-  if (act === "make"){
-    if (!themeKnown(id)) return;
-    const nid = "t" + Date.now().toString(36), base = id === "default" ? "My theme" : lookName(id);
-    looks().push({id:nid, name: looks().some(t => t.name === base) ? base + " " + (looks().length + 1) : base, values:lookVals(id)});
-    save(); navStack().pop(); go("theme:" + nid); return;
-  }
+  if (act === "new"){ draftNew(id); go("look:new"); return; }
   if (act === "dup"){
     const nid = "t" + Date.now().toString(36), base = lookName(id) + " copy";
     looks().push({id:nid, name: looks().some(t => t.name === base) ? base + " " + (looks().length + 1) : base, values:lookVals(id)});
@@ -499,9 +518,10 @@ function lookAction(act, id){
   if (act === "use"){
     const was = LS().use || "";
     LS().use = id === "default" ? "" : id; save(true); show();
-    undoToast("Using " + lookName(id), () => { LS().use = was; save(true); show(); }); return;
+    undoToast(useText(id), () => { LS().use = was; save(true); show(); }); return;
   }
   if (act === "save") return draftSave();
+  if (act === "saveuse") return draftSave(true);
   if (act === "cancel") return draftCancel();
   if (act === "sched"){ const r = {id:"r" + Date.now().toString(36), on:true, look:id, when:{from:"20:00", to:"23:00"}}; rules().push(r); save(); go("rule:" + r.id); return; }
   if (act === "del"){
@@ -549,7 +569,8 @@ function lookChange(t){
   if (d.fxd){ if (d.fxd !== "from" && d.fxd !== "to"){ fxDraftSet(d.fxd, t.value); return true; }
     const r = t.closest(".row"), m = r.querySelector('[data-t="md-m"]').value, dd = parseInt(r.querySelector('[data-t="md-d"]').value, 10);
     fxDraftSet(d.fxd, m ? m + "-" + (dd ? Math.max(1, Math.min(31, dd)) : 1) : ""); return true; }      // a month on its own starts on the 1st
-  if (d.lk === "__name"){ if (DRAFT && DRAFT.id === d.lid){ DRAFT.name = t.value; const bar = (libSub() ? libEl() : document).querySelector(".draftbar");     // no redraw: it would swallow the next tap
+  if (d.lfrom){ if (DRAFT && DRAFT.isNew){ const keep = DRAFT.named && DRAFT.name; draftNew(t.value); if (keep){ DRAFT.name = keep; DRAFT.named = true; } draftPreview(); show(); } return true; }
+  if (d.lk === "__name"){ if (DRAFT && DRAFT.id === d.lid){ DRAFT.name = t.value; DRAFT.named = true; const bar = (libSub() ? libEl() : document).querySelector(".draftbar");     // no redraw: it would swallow the next tap
       if (bar){ const sp = bar.querySelector("span"), sv = bar.querySelector('[data-lact="save"]'); if (sp) sp.textContent = "Unsaved changes"; if (sv) sv.disabled = !draftDirty(); } } return true; }
   if (d.lk){ let v = t.value; if (t.type === "range") v = +v; lookSet(d.lid, d.lk, v); if (t.type === "range"){ const s = t.nextElementSibling; if (s) s.textContent = v + "%"; } show(); return true; }
   if (d.rk){ const r = ruleById(d.rid); r.when = r.when || {};

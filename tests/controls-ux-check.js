@@ -121,9 +121,8 @@ async function main() {
     await until(() => ctl.evaluate(() => typeof mods === "object" && !!mods.look), "Controls loaded");
 
     // Theme customize: type a name and immediately tap Save without blurring first (regression b732808)
-    await ctl.evaluate(() => { go("looks"); go("newlook"); });
-    await ctl.locator('[data-lact="make"]').first().click();
-    await ctl.locator('[data-go^="look:"]').click();
+    await ctl.evaluate(() => go("looks"));
+    await ctl.locator('.lcard[data-lact="new"]').click();
     const themeInp = ctl.locator('input[data-lk="__name"]');
     await themeInp.waitFor();
     await themeInp.fill("Cozy Dusk");

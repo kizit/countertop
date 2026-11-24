@@ -52,7 +52,7 @@ document.addEventListener("keydown", e => {
 document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
   if (t.id === "display-orientation"){ displaySet(t); return; }
-  if ((d.lk && d.lv === undefined) || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
+  if ((d.lk && d.lv === undefined) || d.lfrom || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
   if (d.sf){       // show only the fields that apply (e.g. the Reminders list name)
     const cur = stack[stack.length - 1].split(":"), K = KINDS[cur[1]]; if (!K) return;
     for (const f in K.fields){ const F = K.fields[f]; if (!F.when) continue;

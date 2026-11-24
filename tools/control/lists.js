@@ -161,9 +161,8 @@ function screenFor(cur){
   else if (cur.startsWith("src:")){ const k = cur.slice(4); h = srcScreen(k); title = KINDS[k] ? KINDS[k].title : ""; }
   else if (cur.startsWith("srci:")){ const [, k, id] = cur.split(":"); h = srcItemScreen(k, id); title = KINDS[k] ? KINDS[k].title : ""; }
   else if (cur === "looks"){ h = looksScreen(); title = "Themes"; }
-  else if (cur === "newlook"){ h = newLookScreen(); title = "New theme"; }
   else if (cur.startsWith("theme:")){ h = themeScreen(cur.slice(6)); title = lookName(cur.slice(6)); }
-  else if (cur.startsWith("look:")){ h = lookScreen(cur.slice(5)); title = "Customize"; }
+  else if (cur.startsWith("look:")){ h = lookScreen(cur.slice(5)); title = cur === "look:new" ? "New theme" : "Customize"; }
   else if (cur.startsWith("gen:")){ h = genScreen(cur.slice(4)); title = GEN[cur.slice(4)] ? GEN[cur.slice(4)][0] : ""; }
   else if (cur === "sched"){ h = schedScreen(); title = "Schedule"; }
   else if (cur.startsWith("rule:")){ h = ruleScreen(cur.slice(5)); title = "Schedule"; }
@@ -179,8 +178,8 @@ function screenFor(cur){
   return {h, title};
 }
 function backLabel(prev){
-  const LBL = {"mod:general":"Location & units", root:"Dashboard", looks:"Themes", sched:"Schedule", effects:"Effects", night:"Night page", newlook:"New theme"};
-  return !prev ? "" : LBL[prev] ? LBL[prev] : prev.startsWith("look:") ? "Customize" : prev.startsWith("theme:") ? lookName(prev.slice(6)) : prev.startsWith("src:") ? KINDS[prev.slice(4)].title :
+  const LBL = {"mod:general":"Location & units", root:"Dashboard", looks:"Themes", sched:"Schedule", effects:"Effects", night:"Night page"};
+  return !prev ? "" : LBL[prev] ? LBL[prev] : prev === "look:new" ? "New theme" : prev.startsWith("look:") ? "Customize" : prev.startsWith("theme:") ? lookName(prev.slice(6)) : prev.startsWith("src:") ? KINDS[prev.slice(4)].title :
     prev === "page:main" ? "Main" : prev.startsWith("page:") ? ((cpById(prev.slice(5)) || {}).name || "Page") : prev === "saved" ? "Saved layouts" : prev.startsWith("fx:") ? (FXLIB.BY[prev.slice(3)] || {}).name || "Effect" : "Back";
 }
 function show(){

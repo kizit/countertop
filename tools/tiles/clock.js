@@ -22,7 +22,7 @@ Tile("clock", {
   parts(){
     const d = new Date(), s = this.s, sea = season(d);
     return [
-      {id:"time", label:"Time", html:this.timeHtml(d)},
+      {id:"time", label:"Time", html:this.timeHtml(d), big:true},
       {id:"date", label:"Date", html:esc(fmtLongDate(d))},
       {id:"greet", label:"Greeting", html:esc(hello(d)), emoji:true},
       {id:"holiday", label:"Holiday", html:sea.greet ? esc(sea.greet) : "", emoji:true},
@@ -58,7 +58,7 @@ Tile("clock", {
       el._k = key; el._c = false;
       el.innerHTML = '<div class="m-clock cs-' + st + '"><div class="t" data-part="time"></div><div class="d"></div><div class="c" data-part="count"></div></div>';
       styleBox(el.firstChild, s, st, "Left");
-      el.querySelector(".t").style.color = s.color && s.color.toLowerCase() !== "#ffffff" ? s.color : "";
+      el.querySelector(".t").style.color = s.color && s.color.toLowerCase() !== "#ffffff" && !THEMEV.themeWins ? s.color : "";      // the theme can win over this
     }
     const th = this.timeHtml(d);
     const te = el.querySelector(".t"); if (te.innerHTML !== th) te.innerHTML = th;

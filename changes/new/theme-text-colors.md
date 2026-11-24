@@ -1,0 +1,1 @@
+- **Text colors in themes.** A theme's Colors section now has **Text color** for the text on every tile, and **Big numbers color** for the clock's time and the temperature. Both start on automatic, so your themes look the same until you pick a color. Turn on **Theme colors win over tile colors** to have the theme override the Clock's own time color and colors set in tile designs.

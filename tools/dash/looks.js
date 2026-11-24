@@ -74,6 +74,12 @@ function themeApply(){
   R.classList.toggle("light", light);
   R.classList.toggle("notitles", v.titles === false);
   if (v.accent) st.setProperty("--accent", v.accent);
+  // Text color: every tile's text, with the dimmer lines a faded version of it. Empty = automatic (from Light or dark).
+  const tc = /^#[0-9a-f]{6}$/i.test(v.textColor || "") ? v.textColor : "", TV = {"--fg":1, "--fg2":.88, "--fg3":.8, "--dim":.72, "--faint":.5};
+  R.classList.toggle("tcol", !!tc);
+  for (const k in TV){ if (tc) st.setProperty(k, hexA(tc, TV[k])); else st.removeProperty(k); }
+  // Big numbers color: the clock's time and the temperature. Empty = the same as the text.
+  if (/^#[0-9a-f]{6}$/i.test(v.bigColor || "")) st.setProperty("--big", v.bigColor); else st.removeProperty("--big");
   const op = v.tiles === "Clear" ? 0 : v.tiles === "See-through" ? (v.opacity || 60) / 100 : light ? .9 : .84;
   st.setProperty("--card", light ? "rgba(250,251,253," + op + ")" : "rgba(18,22,28," + op + ")");
   R.classList.toggle("clear", v.tiles === "Clear");

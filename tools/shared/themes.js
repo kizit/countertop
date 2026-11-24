@@ -6,7 +6,7 @@
    A new theme setting goes in three places: the look schema in tools/server/config.py, LOOK_KEYS in tools/control/look.js
    and BASE here, with the same default (tests/themes-check.js checks). */
 const THEMELIB = (function(){
-  const BASE = {mode:"Dark", accent:"#7cb7ff", holiday:false, tiles:"Solid", opacity:60, textScale:100, titles:true, bg:"Sky", bgColor:"#0a0c0f", dim:0, fx:"On"};
+  const BASE = {mode:"Dark", accent:"#7cb7ff", holiday:false, textColor:"", bigColor:"", themeWins:false, tiles:"Solid", opacity:60, textScale:100, titles:true, bg:"Sky", bgColor:"#0a0c0f", dim:0, fx:"On"};
   const T = (id, name, sub, values, starter) => ({id:"builtin-" + id, name, sub, values:Object.freeze(Object.assign({}, BASE, values)), builtin:true, starter});
   const L = [
     T("dark", "Dark", "Dark tiles over a sky that follows the sun", {}),

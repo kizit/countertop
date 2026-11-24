@@ -22,7 +22,7 @@ Tile("weather", {
     const cur = j.current, dd = j.daily, w = wx(cur.weather_code, cur.is_day === 0), hm = x => new Date(x).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
     return [
       {id:"icon", label:"Weather icon", html: o.set === "Symbols" ? wxSymbol(cur.weather_code, cur.is_day === 0) : w.g, icon:true},
-      {id:"temp", label:"Temperature", html:Math.round(cur.temperature_2m) + "°"},
+      {id:"temp", label:"Temperature", html:Math.round(cur.temperature_2m) + "°", big:true},
       {id:"cond", label:"Conditions", html:esc(w.t)},
       {id:"hilo", label:"High and low", html:tr("H {high} · L {low}", {high:Math.round(dd.temperature_2m_max[0]) + "°", low:Math.round(dd.temperature_2m_min[0]) + "°"})},
       {id:"air", label:"Air quality", html:STATE.aqi != null ? tr("Air") + " " + Math.round(STATE.aqi) + " · " + this.aqiLabel(STATE.aqi) : ""},

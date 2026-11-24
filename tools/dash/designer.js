@@ -66,8 +66,10 @@ function designDraw(el, m, D, H){
     const html = o.noemoji ? stripEmoji(p.html) : LOOK.plain || LOOK.swaps.length ? lookText(p.html) : p.html, hide = !!o.hide || !html || o.x == null;
     n.hidden = hide; if (hide) continue;
     if (n._h !== html){ n._h = html; n.innerHTML = html; }
+    // a part's own color, unless the theme wins over tile colors (the accent follows the theme anyway; while designing you still see yours)
+    const c = o.c && (!THEMEV.themeWins || fitOff || o.c === "var(--accent)") ? o.c : p.big ? "var(--big,var(--fg))" : "";
     const css = "left:" + o.x + "%;top:" + (o.y * H / 100).toFixed(1) + "px;font-size:" + ((o.s || 8) * H / 100 * ts).toFixed(1) + "px;font-weight:" + (o.w || 400) +
-      ";transform:translateX(" + (o.a === "r" ? "-100%" : o.a === "c" ? "-50%" : "0") + ")" + (o.c ? ";color:" + o.c : "") +
+      ";transform:translateX(" + (o.a === "r" ? "-100%" : o.a === "c" ? "-50%" : "0") + ")" + (c ? ";color:" + c : "") +
       ";font-family:" + (FONTS[o.f] || o.ff || "inherit") + (o.tt ? ";text-transform:" + o.tt : "") + (o.ls ? ";letter-spacing:" + o.ls + "em" : "") + (o.it ? ";font-style:italic" : "");
     if (n._css !== css || n._fit !== html || n._fitWidth !== W){
       n._css = css; n._fit = html; n._fitWidth = W; n.style.cssText = css;

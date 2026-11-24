@@ -1,0 +1,45 @@
+```
+{
+  "name": "Walk the Dog?",
+  "description": "A traffic light showing whether outdoor conditions are suitable for a dog walk, with an estimated walk duration based on temperature, rain chance, air quality and dog size.",
+  "size": [12, 8, 6, 4],
+  "every": 900,
+  "taps": false,
+  "feeds": ["wx", "aqi"],
+  "hosts": [],
+  "settings": {
+    "dogSize": {
+      "type": "choice",
+      "label": "Dog size",
+      "choices": ["Small", "Medium", "Large"],
+      "default": "Medium"
+    }
+  }
+}
+```
+
+
+```
+Tile("dog-walk", {
+  render(el) {
+    const weather = this.feed("weather");
+    const air = this.feed("air");
+    const size = String(this.s.dogSize || "Medium").toLowerCase();
+    // Schema: github.com/kizit/countertop/blob/main/tools/dash/screen.js
+    const temp = weather && weather.current ? weather.current.temperature_2m : NaN;
+    const aqi = typeof air === "number" ? air : NaN;
+    const status = Number.isFinite(temp) && Number.isFinite(aqi) ? (aqi > 100 ? "red" : "green") : "unknown";
+    el.innerHTML = `
+      <div class="dw-root dw-${status}">
+        <div class="dw-heading">Walk the dog?</div>
+        <div class="dw-metrics">${this.esc(size)} ${Number.isFinite(temp) ? Math.round(temp) : ""}</div>
+      </div>
+    `;
+  },
+
+  css: `
+    .dw-root { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--fg); }
+    .dw-green { --signal: #42db87; }
+  `
+});
+```

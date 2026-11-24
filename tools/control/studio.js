@@ -323,27 +323,31 @@ const STU_HA = {light:["toggle", "turn_on", "turn_off"], switch:["toggle", "turn
   lock:["lock", "unlock", "open"], media_player:["toggle", "media_play_pause", "media_play", "media_pause", "media_stop", "media_next_track", "media_previous_track", "volume_set", "volume_up", "volume_down"],
   vacuum:["start", "pause", "stop", "return_to_base", "toggle"], alarm_control_panel:["disarm", "arm_home", "arm_away", "arm_night", "arm_vacation"], number:["set_value"], input_number:["set_value"]};
 const STU_HA_DATA = ["temperature", "hvac_mode", "operation_mode", "away_mode", "brightness_pct", "brightness", "percentage", "position", "volume_level", "value", "option"];
+const STU_FEED_NAMES = {wx:"wx", weather:"wx", forecast:"wx", aqi:"aqi", air:"aqi", airquality:"aqi", events:"events", calendar:"events", calendars:"events", notes:"notes", lists:"notes",
+  team:"team", teams:"team", photos:"photos", albums:"photos", sales:"sales"};
+const STU_TYPE_NAMES = {string:"text", boolean:"bool", toggle:"bool", integer:"int", float:"number", select:"choice", enum:"choice", dropdown:"choice", array:"list"};
 const STU_FIELDS = ["name", "description", "size", "every", "taps", "feeds", "hosts", "settings", "devices", "controls", "code"];
 
 // the message to paste into a chat: what the person wants, every lever on this page, and the shape the answer must have
 function stuAI(){
   const t = STU.t, cur = stuTile(), has = !!STU.id || stuDirty();
   const want = STU.ask.trim() || t.description || "(describe it here)";
-  return "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room).\n\n" +
+  return "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). Everything you need is below: don't search the web or look anything up, and don't copy from any repository.\n\n" +
     "What the tile should do:\n" + want + "\n\n" +
     (has ? "It starts from this tile, change it to fit what I asked:\n```json\n" + JSON.stringify(Object.assign({}, cur, {uses:undefined}), null, 1) + "\n```\n\n" : "") +
-    "Reply with two code blocks and nothing else that matters: first a json block with the settings below, then a js block with the tile's code.\n\n" +
-    "```json\n" +
+    "Reply with ONE code block and nothing else, so I can copy it with one tap: the settings as a JSON object, then a line with -----CODE----- on it, then the tile's code. Like this:\n\n" +
+    "```\n" +
     '{\n "name": "Short name",\n "description": "One sentence on what it shows",\n "size": [12, 8, 6, 4],\n "every": 0,\n "taps": false,\n "feeds": [],\n "hosts": [],\n' +
-    ' "settings": {"unit": {"type": "choice", "label": "Unit", "choices": ["F", "C"], "default": "F"}}\n}\n' +
-    "```\n```js\nTile(\"my-tile\", {\n  render(el) { /* draw the tile into el */ },\n  css: \"/* optional styles */\"\n});\n```\n\n" +
-    "The json block can set only these (leave out any that don't apply):\n" +
+    ' "settings": {"unit": {"type": "choice", "label": "Unit", "choices": ["F", "C"], "default": "F"}}\n}\n-----CODE-----\n' +
+    "Tile(\"my-tile\", {\n  render(el) { /* draw the tile into el */ },\n  css: \"/* optional styles */\"\n});\n```\n\n" +
+    "The JSON can set only these (leave out any that don't apply):\n" +
     "- name: up to 60 characters. description: what it shows, up to 400 characters.\n" +
     "- size: [width, height, smallest width, smallest height] on a 48 x 32 grid. 12 x 8 is a quarter of the screen's width and height. Widths 2 to 48, heights 2 to 32.\n" +
     "- every: draw again every this many seconds (0 = only when something changes).\n" +
     "- taps: true if the tile responds to taps, which call tap(e, el) in the code.\n" +
-    "- feeds: the data the tile reads, any of: " + STU_FEEDS.map(([k, l, how]) => '"' + k + '" (' + l + ", in the code " + how + (STU_PERSONAL.includes(k) ? ", personal" : "") + ")").join("; ") + ". " +
-    "Only turn on what the tile needs. Each returns what it has now, possibly null at first, and the tile is drawn again when it arrives.\n" +
+    "- feeds: the data the tile reads. Use exactly these names in the json (the first word in quotes) and exactly these calls in the code: " + STU_FEEDS.map(([k, l, how]) => '"' + k + '" (' + l + ", read in the code with " + how + (STU_PERSONAL.includes(k) ? ", personal" : "") + ")").join("; ") + ". " +
+    "Only turn on what the tile needs, and a tile can only read a feed it lists here. Each returns what it has now, null at first, and the tile is drawn again when it arrives.\n" +
+    "- What the data looks like: this.feed(\"weather\") is {current:{temperature_2m, weather_code, is_day}, hourly:{time:[local ISO times], temperature_2m:[], precipitation_probability:[], weather_code:[], is_day:[]}, daily:{time:[], temperature_2m_max:[], temperature_2m_min:[], weather_code:[], sunrise:[], sunset:[], precipitation_probability_max:[]}, current_units:{temperature_2m}} with 11 days of daily data, in the dashboard's unit (°F unless Celsius is chosen in Setup, see current_units), weather_code is the WMO code. this.feed(\"air\") is just a number, the US air quality index (0 to 500), or null.\n" +
     "- hosts: public web sites it reads, like \"api.example.com\" (names only, no addresses). In the code this.fetch(\"https://...\") returns the parsed JSON (or text) it has now, null until it arrives, and the tile is drawn again when it does; this.fetchError(url) says what went wrong. Plain fetch() and <img src=\"https://...\"> also work for those sites. A tile that reads personal data (the personal feeds above, or devices) can't read any sites, so leave hosts empty then. No API keys in the code.\n" +
     "- settings: what someone can change in the tile's settings, each {type, label, default}, read in the code as this.s.<name>. Types: " + STU_TYPES.filter(x => x !== "secret").join(", ") + ". A choice has choices, an int or number can have min and max, a list's default is an array of text, a source has kind (" + Object.keys(STU_KINDS).join(", ") + ") and needs the matching feed. Don't use secret.\n" +
     "- devices and controls (only for buttons that work Home Assistant things; skip otherwise): devices is {slot: {label, domains}} with slot a short lower-case name, and controls is a list of {id, device, action, data} with data optional. Kinds and what each can do: " +
@@ -357,21 +361,58 @@ function stuAI(){
     "- If data can't be loaded, show a short friendly message instead of an error.";
 }
 
-// pull the answer apart: the json block (or any JSON object in the text) and the code block
+// pull the answer apart: the settings object and the code. Fences with or without a language, labels pasted in their
+// place, or none at all: the JSON is found by reading it, and the code by its Tile( call.
+function stuObjectAt(text, i){
+  let depth = 0, inStr = false;
+  for (let k = i; k < text.length; k++){
+    const c = text[k];
+    if (inStr){ if (c === "\\") k++; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return k + 1;
+  }
+  return -1;
+}
 function stuReadReply(text){
-  const fences = [...String(text).matchAll(/```[ \t]*([\w-]*)[ \t]*\r?\n([\s\S]*?)```/g)].map(m => m[2].trim());
-  let obj = null;
-  const tryJSON = s => { try{ const j = JSON.parse(s); return j && typeof j === "object" && !Array.isArray(j) ? j : null; }catch(e){ return null; } };
-  for (const f of fences) if (!obj && f.startsWith("{")) obj = tryJSON(f);
-  if (!obj){ const a = text.indexOf("{"), b = text.lastIndexOf("}"); if (a >= 0 && b > a) obj = tryJSON(text.slice(a, b + 1)); }
-  let code = obj && typeof obj.code === "string" ? obj.code : "";
-  if (!code.includes("Tile(")) code = fences.find(f => !f.startsWith("{") && f.includes("Tile(")) || "";
-  if (!code.includes("Tile(") && !obj){ const i = String(text).indexOf("Tile("); if (i >= 0) code = String(text).slice(i).replace(/```[\s\S]*$/, "").trim(); }
+  text = String(text || "");
+  let obj = null, span = [0, 0], tries = 0;
+  for (let i = text.indexOf("{"); i >= 0 && !obj && tries < 60; i = text.indexOf("{", i + 1)){
+    if (!/^\{\s*"/.test(text.slice(i, i + 40))) continue;
+    tries++;
+    const e = stuObjectAt(text, i); if (e < 0) continue;
+    try{
+      const j = JSON.parse(text.slice(i, e));
+      if (j && typeof j === "object" && !Array.isArray(j) && STU_FIELDS.some(k => k in j)){ obj = j; span = [i, e]; }
+    }catch(e2){}
+  }
+  let code = obj && typeof obj.code === "string" && obj.code.includes("Tile(") ? obj.code.replace(/^\s*```\w*\s*|\s*```\s*$/g, "").trim() : "";
+  if (!code){
+    for (let i = text.indexOf("Tile("); i >= 0; i = text.indexOf("Tile(", i + 1)){
+      if (i >= span[0] && i < span[1]) continue;
+      let c = text.slice(i); const f = c.indexOf("```"); if (f >= 0) c = c.slice(0, f);
+      const end = c.lastIndexOf("});"); if (end >= 0) c = c.slice(0, end + 3);
+      code = c.trim(); break;
+    }
+  }
   return {obj, code};
 }
 // the reply checked and cut down to what the form takes, the way typing each value would: {t, did, skip} or {error}
 function stuParse(text, base){
-  const {obj, code} = stuReadReply(text), J = obj || {};
+  const {obj, code} = stuReadReply(text), J = Object.assign({}, obj || {});
+  // the same thing said another way: a size as "12x8", names for data, settings as a list, other words for a kind
+  if (typeof J.size === "string") J.size = (J.size.match(/\d+/g) || []).map(Number);
+  if (J.size && !Array.isArray(J.size) && typeof J.size === "object") J.size = [J.size.width || J.size.w, J.size.height || J.size.h, J.size.minWidth || J.size.minW, J.size.minHeight || J.size.minH];
+  if (typeof J.feeds === "string") J.feeds = J.feeds.split(/[\s,]+/).filter(Boolean);
+  if (Array.isArray(J.feeds)) J.feeds = J.feeds.map(f => STU_FEED_NAMES[String(f).toLowerCase().replace(/[^a-z]/g, "")] || f);
+  if (Array.isArray(J.settings)) J.settings = Object.fromEntries(J.settings.filter(d => d && typeof d === "object").map((d, i) => [d.key || d.name || d.id || "setting" + (i + 1), d]));
+  if (J.settings && typeof J.settings === "object") J.settings = Object.fromEntries(Object.entries(J.settings).map(([k, d]) => {
+    if (!d || typeof d !== "object") return [k, d];
+    d = Object.assign({}, d); d.type = STU_TYPE_NAMES[String(d.type || "").toLowerCase()] || d.type;
+    if (!d.choices && Array.isArray(d.options)) d.choices = d.options;
+    if (d.default === undefined && d.value !== undefined) d.default = d.value;
+    return [k, d];
+  }));
   const t = JSON.parse(JSON.stringify(base)), did = [], skip = [];
   const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "";
   const num = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== "" ? Math.max(lo, Math.min(hi, Math.round(+v))) : null;
@@ -452,7 +493,7 @@ function stuParse(text, base){
     if (new Blob([code]).size > 60000) skip.push("code (too large)");
     else { t.code = code; did.push("code"); }
   } else if (J.code !== undefined || !obj) skip.push("code (no Tile(\"…\", { … }) found)");
-  if (!did.length) return {error:"Nothing in that fits the form. Paste the whole answer, the json block and the code."};
+  if (!did.length) return {error:"Nothing in that fits the form. Paste the whole answer, the settings and the code."};
   return {t, did, skip};
 }
 function stuFillHTML(){

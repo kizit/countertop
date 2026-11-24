@@ -146,6 +146,7 @@ function stuView(){
   h += '<div class="lstu-r"><div class="lstu-pv"><div class="lchips">' + [["usual", "Usual size"], ["small", "Smallest"], ["big", "Large"]].map(([k, l]) =>
       '<button class="lchip' + (STU.size === k ? " on" : "") + '" data-l="s-size" data-id="' + k + '">' + l + '</button>').join("") +
     '<button class="lchip' + (STU.real ? " on" : "") + '" data-l="s-real">' + (STU.real ? "Your data" : "Made-up data") + '</button></div>' +
+    '<p class="lnote lstu-sz">' + esc(stuSizeNote()) + '</p>' +
     '<div class="tp big lstu-shot' + (STU.picking ? " pick" : "") + '">' + (STU.draft ? '<iframe title="Preview" data-w="' + stuPvSize()[0] + '" data-h="' + stuPvSize()[1] + '" src="' + esc(stuPvSrc()) + '"></iframe>' : "") + '</div>' +
     '<div class="lstu-log">' + stuLogHTML() + '</div><div class="lstu-pk">' + stuPickHTML() + '</div></div>' +
     '<div class="lact"><button class="lbtn pri" data-l="s-save">' + (STU.id ? "Save" : "Save to my tiles") + '</button>' +
@@ -208,6 +209,15 @@ function stuPreview(){
   box.innerHTML = '<iframe title="Preview" data-w="' + w + '" data-h="' + h + '" src="' + esc(stuPvSrc()) + '"></iframe>';
   libFitShots();
   box.classList.toggle("pick", STU.picking);
+  const sn = libEl().querySelector(".lstu-sz"); if (sn) sn.textContent = stuSizeNote();
+  // the same tile at its smallest size, drawn out of sight, so a squeeze shows up while looking at another size
+  const old = libEl().querySelector(".lstu-chk"); if (old) old.remove();
+  const sz = STU.t.size || [12, 8, 6, 4], sm = [sz[2] || sz[0], sz[3] || sz[1]];
+  if (STU.size !== "small" && (sm[0] !== w || sm[1] !== h)){
+    const c = document.createElement("div"); c.className = "lstu-chk"; c.setAttribute("aria-hidden", "true");
+    c.innerHTML = '<iframe tabindex="-1" title="Size check" src="/dash/content?preview=1&solo=' + STU.draft + '&draft=' + STU.draft + '&w=' + sm[0] + '&h=' + sm[1] + '"></iframe>';
+    libEl().querySelector(".lstu-pv").appendChild(c);
+  }
   clearInterval(STU.poll);
   // what went wrong inside: the preview is this server's own dashboard page, so its list can be read directly
   STU.poll = setInterval(() => {
@@ -215,7 +225,10 @@ function stuPreview(){
     const f = libEl().querySelector(".lstu-shot iframe");
     try{
       stuPickSync(f);
-      const L = f.contentWindow.dashSbxLog("demo");
+      let L = f.contentWindow.dashSbxLog("demo");
+      const at = STU_SIZES[STU.size], hid = libEl().querySelector(".lstu-chk iframe");
+      L = L.map(x => x.kind === "fit" ? Object.assign({}, x, {text:"At " + at + ": " + x.text}) : x);
+      if (hid) try{ L = L.concat(hid.contentWindow.dashSbxLog("demo").filter(x => x.kind === "fit").map(x => Object.assign({}, x, {text:"At " + STU_SIZES.small + ": " + x.text}))); }catch(e){}
       if (JSON.stringify(L) !== JSON.stringify(STU.log)){ STU.log = L.slice(); const lg = libEl().querySelector(".lstu-log"); if (lg) lg.innerHTML = stuLogHTML(); }
     }catch(e){}
   }, 1000);
@@ -401,12 +414,18 @@ function stuPicked(p){
 }
 
 // the message to paste into a chat: what the person wants, every lever on this page, and the shape the answer must have
+// what the preview's size check found, as the plain lines it shows (made-up data only: with real data the words are left out)
+const stuFits = () => STU.log.filter(x => x.kind === "fit").map(x => x.text);
+const stuSmall = () => { const sz = (STU.t && STU.t.size) || [12, 8, 6, 4], r = libTileRect(sz[2] || sz[0], sz[3] || sz[1]); return Math.round(r.w) + "x" + Math.round(r.h); };
+const STU_SIZES = {usual:"Usual size", small:"Smallest", big:"Large"};
+function stuSizeNote(){ const [w, h] = stuPvSize(), r = libTileRect(w, h); return STU_SIZES[STU.size] + ": " + w + " × " + h + " squares, about " + Math.round(r.w) + " × " + Math.round(r.h) + " pixels on a 1920 × 1080 screen"; }
 function stuAI(change){
   const t = STU.t, cur = stuTile(), has = change || !!STU.id || stuDirty();
   const want = change ? t.description || t.name || "(a tile)" : STU.ask.trim() || t.description || "(describe it here)";
   return (change ? "Please change a tile on my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). " : "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). ") +
     "Everything you need is below: don't search the web or look anything up, and don't copy from any repository.\n\n" +
     (change ? "What the tile does:\n" + want + "\n\n" + stuChangesText() + "\n\n" : "What the tile should do:\n" + want + "\n\n") +
+    (has && stuFits().length ? "The preview found these problems with the tile as it is now. Fix them too:\n" + stuFits().map(x => "- " + x).join("\n") + "\n\n" : "") +
     (has ? (change ? "Here is the tile as it is now (its settings, then its code):\n```json\n" : "It starts from this tile, change it to fit what I asked:\n```json\n") + JSON.stringify(Object.assign({}, cur, {uses:undefined}), null, 1) + "\n```\n\n" : "") +
     "Reply with ONE code block and nothing else, so I can copy it with one tap: the settings as a JSON object, then a line with -----CODE----- on it, then the tile's code. Like this:\n\n" +
     "```\n" +
@@ -428,6 +447,7 @@ function stuAI(change){
     "Rules for the code:\n" +
     "- render(el) is called to draw the tile, again after data arrives and again when settings change. Build the HTML in el each time (escape text with this.esc(text)). It must never loop forever or block.\n" +
     "- The box can be from about " + ((t.size || [])[2] || 6) * 40 + "x" + ((t.size || [])[3] || 4) * 34 + " up to 1200x800 pixels: use flexbox or grid and percentages, keep everything inside with no scrolling.\n" +
+    "- The smallest size matters most: at the smallest size (about " + stuSmall() + " pixels) show only the main thing and hide the secondary lines, deciding by el.clientWidth and el.clientHeight in render(). At every size nothing may overlap or run past the edge of the box: size fonts and pictures to the box (percentages, or clamp()), not fixed pixel sizes.\n" +
     "- Keep the background transparent. CSS variables: var(--fg) main text, var(--dim) secondary text, var(--accent) highlight. No text under 18px; the main number or words 40px or bigger.\n" +
     "- To remember things between visits: this.store.get() (an object), this.store.set(key, value), this.store.push(key, item).\n" +
     "- No cookies, localStorage, pop-ups, frames or other pages. Nobody uses a mouse or keyboard on it.\n" +

@@ -197,5 +197,8 @@
   "Type a new key to replace it": "Saisissez une nouvelle clé pour la remplacer",
   "Type the key first": "Saisissez d'abord la clé",
   "Which one this tile works. It can only use what you pick here.": "L'appareil que cette tuile commande. Elle ne peut utiliser que celui choisi ici.",
+  "{a} overlaps {b}": "{a} chevauche {b}",
+  "{a} runs past the edge of the tile": "{a} dépasse du bord de la tuile",
+  "a shape": "une forme",
   "{verb} {name}?": "{verb} {name} ?"
 }

@@ -132,6 +132,15 @@ async function main() {
       assert.ok(Math.abs(m.l - m.rt) < 3 && Math.abs(m.t - m.bt) < 3, sz + " preview centred: " + JSON.stringify(m));
       assert.ok(m.l >= 0 && m.rt >= 0 && m.t >= 0 && m.bt >= 0, sz + " preview not cut off: " + JSON.stringify(m));
     }
+    // words on top of each other are reported for the smallest size too, while another size is showing; a clean tile isn't
+    await ctl.evaluate(() => { STU.size = "usual"; stuPreview(); });
+    await ctl.locator('#lib [data-s="code"]').fill('Tile("my-hello", { render(el) { el.innerHTML = "<div style=\\"font-size:40px\\">First words here</div><div style=\\"position:absolute;left:0;top:0;font-size:40px\\">Second words</div>"; } });');
+    await until(() => ctl.locator("#lib .lstu-log").textContent().then(t => /At Smallest: .*Second words.*overlaps/.test(t) || /At Smallest: .*overlaps/.test(t)), "the overlap at the smallest size in the problems list", 30000);
+    assert.match(await ctl.locator("#lib .lstu-sz").textContent(), /Usual size: 12 × 8 squares/);
+    await ctl.locator('#lib [data-s="code"]').fill('Tile("my-hello", { render(el) { el.innerHTML = "<b class=hi>Hi from the Studio</b>"; } });');
+    await until(() => ctl.locator("#lib .lstu-log").textContent().then(t => /No problems so far/.test(t)), "the problems list clear again", 30000);
+    const ai = await ctl.evaluate(() => stuAI());
+    assert.match(ai, /show only the main thing and hide the secondary lines/);
     await ctl.locator('#lib [data-l="s-save"]').click();
     const hello = await until(() => ctl.evaluate(() => STU.id && !stuDirty() ? STU.id : null), "saved");
     assert.equal(hello, "my-hello-there");

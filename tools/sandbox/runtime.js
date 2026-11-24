@@ -258,6 +258,58 @@
     report();
 
     pinsDraw();
+    fitSoon();
+  }
+  /* Tile Studio's size check: after the tile has settled, look for words or shapes that run past the tile's edge or sit
+     on top of each other, and tell the dashboard in a few short phrases. The dashboard only keeps this for Tile
+     Studio's preview pages; it is just a list of short notes and changes nothing. */
+  var fitT = null, fitLast = "";
+  function fitSoon() { clearTimeout(fitT); fitT = setTimeout(fitCheck, 900); }
+  function fitName(el) {
+    var t = String(el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 30);
+    return t || "";
+  }
+  function fitBoxes() {
+    var out = [], all = ROOT.querySelectorAll("*");
+    for (var i = 0; i < all.length && out.length < 120; i++) {
+      var el = all[i], tag = el.tagName.toLowerCase();
+      if (tag === "style" || tag === "script") continue;
+      var cs = W.getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.3) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 6 || r.height < 6) continue;
+      var own = "";
+      for (var c = el.firstChild; c; c = c.nextSibling) if (c.nodeType === 3) own += c.nodeValue;
+      own = own.replace(/\s+/g, " ").trim();
+      if (own) { out.push({ r: r, t: own.slice(0, 30), text: true }); continue; }
+      if (el.children.length) continue;
+      var bg = cs.backgroundColor, shape = tag === "img" || tag === "svg" || tag === "canvas" || tag === "video" ||
+        (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg) && r.width >= 12 && r.height >= 12);
+      if (shape) out.push({ r: r, t: "", text: false });
+    }
+    return out;
+  }
+  function fitCheck() {
+    fitT = null;
+    if (!ME || !ROOT) return;
+    var issues = [], root = ROOT.getBoundingClientRect(), W2 = W.innerWidth, H2 = W.innerHeight;
+    var box = { left: Math.max(0, root.left), top: Math.max(0, root.top), right: Math.min(W2, root.right), bottom: Math.min(H2, root.bottom) };
+    var list = [];
+    try { list = fitBoxes(); } catch (e) { return; }
+    list.forEach(function (b) {
+      var r = b.r;
+      if (issues.length < 3 && (r.right > box.right + 3 || r.bottom > box.bottom + 3 || r.left < box.left - 3 || r.top < box.top - 3)) issues.push({ k: "over", a: b.t });
+    });
+    for (var i = 0; i < list.length && issues.length < 3; i++) for (var j = i + 1; j < list.length && issues.length < 3; j++) {
+      var a = list[i], b = list[j];
+      if (!a.text && !b.text) continue;
+      var w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left), h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (w <= 0 || h <= 0) continue;
+      var small = Math.min(a.r.width * a.r.height, b.r.width * b.r.height);
+      if (w * h > small * 0.25) issues.push({ k: "lap", a: a.t, b: b.t });
+    }
+    var key = JSON.stringify(issues);
+    if (key !== fitLast) { fitLast = key; post({ ct: "fit", issues: issues }); }
   }
   function soon() { if (!due) { due = true; setTimeout(draw, 0); } }
 

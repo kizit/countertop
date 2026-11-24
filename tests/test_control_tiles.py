@@ -226,6 +226,27 @@ class Buttons(Base):
         self.assertEqual(self.press("on")[0], 403)
         self.assertEqual(self.called(), [])
 
+    def test_taken_down_and_unreviewed_tiles_stop_buttons(self):
+        # a gallery tile taken down by the gallery
+        raw = json.loads((sbx.TILES_DIR / "front-porch.json").read_text())
+        raw["gallery"] = {"id": "tiles/front-porch", "v": 1, "by": "tester", "perms": []}
+        (sbx.TILES_DIR / "front-porch.json").write_text(json.dumps(raw))
+        sbx.TAKEDOWN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        sbx.TAKEDOWN_FILE.write_text(json.dumps({"checked": 9999999999, "tried": 9999999999, "revoked": ["tiles/front-porch"], "error": ""}))
+        self.save(self.porch())
+        self.assertEqual(self.press("on")[0], 403)
+        self.assertEqual(self.called(), [])
+        sbx.TAKEDOWN_FILE.unlink()
+        # an imported Tile Studio control tile waiting to be allowed to run
+        tid = ct.mytiles.import_tile({"tile": dict(raw, id="front-porch")})["id"]
+        self.save(dict(self.porch(), type=tid))
+        self.assertEqual(self.press("on")[0], 403)
+        self.assertEqual(self.called(), [])
+        ct.mytiles.trust(tid)
+        self.assertEqual(self.press("on")[0], 200)
+        self.assertEqual(self.called(), [("turn_on", "light.porch")])
+        ct.mytiles.delete(tid)
+
 
 class Routes(Base):
     @classmethod

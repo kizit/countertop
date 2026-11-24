@@ -245,6 +245,19 @@ class Answers(unittest.TestCase):
             tf.fetch_url("https://localhost/x", ["localhost.example.com", "localhost"])
         self.assertEqual(cm.exception.code, 403)
 
+    def test_falls_back_to_next_checked_ip(self):
+        tried = []
+        def open_second(host, ip, path, deadline):
+            tried.append(ip)
+            if ip == "2606:4700:4700::1111":
+                raise OSError("Network is unreachable")
+            return 200, {"content-type": "application/json"}, b'{"ok":true}'
+        with ct.patch_everywhere("FETCH_RESOLVE", lambda h: ["2606:4700:4700::1111", PUBLIC]), \
+                ct.patch_everywhere("FETCH_OPEN", open_second):
+            res = tf.fetch_url("https://api.example.com/x", HOSTS)
+        self.assertEqual(res["body"], b'{"ok":true}')
+        self.assertEqual(tried, ["2606:4700:4700::1111", PUBLIC])
+
 
 if __name__ == "__main__":
     unittest.main()

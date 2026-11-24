@@ -180,6 +180,10 @@ function stuChanged(redraw){
   STU.timer = setTimeout(stuDraft, 700);
   if (redraw){ const sc = libEl().querySelector(".lmain").scrollTop; libShow(); libEl().querySelector(".lmain").scrollTop = sc; }
 }
+function stuWhy(e){
+  const s = String(e && e.message || e || "").trim();
+  return /^(isn't|has |needs )/.test(s) ? "it " + s : s;
+}
 async function stuDraft(){
   if (LIB.view !== "studio" || !STU.t) return;
   try{
@@ -187,7 +191,7 @@ async function stuDraft(){
     const j = await r.json();
     if (!r.ok || j.error) throw new Error(j.error || r.status);
     STU.draft = j.id; STU.err = ""; STU.log = [];
-  }catch(e){ STU.err = "Can't run it yet: it " + String(e.message || e).replace(/^It /, ""); }
+  }catch(e){ STU.err = "Can't run it yet: " + stuWhy(e); }
   stuPreview();
 }
 function stuPreview(){
@@ -214,7 +218,12 @@ function stuSet(field, value, el){
   let redraw = false;
   if (field === "ask"){ STU.ask = value; return; }
   if (p[0] === "size"){ t.size = (t.size || [12, 8, 6, 4]).slice(); t.size[+p[1]] = Math.max(2, Math.min(+p[1] % 2 ? 32 : 48, Math.round(+value) || 2)); }
-  else if (p[0] === "feed"){ const F = new Set(t.feeds || []); if (el.classList.contains("on")) F.add(p[1]); else F.delete(p[1]); t.feeds = STU_FEEDS.map(x => x[0]).filter(x => F.has(x)); redraw = true; }
+  else if (p[0] === "feed"){
+    const F = new Set(t.feeds || []); if (el.classList.contains("on")) F.add(p[1]); else F.delete(p[1]);
+    t.feeds = STU_FEEDS.map(x => x[0]).filter(x => F.has(x));
+    if (t.feeds.some(f => STU_PERSONAL.includes(f))) t.hosts = [];
+    redraw = true;
+  }
   else if (field === "taps") t.taps = el.classList.contains("on");
   else if (field === "every") t.every = Math.max(0, Math.round(+value) || 0);
   else if (field === "hosts") t.hosts = value.split(/[\s,]+/).map(x => x.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "")).filter(Boolean);
@@ -222,7 +231,7 @@ function stuSet(field, value, el){
     const k = p[1], d = Object.assign({}, t.settings[k]), what = p[2];
     if (what === "key"){
       const nk = value.trim().replace(/[^A-Za-z0-9_]/g, "_").replace(/^(\d)/, "_$1").slice(0, 30);
-      if (!nk || nk === k || t.settings[nk]) return;
+      if (!nk || nk === k || t.settings[nk]){ if (el) el.value = k; return; }
       const S = {}; for (const [a, b] of Object.entries(t.settings)) S[a === k ? nk : a] = b; t.settings = S; redraw = true;
     } else {
       if (what === "type"){ d.type = value; delete d.default; for (const x of ["host", "header", "prefix", "query", "kind", "choices", "min", "max"]) delete d[x];
@@ -230,20 +239,31 @@ function stuSet(field, value, el){
       else if (what === "default") d.default = d.type === "bool" ? value === "true" : d.type === "int" || d.type === "number" ? (value === "" ? 0 : +value) : d.type === "list" ? value.split(",").map(x => x.trim()).filter(Boolean) : value;
       else if (what === "choices") d.choices = value.split(",").map(x => x.trim()).filter(Boolean);
       else if (what === "min" || what === "max"){ if (value === "") delete d[what]; else d[what] = +value; }
-      else if (["header", "prefix", "query"].includes(what)){ if (value === "" ) delete d[what]; else d[what] = value; if (what === "query" && value) delete d.header; if (what === "header" && value) delete d.query; }
+      else if (["header", "prefix", "query"].includes(what)){
+        const row = el && el.closest(".lset");
+        if (value === "") delete d[what]; else d[what] = value;
+        if (what === "query" && value){ delete d.header; delete d.prefix; if (row){ for (const x of ["header", "prefix"]){ const inp = row.querySelector('[data-s="set.' + k + '.' + x + '"]'); if (inp) inp.value = ""; } } }
+        if (what === "header" && value){ delete d.query; if (row){ const inp = row.querySelector('[data-s="set.' + k + '.query"]'); if (inp) inp.value = ""; } }
+      }
       else d[what] = value;
       t.settings[k] = d;
     }
   }
   else if (p[0] === "dev"){
     const k = p[1], d = Object.assign({}, t.devices[k]);
-    if (p[2] === "slot"){ const nk = value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 20); if (!nk || t.devices[nk]) return;
-      const D = {}; for (const [a, b] of Object.entries(t.devices)) D[a === k ? nk : a] = b; t.devices = D; (t.controls || []).forEach(c => { if (c.device === k) c.device = nk; }); redraw = true; }
+    if (p[2] === "slot"){
+      const nk = value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 20);
+      if (!nk || nk === k || t.devices[nk]){ if (el) el.value = k; return; }
+      const D = {}; for (const [a, b] of Object.entries(t.devices)) D[a === k ? nk : a] = b; t.devices = D; (t.controls || []).forEach(c => { if (c.device === k) c.device = nk; }); redraw = true;
+    }
     else { d[p[2]] = p[2] === "domains" ? value.split(/[\s,]+/).filter(Boolean) : value; t.devices[k] = d; }
   }
   else if (p[0] === "ctl"){
     const c = t.controls[+p[1]]; if (!c) return;
-    if (p[2] === "data"){ try{ c.data = value.trim() ? JSON.parse(value) : {}; }catch(e){ STU.err = "That button's “With” isn't JSON, like {\"brightness_pct\": 30}"; stuPreview(); return; } }
+    if (p[2] === "data"){
+      try{ c.data = value.trim() ? JSON.parse(value) : {}; STU.err = ""; }
+      catch(e){ STU.err = "That button's “With” isn't JSON, like {\"brightness_pct\": 30}"; const lg = libEl().querySelector(".lstu-log"); if (lg) lg.innerHTML = stuLogHTML(); return; }
+    }
     else c[p[2]] = value.trim();
   }
   else t[field] = value;
@@ -258,7 +278,7 @@ async function stuSave(){
     await stuSync();
     toast("Saved " + (STU.t.name || "your tile") + (j.version > 1 ? " (version " + j.version + ")" : ""), "ok");
     libShow(); stuDraft();
-  }catch(e){ toast("Didn't save: it " + String(e.message || e).replace(/^It /, ""), "bad"); }
+  }catch(e){ toast("Didn't save: " + stuWhy(e), "bad"); }
 }
 // the file someone else can import, or the gallery can take: without anything that's only about this Countertop
 function stuPublic(){
@@ -360,6 +380,7 @@ async function stuTap(t){
 }
 // the server changed the settings itself (Convert, Restore): read them again
 async function stuReload(){
+  clearTimeout(saveTimer); saveGen++;
   try{ const j = await fetch("/config", {cache:"no-store"}).then(r => r.json()); mods = j.modules; SBXC = j.sandbox || {tiles:{}}; LEGACYC = j.legacy || {}; commDefs(); }catch(e){}
   await stuFiles(); pvRefresh();
 }
@@ -372,7 +393,7 @@ async function stuImportFile(text){
     const r = await fetch("/studio/import", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tile:j})});
     const o = await r.json(); if (!r.ok || o.error) throw new Error(o.error || r.status);
     await stuSync(); toast("Added. Read its code, then let it run.", "ok"); stuOpen(o.id);
-  }catch(e){ toast("Couldn't add it: it " + String(e.message || e).replace(/^It /, ""), "bad"); }
+  }catch(e){ toast("Couldn't add it: " + stuWhy(e), "bad"); }
 }
 // a shared layout carries the code of the tiles it uses that someone made in Tile Studio: before it's used, each one is
 // added to your tiles (with a new name, waiting for you to let it run), and its boxes point at that

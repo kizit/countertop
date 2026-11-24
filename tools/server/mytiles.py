@@ -49,11 +49,12 @@ CHECKS = [
     (r"(?i)\b(?:location\s*\.\s*(?:href|assign|replace)|location\s*=|window\.open)\b", "It opens other pages"),
     (r"""(?i)["'(=]\s*//[a-z0-9]""", "It uses web addresses without https://"),
     (r"\b(?:eval|Function)\s*\(|\bset(?:Timeout|Interval)\s*\(\s*[\"'`]", "It runs code from text"),
+    (r"(?is)<img\b[^>]*\bsrc\s*=\s*[\"']?https://[^\"'\s>]+\.svg(?:[?#][^\"'\s>]*)?(?:[\"'\s>]|$)", "It shows an SVG picture from the web"),
 ]
 
 
 def _local_host(h):
-    if re.fullmatch(r"[0-9.]+|\[?[0-9a-f:]+\]?(:\d+)?", h, re.I) or ":" in h:
+    if re.fullmatch(r"[0-9.]+|\[?[0-9a-f:]+\]?(:\d+)?", h, re.I):
         return True
     return "." not in h or h.endswith(_LOCAL_NAMES)
 
@@ -66,15 +67,21 @@ def precheck(html):
     if len(html.encode("utf-8")) > SBX_MAX_CODE - 4096:
         add("Its code is too large (more than 60 KB)")
     for scheme, host in _URL_RE.findall(html):
-        host = host.lower().rstrip(".")
-        if _local_host(host.split("@")[-1]):
-            add("It reaches %s on your home network" % host)
+        raw_host = host.lower().rstrip(".")
+        clean = raw_host.split("@")[-1]
+        name, port = clean, ""
+        if ":" in clean and not clean.startswith("[") and clean.count(":") == 1:
+            name, port = clean.rsplit(":", 1)
+        if _local_host(name):
+            add("It reaches %s on your home network" % raw_host)
         elif scheme.lower() == "http":
-            add("It reads a plain http:// address (%s)" % host)
-        elif not FETCH_HOST_RE.match(host):
-            add("It reads %s, which isn't a site name Countertop can check" % host[:60])
-        elif host not in hosts:
-            hosts.append(host)
+            add("It reads a plain http:// address (%s)" % raw_host)
+        elif port and port != "443":
+            add("It reads %s on a non-standard port" % raw_host)
+        elif not FETCH_HOST_RE.match(name):
+            add("It reads %s, which isn't a site name Countertop can check" % raw_host[:60])
+        elif name not in hosts:
+            hosts.append(name)
     for pat, why in CHECKS:
         if re.search(pat, html):
             add(why)

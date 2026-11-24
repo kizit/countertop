@@ -197,6 +197,41 @@ class Conversion(unittest.TestCase):
         ct.config.tile_restore(tid)
         self.assertNotIn("lan", items()["new"])
 
+    def test_restore_keeps_current_box_id_and_refuses_when_missing(self):
+        reset(settings_v3(own("count", STATIC), lan=("count",)))
+        tid = items()["count"]["type"]
+        # simulate the tile being in a box with a new id (removed and re-added, or copied)
+        mods = ct.config_load()["modules"]
+        mods["tiles"]["settings"]["items"] = [dict(t, id="moved_box") if t["id"] == "count" else t for t in mods["tiles"]["settings"]["items"]]
+        ct.config_save({"modules": mods})
+        out = ct.config.tile_restore(tid)
+        self.assertEqual(out, {"restored": 1, "id": "moved_box"})
+        self.assertIn("moved_box", items())
+        self.assertNotIn("count", items())
+        self.assertTrue(items()["moved_box"]["lan"])
+        self.assertEqual(stored()["lanTiles"]["ids"], ["moved_box"])
+        # restoring a converted tile that is no longer in any box refuses instead of deleting it
+        reset(settings_v3(own("count", STATIC)))
+        tid2 = items()["count"]["type"]
+        mods = ct.config_load()["modules"]
+        mods["tiles"]["settings"]["items"] = [t for t in mods["tiles"]["settings"]["items"] if t["id"] != "count"]
+        ct.config_save({"modules": mods})
+        with self.assertRaises(ValueError):
+            ct.config.tile_restore(tid2)
+        self.assertIn(tid2, mine_files())
+
+    def test_precheck_svg_and_ports(self):
+        svg = mt.precheck('<img src="https://cdn.example.com/icon.svg">')
+        self.assertFalse(svg["ok"])
+        self.assertTrue(any("SVG" in r for r in svg["reasons"]))
+        p443 = mt.precheck('<script>fetch("https://api.example.com:443/v1")</script>')
+        self.assertTrue(p443["ok"])
+        self.assertEqual(p443["hosts"], ["api.example.com"])
+        p8443 = mt.precheck('<script>fetch("https://api.example.com:8443/v1")</script>')
+        self.assertFalse(p8443["ok"])
+        self.assertTrue(any("port" in r for r in p8443["reasons"]))
+        self.assertFalse(any("home network" in r for r in p8443["reasons"]))
+
 
 class MyTiles(unittest.TestCase):
     def setUp(self):
@@ -348,6 +383,7 @@ class Routes(unittest.TestCase):
         self.assertIn("my-hello", cfg["sandbox"]["tiles"])
         self.assertEqual(list(cfg["legacy"]), ["cam"])
         self.assertEqual(self.call("/studio/draft", {"tile": {"name": "x"}})[0], 400)
+        self.assertEqual(self.call("/tile-key", {"type": d["id"], "name": "k", "value": "secret123456"})[0], 400)
         self.assertEqual(self.call("/studio/convert", {"id": "cam"})[0], 200)
         self.assertEqual(self.call("/config")[1]["legacy"], {})
         code, out = self.call("/studio/check", {"html": CAMERA})

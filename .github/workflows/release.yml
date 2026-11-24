@@ -78,3 +78,30 @@ jobs:
       tag: ${{ needs.release.outputs.tag }}
     permissions:
       contents: write
+
+  # The release is published before the apps are built, so check at the end that both Mac apps made it.
+  check-assets:
+    name: Check both Mac apps are on the release
+    needs: [release, mac]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Look for both zips
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          names=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          echo "$names"
+          missing=0
+          for kind in apple-silicon intel; do
+            if ! echo "$names" | grep -q -- "-mac-$kind\.zip$"; then
+              echo "::error::The $kind Mac app is missing from release $TAG. Re-run the failed jobs of this run to build it."
+              missing=1
+            fi
+          done
+          exit $missing

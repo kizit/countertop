@@ -29,6 +29,7 @@ jobs:
             name: intel
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30      # a build takes a few minutes; don't let a stuck one run for hours
     permissions:
       contents: write          # attach the zip to the release
     steps:

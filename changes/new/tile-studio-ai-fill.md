@@ -1,0 +1,1 @@
+- **Let AI fill in a whole new tile.** In Tile Studio, describe the tile, copy the request into a chat, paste its answer back, and the form fills in everything at once: name, what it shows, size, the data it reads, settings and code. Nothing is saved or switched on until you press Save, and Undo puts the form back.

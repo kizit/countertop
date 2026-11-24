@@ -6,7 +6,7 @@
    Tiles that came from someone else (a shared layout or file) wait until you let them run.
    Your own tile is retired: the ones that will work here were converted by the server, keeping the original for
    Restore; the rest are listed in Library → Tiles with why, and Convert. */
-const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", log:[], timer:null, poll:null, size:"usual"};
+const STU = {id:"", t:null, base:"", draft:"", err:"", real:false, ask:"", reply:"", fill:null, undo:null, log:[], timer:null, poll:null, size:"usual"};
 let MINEC = {};          // type → its whole file (for sharing a layout that uses it), from GET /studio/tile/<id>
 let LEGACYC = {};        // Your own tiles still on the dashboard: id → {ok, reasons, kept}
 const STU_FEEDS = [["wx", "Weather", "this.feed(\"weather\")"], ["aqi", "Air quality", "this.feed(\"air\")"], ["team", "Your teams' games", "this.feed(\"teams\")"],
@@ -66,7 +66,7 @@ function stuRow(t, d){
 /* ----- the Studio ----- */
 async function stuOpen(id){
   clearTimeout(STU.timer);
-  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", size:"usual"});
+  Object.assign(STU, {id:id || "", t:null, draft:"", err:"", log:[], ask:"", reply:"", fill:null, undo:null, size:"usual"});
   if (id){
     try{
       const r = await fetch("/studio/tile/" + encodeURIComponent(id), {cache:"no-store"});
@@ -102,6 +102,14 @@ function stuView(){
   h += '<div class="lstu-l"><h2 class="ltitle">' + (STU.id ? esc(t.name || STU.id) : "New tile") + '</h2>' +
     (m.review ? '<div class="lpick warn"><div><b>Came from someone else</b><small>Read its code before you let it run. The preview here runs it sealed off, with made-up data.</small></div><button class="lbtn" data-l="s-trust" data-id="' + esc(STU.id) + '">Let it run</button></div>' : "") +
     (m.from === "custom" ? '<div class="lpick"><div><b>Made from your Your own tile</b><small>Its old page runs inside the tile. Restore puts the original back.</small></div>' + (m.backup ? '<button class="lbtn" data-l="s-restore" data-id="' + esc(STU.id) + '">Restore</button>' : "") + '</div>' : "");
+  // let AI fill the whole form: what to ask, then what it answered
+  h += '<div class="lpanel lstu-ai"><h3>Let AI fill it in</h3>' +
+    '<label class="lfield">1. What should the tile do?<textarea data-s="ask" rows="3" placeholder="e.g. a traffic light for today\'s air quality, and how long the dogs should stay out, thinking about the weather too">' + esc(STU.ask) + '</textarea></label>' +
+    '<div class="lact"><button class="lbtn pri" data-l="s-ai">Copy for chat</button></div>' +
+    '<p class="lnote">Paste it into ChatGPT (or another assistant). It sends your words, everything this page can set, and the shape its answer must have.</p>' +
+    '<label class="lfield">2. Paste its answer here<textarea data-s="reply" rows="4" spellcheck="false" placeholder="Paste the whole answer">' + esc(STU.reply) + '</textarea></label>' +
+    '<div class="lact"><button class="lbtn pri" data-l="s-fill">Fill in the form</button>' + (STU.undo ? '<button class="lbtn" data-l="s-unfill">Undo</button>' : "") + '</div>' + stuFillHTML() +
+    '<p class="lnote">This only fills in the form below. Nothing is saved, and the tile runs sealed off in the preview, until you press Save. Its answer can\'t turn anything on for you: the tile still asks for each thing in its settings, and API keys are never filled in.</p></div>';
   // what it is
   h += '<div class="lpanel"><h3>What it is</h3>' + stuInput("Name", "name", t.name, 'type="text" maxlength="60"') +
     '<label class="lfield">What it shows<textarea data-s="description" maxlength="400" rows="2">' + esc(t.description || "") + '</textarea></label>' +
@@ -133,8 +141,6 @@ function stuView(){
   // the code
   h += '<div class="lpanel"><h3>Code</h3><textarea class="code" data-s="code" rows="18" spellcheck="false" autocapitalize="off">' + esc(t.code || "") + '</textarea>' +
     '<p class="lnote">Tile("…", { render(el){ … } }) with the same helpers as the built-in tiles: this.s, this.esc, this.store, this.fetch, this.feed, this.events. The full guide is docs/tile-api.md in the Countertop repository.</p></div>';
-  h += '<div class="lpanel"><h3>Write it for me</h3><label class="lfield">What should it show?<textarea data-s="ask" rows="2" placeholder="e.g. days until summer vacation, with a sun that grows">' + esc(STU.ask) + '</textarea></label>' +
-    '<div class="lact"><button class="lbtn" data-l="s-ai">Copy instructions for ChatGPT</button></div><p class="lnote">Paste them into ChatGPT (or another assistant), then paste its answer into Code.</p></div>';
   h += '</div>';
   // the preview, and what to do with it
   h += '<div class="lstu-r"><div class="lstu-pv"><div class="lchips">' + [["usual", "Usual size"], ["small", "Smallest"], ["big", "Large"]].map(([k, l]) =>
@@ -217,6 +223,7 @@ function stuSet(field, value, el){
   const t = STU.t, p = field.split(".");
   let redraw = false;
   if (field === "ask"){ STU.ask = value; return; }
+  if (field === "reply"){ STU.reply = value; return; }
   if (p[0] === "size"){ t.size = (t.size || [12, 8, 6, 4]).slice(); t.size[+p[1]] = Math.max(2, Math.min(+p[1] % 2 ? 32 : 48, Math.round(+value) || 2)); }
   else if (p[0] === "feed"){
     const F = new Set(t.feeds || []); if (el.classList.contains("on")) F.add(p[1]); else F.delete(p[1]);
@@ -309,25 +316,163 @@ function stuSubmit(){
   else stuCopyText(txt, "Copied the tile. Paste it into the form's Share code box.");
   window.open(url, "_blank", "noopener");
 }
+// what Home Assistant things a tile's buttons can work (the same list the server checks against)
+const STU_HA = {light:["toggle", "turn_on", "turn_off"], switch:["toggle", "turn_on", "turn_off"], fan:["toggle", "turn_on", "turn_off", "set_percentage"],
+  input_boolean:["toggle", "turn_on", "turn_off"], scene:["turn_on"], script:["turn_on"], climate:["toggle", "turn_on", "turn_off", "set_temperature", "set_hvac_mode"],
+  water_heater:["toggle", "turn_on", "turn_off", "set_temperature", "set_away_mode", "set_operation_mode"], cover:["toggle", "open_cover", "close_cover", "stop_cover", "set_cover_position"],
+  lock:["lock", "unlock", "open"], media_player:["toggle", "media_play_pause", "media_play", "media_pause", "media_stop", "media_next_track", "media_previous_track", "volume_set", "volume_up", "volume_down"],
+  vacuum:["start", "pause", "stop", "return_to_base", "toggle"], alarm_control_panel:["disarm", "arm_home", "arm_away", "arm_night", "arm_vacation"], number:["set_value"], input_number:["set_value"]};
+const STU_HA_DATA = ["temperature", "hvac_mode", "operation_mode", "away_mode", "brightness_pct", "brightness", "percentage", "position", "volume_level", "value", "option"];
+const STU_FIELDS = ["name", "description", "size", "every", "taps", "feeds", "hosts", "settings", "devices", "controls", "code"];
+
+// the message to paste into a chat: what the person wants, every lever on this page, and the shape the answer must have
 function stuAI(){
-  const t = STU.t, S = Object.entries(t.settings || {}).map(([k, d]) => "this.s." + k + " (" + d.type + (d.label ? ", " + d.label : "") + ")").join(", ");
-  const feeds = (t.feeds || []).map(f => (STU_FEEDS.find(x => x[0] === f) || [])[2]).filter(Boolean).join(", ");
-  return "Please write a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room).\n\n" +
-    "What the tile should show:\n" + (STU.ask.trim() || t.description || "(describe it here)") + "\n\n" +
-    "Write plain JavaScript in this shape, and reply with just the code:\n\n" +
-    'Tile("' + (STU.id || "my-tile") + '", {\n  render(el) { /* draw the tile into el, e.g. el.innerHTML = ... */ },\n  css: "/* styles for the tile, optional */"\n});\n\n' +
-    "Rules:\n" +
+  const t = STU.t, cur = stuTile(), has = !!STU.id || stuDirty();
+  const want = STU.ask.trim() || t.description || "(describe it here)";
+  return "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room).\n\n" +
+    "What the tile should do:\n" + want + "\n\n" +
+    (has ? "It starts from this tile, change it to fit what I asked:\n```json\n" + JSON.stringify(Object.assign({}, cur, {uses:undefined}), null, 1) + "\n```\n\n" : "") +
+    "Reply with two code blocks and nothing else that matters: first a json block with the settings below, then a js block with the tile's code.\n\n" +
+    "```json\n" +
+    '{\n "name": "Short name",\n "description": "One sentence on what it shows",\n "size": [12, 8, 6, 4],\n "every": 0,\n "taps": false,\n "feeds": [],\n "hosts": [],\n' +
+    ' "settings": {"unit": {"type": "choice", "label": "Unit", "choices": ["F", "C"], "default": "F"}}\n}\n' +
+    "```\n```js\nTile(\"my-tile\", {\n  render(el) { /* draw the tile into el */ },\n  css: \"/* optional styles */\"\n});\n```\n\n" +
+    "The json block can set only these (leave out any that don't apply):\n" +
+    "- name: up to 60 characters. description: what it shows, up to 400 characters.\n" +
+    "- size: [width, height, smallest width, smallest height] on a 48 x 32 grid. 12 x 8 is a quarter of the screen's width and height. Widths 2 to 48, heights 2 to 32.\n" +
+    "- every: draw again every this many seconds (0 = only when something changes).\n" +
+    "- taps: true if the tile responds to taps, which call tap(e, el) in the code.\n" +
+    "- feeds: the data the tile reads, any of: " + STU_FEEDS.map(([k, l, how]) => '"' + k + '" (' + l + ", in the code " + how + (STU_PERSONAL.includes(k) ? ", personal" : "") + ")").join("; ") + ". " +
+    "Only turn on what the tile needs. Each returns what it has now, possibly null at first, and the tile is drawn again when it arrives.\n" +
+    "- hosts: public web sites it reads, like \"api.example.com\" (names only, no addresses). In the code this.fetch(\"https://...\") returns the parsed JSON (or text) it has now, null until it arrives, and the tile is drawn again when it does; this.fetchError(url) says what went wrong. Plain fetch() and <img src=\"https://...\"> also work for those sites. A tile that reads personal data (the personal feeds above, or devices) can't read any sites, so leave hosts empty then. No API keys in the code.\n" +
+    "- settings: what someone can change in the tile's settings, each {type, label, default}, read in the code as this.s.<name>. Types: " + STU_TYPES.filter(x => x !== "secret").join(", ") + ". A choice has choices, an int or number can have min and max, a list's default is an array of text, a source has kind (" + Object.keys(STU_KINDS).join(", ") + ") and needs the matching feed. Don't use secret.\n" +
+    "- devices and controls (only for buttons that work Home Assistant things; skip otherwise): devices is {slot: {label, domains}} with slot a short lower-case name, and controls is a list of {id, device, action, data} with data optional. Kinds and what each can do: " +
+    Object.entries(STU_HA).map(([k, v]) => k + " (" + v.join(", ") + ")").join("; ") + ". Data keys allowed: " + STU_HA_DATA.join(", ") + ". The dashboard draws the buttons and the person picks the real devices; the code only shows state with this.devices() and never presses anything.\n\n" +
+    "Rules for the code:\n" +
     "- render(el) is called to draw the tile, again after data arrives and again when settings change. Build the HTML in el each time (escape text with this.esc(text)). It must never loop forever or block.\n" +
     "- The box can be from about " + ((t.size || [])[2] || 6) * 40 + "x" + ((t.size || [])[3] || 4) * 34 + " up to 1200x800 pixels: use flexbox or grid and percentages, keep everything inside with no scrolling.\n" +
     "- Keep the background transparent. CSS variables: var(--fg) main text, var(--dim) secondary text, var(--accent) highlight. No text under 18px; the main number or words 40px or bigger.\n" +
-    (S ? "- Its settings (read them, don't change them): " + S + ".\n" : "") +
-    (feeds ? "- Data it can read (each returns what it has now, possibly null at first, and the tile is drawn again when it arrives): " + feeds + ".\n" : "") +
-    ((t.hosts || []).length ? "- Web data only from " + t.hosts.join(", ") + ": this.fetch(\"https://...\") returns the parsed JSON (or text) it has now, null until it arrives, and draws the tile again when it does; this.fetchError(url) says what went wrong. Plain fetch() and <img src=\"https://...\"> also work for those sites. No other sites, no API keys in the code.\n" :
-      "- It can't reach the internet: no fetch, no pictures from the web.\n") +
     "- To remember things between visits: this.store.get() (an object), this.store.set(key, value), this.store.push(key, item).\n" +
-    (t.taps ? "- Taps call tap(e, el) on the tile (e.target is what was tapped).\n" : "- It doesn't respond to taps.\n") +
     "- No cookies, localStorage, pop-ups, frames or other pages. Nobody uses a mouse or keyboard on it.\n" +
     "- If data can't be loaded, show a short friendly message instead of an error.";
+}
+
+// pull the answer apart: the json block (or any JSON object in the text) and the code block
+function stuReadReply(text){
+  const fences = [...String(text).matchAll(/```[ \t]*([\w-]*)[ \t]*\r?\n([\s\S]*?)```/g)].map(m => m[2].trim());
+  let obj = null;
+  const tryJSON = s => { try{ const j = JSON.parse(s); return j && typeof j === "object" && !Array.isArray(j) ? j : null; }catch(e){ return null; } };
+  for (const f of fences) if (!obj && f.startsWith("{")) obj = tryJSON(f);
+  if (!obj){ const a = text.indexOf("{"), b = text.lastIndexOf("}"); if (a >= 0 && b > a) obj = tryJSON(text.slice(a, b + 1)); }
+  let code = obj && typeof obj.code === "string" ? obj.code : "";
+  if (!code.includes("Tile(")) code = fences.find(f => !f.startsWith("{") && f.includes("Tile(")) || "";
+  if (!code.includes("Tile(") && !obj){ const i = String(text).indexOf("Tile("); if (i >= 0) code = String(text).slice(i).replace(/```[\s\S]*$/, "").trim(); }
+  return {obj, code};
+}
+// the reply checked and cut down to what the form takes, the way typing each value would: {t, did, skip} or {error}
+function stuParse(text, base){
+  const {obj, code} = stuReadReply(text), J = obj || {};
+  const t = JSON.parse(JSON.stringify(base)), did = [], skip = [];
+  const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "";
+  const num = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== "" ? Math.max(lo, Math.min(hi, Math.round(+v))) : null;
+  for (const k of Object.keys(J)) if (!STU_FIELDS.includes(k) && !["countertop", "id", "version", "author", "uses"].includes(k)) skip.push(k + " (nothing on this page)");
+  if (str(J.name, 60)){ t.name = str(J.name, 60); did.push("name"); }
+  if (typeof J.description === "string"){ t.description = str(J.description, 400); did.push("what it shows"); }
+  if (Array.isArray(J.size) && J.size.length >= 2){
+    const w = num(J.size[0], 2, 48), h = num(J.size[1], 2, 32);
+    if (w && h){
+      const mw = num(J.size[2], 2, 48) || Math.min(w, 6), mh = num(J.size[3], 2, 32) || Math.min(h, 4);
+      t.size = [w, h, Math.min(mw, w), Math.min(mh, h)]; did.push("size " + w + " × " + h);
+    } else skip.push("size");
+  } else if (J.size !== undefined) skip.push("size");
+  if (J.every !== undefined){ const n = num(J.every, 0, 86400); if (n === null) skip.push("draw again"); else { t.every = n; did.push("draw again" + (n ? " every " + n + " s" : " only on change")); } }
+  if (typeof J.taps === "boolean"){ t.taps = J.taps; if (J.taps) did.push("taps on"); }
+  if (Array.isArray(J.feeds)){
+    const ok = STU_FEEDS.map(x => x[0]), want = J.feeds.filter(f => ok.includes(f));
+    for (const f of J.feeds) if (!ok.includes(f)) skip.push("data " + JSON.stringify(String(f).slice(0, 20)));
+    t.feeds = ok.filter(f => want.includes(f));
+    if (t.feeds.length) did.push("reads " + t.feeds.map(f => STU_FEEDS.find(x => x[0] === f)[1].toLowerCase()).join(" and "));
+  }
+  // buttons for things in the house
+  if (J.devices && typeof J.devices === "object" && !Array.isArray(J.devices)){
+    const D = {}, C = [];
+    for (const [k0, d] of Object.entries(J.devices).slice(0, 8)){
+      const k = k0.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "d$&").slice(0, 20), doms = Array.isArray(d && d.domains) ? [...new Set(d.domains.filter(x => STU_HA[x]))] : [];
+      if (!doms.length || D[k]){ skip.push("device " + k0.slice(0, 20)); continue; }
+      D[k] = {label:str(d.label, 40) || k, domains:doms};
+    }
+    const used = new Set();
+    for (const c of (Array.isArray(J.controls) ? J.controls : []).slice(0, 12)){
+      const id = String(c && c.id || "").toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]/, "b$&").slice(0, 20), dev = D[String(c && c.device || "").toLowerCase()];
+      let data = {}, bad = !dev || used.has(id) || !dev.domains.every(x => STU_HA[x].includes(c.action));
+      if (!bad && c.data && typeof c.data === "object" && !Array.isArray(c.data))
+        for (const [dk, dv] of Object.entries(c.data)){ if (STU_HA_DATA.includes(dk) && ["number", "string", "boolean"].includes(typeof dv) && String(dv).length <= 60) data[dk] = dv; else bad = true; }
+      if (bad){ skip.push("button " + id); continue; }
+      used.add(id); C.push({id, device:c.device.toLowerCase(), action:c.action, data});
+    }
+    if (Object.keys(D).length && C.length){ t.devices = D; t.controls = C; did.push(C.length + (C.length === 1 ? " button" : " buttons") + " for " + Object.keys(D).length + (Object.keys(D).length === 1 ? " device" : " devices")); }
+    else skip.push("buttons (needs devices and at least one working button)");
+  }
+  const personal = (t.feeds || []).some(f => STU_PERSONAL.includes(f)) || (t.devices && Object.keys(t.devices).length);
+  if (Array.isArray(J.hosts) || typeof J.hosts === "string"){
+    const L = (Array.isArray(J.hosts) ? J.hosts : J.hosts.split(/[\s,]+/)).map(x => String(x).trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "")).filter(Boolean);
+    const ok = L.filter(h => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h) && !/^[\d.]+$/.test(h)).slice(0, 8);
+    for (const h of L) if (!ok.includes(h)) skip.push("site " + h.slice(0, 40));
+    if (personal && ok.length){ t.hosts = []; skip.push("its sites (a tile that reads personal data gets no sites)"); }
+    else { t.hosts = ok; if (ok.length) did.push("reads " + ok.join(", ")); }
+  } else if (personal) t.hosts = [];
+  if (J.settings && typeof J.settings === "object" && !Array.isArray(J.settings)){
+    const S = {};
+    for (const [k0, d] of Object.entries(J.settings).slice(0, 20)){
+      const k = k0.trim().replace(/[^A-Za-z0-9_]/g, "_").replace(/^(\d)/, "_$1").slice(0, 30);
+      if (!k || S[k] || !d || typeof d !== "object" || !STU_TYPES.includes(d.type)){ skip.push("setting " + k0.slice(0, 30)); continue; }
+      if (d.type === "secret"){ skip.push("setting " + k + " (keys are never filled in)"); continue; }
+      const o = {type:d.type, label:str(d.label, 80) || k};
+      if (d.type === "source"){
+        if (!STU_KINDS[d.kind] || !(t.feeds || []).includes(STU_KINDS[d.kind])){ skip.push("setting " + k + " (needs " + (STU_KINDS[d.kind] || "a source") + " in what it reads)"); continue; }
+        o.kind = d.kind;
+      }
+      else if (d.type === "bool") o.default = d.default === true;
+      else if (d.type === "int" || d.type === "number"){
+        o.default = Number.isFinite(+d.default) && d.default !== "" && d.default !== null ? (d.type === "int" ? Math.round(+d.default) : +d.default) : 0;
+        for (const x of ["min", "max"]) if (d[x] !== undefined && d[x] !== null && d[x] !== "" && Number.isFinite(+d[x])) o[x] = +d[x];
+      }
+      else if (d.type === "list") o.default = (Array.isArray(d.default) ? d.default : String(d.default || "").split(",")).map(x => String(x).trim().slice(0, 100)).filter(Boolean).slice(0, 30);
+      else if (d.type === "choice"){
+        o.choices = (Array.isArray(d.choices) ? d.choices : []).map(x => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 20);
+        if (!o.choices.length) o.choices = ["One", "Two"];
+        o.default = o.choices.includes(d.default) ? d.default : o.choices[0];
+      }
+      else o.default = String(d.default == null ? "" : d.default).slice(0, 200);
+      S[k] = o;
+    }
+    t.settings = S; did.push(Object.keys(S).length + (Object.keys(S).length === 1 ? " setting" : " settings"));
+  }
+  if (code){
+    if (new Blob([code]).size > 60000) skip.push("code (too large)");
+    else { t.code = code; did.push("code"); }
+  } else if (J.code !== undefined || !obj) skip.push("code (no Tile(\"…\", { … }) found)");
+  if (!did.length) return {error:"Nothing in that fits the form. Paste the whole answer, the json block and the code."};
+  return {t, did, skip};
+}
+function stuFillHTML(){
+  const f = STU.fill; if (!f) return "";
+  if (f.err) return '<div class="lstu-err error">' + esc(f.err) + '</div>';
+  if (f.undone) return '<p class="lnote ok">Put the form back as it was.</p>';
+  return '<p class="lnote ok">Filled in: ' + esc(f.did.join(", ")) + '.</p>' + (f.skip.length ? '<p class="lnote">Left out: ' + esc(f.skip.join("; ")) + '.</p>' : "");
+}
+function stuRedraw(){ const sc = libEl().querySelector(".lmain").scrollTop; libShow(); libEl().querySelector(".lmain").scrollTop = sc; }
+function stuFill(){
+  if (!STU.reply.trim()){ toast("Paste the answer first", "bad"); return; }
+  const r = stuParse(STU.reply, STU.t);
+  if (r.error){ STU.fill = {err:r.error}; stuRedraw(); return; }
+  STU.undo = JSON.stringify(STU.t); STU.t = r.t; STU.reply = ""; STU.fill = {did:r.did, skip:r.skip};
+  stuChanged(true);
+}
+function stuUnfill(){
+  if (!STU.undo) return;
+  STU.t = JSON.parse(STU.undo); STU.undo = null; STU.fill = {undone:true};
+  stuChanged(true);
 }
 async function stuTap(t){
   const d = t.dataset, a = d.l;
@@ -340,7 +485,9 @@ async function stuTap(t){
   if (a === "s-share"){ stuDownload(); return; }
   if (a === "s-copy"){ stuCopyText(JSON.stringify(stuPublic(), null, 1), "Copied the tile as text"); return; }
   if (a === "s-submit"){ stuSubmit(); return; }
-  if (a === "s-ai"){ stuCopyText(stuAI(), "Copied. Paste it into ChatGPT."); return; }
+  if (a === "s-ai"){ stuCopyText(stuAI(), "Copied. Paste it into ChatGPT, then paste its answer here."); return; }
+  if (a === "s-fill"){ stuFill(); return; }
+  if (a === "s-unfill"){ stuUnfill(); return; }
   if (a === "s-addset"){ const S = STU.t.settings = STU.t.settings || {}; let n = 1; while (S["setting" + n]) n++; S["setting" + n] = {type:"text", label:"Setting " + n, default:""}; stuChanged(true); return; }
   if (a === "s-delset"){ delete STU.t.settings[d.id]; stuChanged(true); return; }
   if (a === "s-adddev"){ const D = STU.t.devices = STU.t.devices || {}; let n = 1; while (D["light" + (n > 1 ? n : "")]) n++; D["light" + (n > 1 ? n : "")] = {label:"Light", domains:["light", "switch"]};

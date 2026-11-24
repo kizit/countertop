@@ -17,7 +17,7 @@ Downloading adds the tile to Library → Tiles and changes nothing on your scree
 
 ## Tile Studio
 
-**Library → Tiles → New tile** is a place to make your own. Fill in a form, write the code (or press **Copy instructions for ChatGPT** and paste back what it writes), and watch the tile run in a preview with made-up data or your own. Problems are listed as you go.
+**Library → Tiles → New tile** is a place to make your own. Describe the tile and press **Copy for chat**, paste the assistant's answer back, and **Fill in the form** sets everything on the page at once: name, what it shows, size, the data it reads, settings and code. Or fill in the form and write the code yourself. Either way you watch the tile run in a preview with made-up data or your own. Problems are listed as you go.
 
 Save it, put it on a page, **Download file** to carry it to another Countertop, or **Submit to the gallery** to share it with everyone. Tile Studio replaces **Your own tile**. Tiles that work in the new sealed-off way convert by themselves, with **Restore** if you want the original back, and the rest keep working with a **Convert** button.
 

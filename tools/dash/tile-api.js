@@ -185,7 +185,7 @@ const TILE_API = {
 // parsed, anything else as text
 async function tileGet(m, url, maxAge){
   const u = "/tile-fetch?type=" + encodeURIComponent(m.type) + "&maxAge=" + Math.round(maxAge == null ? 300 : +maxAge || 0) + "&url=" + encodeURIComponent(url);
-  if (SOLO){ const d = demoJSON(u); if (d !== undefined) return d; }
+  if (SOLO && !REAL){ const d = demoJSON(u); if (d !== undefined) return d; }
   const r = await fetch(u, {cache:"no-store"});
   const json = /json/.test(r.headers.get("Content-Type") || "");
   if (!r.ok){ const j = json ? await r.json().catch(() => ({})) : {}; throw new Error(j.error || ("error " + r.status)); }

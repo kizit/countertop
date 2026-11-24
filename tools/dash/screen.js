@@ -382,8 +382,8 @@ function trialBanner(t){
 /* ---------- boot (runs after /tiles.js has defined the tile types) ---------- */
 let SOURCES = {};
 async function boot(){
-  try{ const j = await getJSON("/config" + (TRIAL_ID ? "?trial=" + encodeURIComponent(TRIAL_ID) : "")); CFG = j.modules; SCH = {}; SOURCES = j.sources || {}; for (const k in CFG) SCH[k] = (j.schema || {})[k] || {};
-    sbxSetup(j.sandbox);
+  try{ const j = await getJSON("/config" + (TRIAL_ID ? "?trial=" + encodeURIComponent(TRIAL_ID) : DRAFT_ID ? "?draft=" + DRAFT_ID : "")); CFG = j.modules; SCH = {}; SOURCES = j.sources || {}; for (const k in CFG) SCH[k] = (j.schema || {})[k] || {};
+    sbxSetup(j.sandbox); LEGACY = j.legacy || {};
     if (j.trial) trialBanner(j.trial); }
   catch(e){ reportErr("config", String(e)); setTimeout(boot, 15e3); return; }
   if (SOLO) demoConfig();             // ?solo=<type>: one tile of that type with made-up data (examples in the tile list)

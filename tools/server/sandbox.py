@@ -16,6 +16,7 @@ community tiles on it and nothing changed in between.
 import collections
 import json
 import re
+import secrets
 import threading
 import time
 import zlib
@@ -24,6 +25,9 @@ from server.core import HERE, WORK
 from server.tilekeys import MAX_SECRETS, clean_secret, key_states, secrets_of
 
 TILES_DIR = WORK / "community" / "tiles"
+MINE_DIR = WORK / "mytiles"            # tiles made in Tile Studio (server/mytiles.py): the same file, run the same way
+MINE_PREFIX = "my-"                    # a Tile Studio tile's id starts with this, and a gallery tile's never does
+DRAFT_PREFIX = "draft-"                # a tile being written in Tile Studio, kept in memory for its preview
 TAKEDOWN_FILE = WORK / "community" / "takedowns.json"      # the gallery's take-downs of downloaded tiles (server/commtiles.py)
 SAFE_FILE = WORK / "safe-mode.json"
 RUNTIME_DIR = HERE / "sandbox"
@@ -92,6 +96,8 @@ def clean_tile(raw, builtins=None):
         raise ValueError("its id must be 2 to 40 lower-case letters, digits or dashes")
     if tid in (builtin_types() if builtins is None else builtins):
         raise ValueError("its id is the same as a built-in tile's")
+    if tid.startswith(DRAFT_PREFIX):
+        raise ValueError("its id can't start with %s" % DRAFT_PREFIX)
     code = raw.get("code")
     if not isinstance(code, str) or not code.strip():
         raise ValueError("has no code")
@@ -167,8 +173,11 @@ def taken_down():
 
 
 def tile_runs(t):
-    """Whether a community tile may run: not in safe mode, and not taken down by the gallery."""
-    return bool(t) and not safe_mode()["on"] and t["id"] not in taken_down()
+    """Whether a community tile may run: not in safe mode, not taken down by the gallery, and (a Tile Studio tile that
+    came in a shared layout) not waiting for the person to say it may run."""
+    if t and t.get("draft"):
+        return True             # Tile Studio's preview, in Controls: safe mode is for the screens
+    return bool(t) and not safe_mode()["on"] and t["id"] not in taken_down() and not (t.get("mine") or {}).get("review")
 
 
 def clean_controls(raw):
@@ -210,30 +219,98 @@ def clean_controls(raw):
     return devices, controls
 
 
+def _tile_files():
+    """(folder, file) for every community tile and every Tile Studio tile."""
+    out = []
+    for d in (TILES_DIR, MINE_DIR):
+        try:
+            out += [(d, f) for f in sorted(d.glob("*.json"))]
+        except OSError:
+            pass
+    return out
+
+
+def _mine_note(raw):
+    """What a Tile Studio tile's file says about itself, for the dashboard and Controls (never the backup it keeps)."""
+    m = raw.get("mine") if isinstance(raw.get("mine"), dict) else {}
+    b = m.get("backup") if isinstance(m.get("backup"), dict) else None
+    return {"from": m.get("from") if m.get("from") in ("studio", "custom", "import") else "studio",
+            "saved": m.get("saved") if isinstance(m.get("saved"), int) else 0,
+            "review": m.get("review") is True, "backup": bool(b and isinstance(b.get("item"), dict)),
+            "lan": bool(b and b.get("lan") is True)}
+
+
 def community_installed():
-    """{"tiles": {id: tile}, "problems": [[file, why]]} for community/tiles/*.json, read again when a file changes."""
+    """{"tiles": {id: tile}, "problems": [[file, why]]} for community/tiles/*.json and mytiles/*.json, read again when a
+    file changes. A Tile Studio tile has `mine` (its note); its id starts with my-, and a community tile's never does."""
     try:
-        files = sorted(TILES_DIR.glob("*.json"))
-        sig = tuple((f.name, f.stat().st_mtime_ns, f.stat().st_size) for f in files)
+        files = _tile_files()
+        sig = tuple((str(d.name), f.name, f.stat().st_mtime_ns, f.stat().st_size) for d, f in files)
     except OSError:
         files, sig = [], ()
     with SBX_LOCK:
         if SBX_CACHE["sig"] == sig:
             return SBX_CACHE
         tiles, problems, builtins = {}, [], builtin_types()
-        for f in files:
+        for d, f in files:
+            mine = d == MINE_DIR
             try:
-                t = clean_tile(json.loads(f.read_text(encoding="utf-8")), builtins)
+                raw = json.loads(f.read_text(encoding="utf-8"))
+                t = clean_tile(raw, builtins)
                 if t["id"] != f.stem:
                     raise ValueError("its file must be named %s.json" % t["id"])
+                if mine != t["id"].startswith(MINE_PREFIX):
+                    raise ValueError("only a tile made in Tile Studio has an id starting with %s" % MINE_PREFIX)
+                if t["id"] in tiles:
+                    raise ValueError("another tile already has the id %s" % t["id"])
+                if mine:
+                    t["mine"], t["gallery"] = _mine_note(raw), None
                 tiles[t["id"]] = t
             except (OSError, ValueError) as e:
-                problems.append([f.name, str(e)[:160]])
+                problems.append([("mytiles/" if mine else "") + f.name, str(e)[:160]])
         SBX_CACHE.update(sig=sig, tiles=tiles, problems=problems)
         return SBX_CACHE
 
 
+# ---------- drafts: a tile being written in Tile Studio, run in the same frame for its preview ----------
+DRAFTS = {}                    # draft id -> (time, cleaned tile)
+DRAFT_KEEP, DRAFT_MAX = 3600, 20
+
+
+def draft_put(raw, of=""):
+    """Check a tile being written and keep it for its preview. Returns its draft id; ValueError says what's wrong.
+    `of` is the Tile Studio tile it's a draft of (its API keys are used, while the key settings are unchanged)."""
+    raw = dict(raw) if isinstance(raw, dict) else {}
+    did = DRAFT_PREFIX + secrets.token_hex(6)
+    t = clean_tile(dict(raw, countertop="tile", id="draftcheck", version=1))
+    t.update(id=did, type=did, gallery=None, draft=True,
+             keysOf=of if isinstance(of, str) and of.startswith(MINE_PREFIX) and SBX_ID_RE.match(of) else "")
+    now = time.time()
+    with SBX_LOCK:
+        for k in [k for k, (at, _) in DRAFTS.items() if now - at > DRAFT_KEEP]:
+            del DRAFTS[k]
+        while len(DRAFTS) >= DRAFT_MAX:
+            del DRAFTS[min(DRAFTS, key=lambda k: DRAFTS[k][0])]
+        DRAFTS[did] = (now, t)
+    return did
+
+
+def draft_tile(did):
+    with SBX_LOCK:
+        hit = DRAFTS.get(did)
+    return hit[1] if hit and time.time() - hit[0] <= DRAFT_KEEP else None
+
+
+def keys_tile(t):
+    """The tile whose saved API keys a tile uses: a draft uses the keys of the Tile Studio tile it's a draft of."""
+    if t and t.get("draft"):
+        return dict(t, id=t["keysOf"]) if t.get("keysOf") else None
+    return t
+
+
 def community_tile(tid):
+    if isinstance(tid, str) and tid.startswith(DRAFT_PREFIX):
+        return draft_tile(tid)
     return community_installed()["tiles"].get(tid)
 
 
@@ -245,14 +322,18 @@ def tile_hosts(type_):
     return builtin_hosts(type_)
 
 
-def sandbox_view():
+def sandbox_view(draft=""):
     """What /config tells the dashboard: safe mode, and each community tile without its code. For a tile with API keys,
-    only whether each one is saved (`keys`), never the key."""
+    only whether each one is saved (`keys`), never the key. `draft` adds a Tile Studio draft (its preview)."""
     s, gone = safe_mode(), taken_down()
+    tiles = dict(community_installed()["tiles"])
+    d = draft_tile(draft) if isinstance(draft, str) and draft.startswith(DRAFT_PREFIX) else None
+    if d:
+        tiles[d["id"]] = d
+    view = lambda t: dict({x: v for x, v in t.items() if x not in ("code", "keysOf")},
+                          **({"keys": key_states(keys_tile(t)) if keys_tile(t) else {k: "" for k in secrets_of(t)}} if secrets_of(t) else {}))
     return {"safe": s["on"], "max": MAX_FRAMES, "beat": BEAT_EVERY,
-            "tiles": {k: dict({x: v for x, v in t.items() if x != "code"}, **({"keys": key_states(t)} if secrets_of(t) else {}),
-                              **({"revoked": True} if k in gone else {}))
-                      for k, t in community_installed()["tiles"].items()}}
+            "tiles": {k: dict(view(t), **({"revoked": True} if k in gone else {})) for k, t in tiles.items()}}
 
 
 def sandbox_version():
@@ -260,7 +341,7 @@ def sandbox_version():
     reloads then. Safe mode turning itself on doesn't reload the screen: a frozen page can't, and a page that was only
     cut off for a while gets the chance to check in again and turn it back off."""
     sig = community_installed()["sig"] or ()
-    return sum(n[1] // 1_000_000_000 + n[2] for n in sig) % 1_000_000 + safe_mode()["gen"] + zlib.crc32(",".join(sorted(taken_down())).encode()) % 100_000
+    return sum(n[2] // 1_000_000_000 + n[3] for n in sig) % 1_000_000 + safe_mode()["gen"] + zlib.crc32(",".join(sorted(taken_down())).encode()) % 100_000
 
 
 # ---------- the frame page ----------
@@ -279,7 +360,7 @@ def tile_frame_page(tid, host="localhost"):
         return 404, b"no such tile", {}
     if not tile_runs(t):
         body = '<!doctype html><meta charset="utf-8"><style>body{margin:0;color:#ccc;font:16px sans-serif}</style><p>Off: %s.</p>' % (
-            "safe mode is on" if safe_mode()["on"] else "taken down from the community gallery")
+            "safe mode is on" if safe_mode()["on"] else "waiting for you to let it run" if (t.get("mine") or {}).get("review") else "taken down from the community gallery")
         return 200, body.encode("utf-8"), {"Content-Security-Policy": SBX_OFF_POLICY}
     if not isinstance(host, str) or not SBX_HOST_RE.match(host):
         return 400, b"bad host", {}

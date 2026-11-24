@@ -122,6 +122,7 @@ node tests/sandbox-check.js               # community tiles in their sandbox (ne
 node tests/control-check.js               # control tile buttons, with a stand-in Home Assistant (needs Playwright)
 node tests/touch-check.js                 # holding, swiping, editing and Settings round trips with real touches (needs Playwright)
 node tests/key-check.js                   # a community tile's API key typed in its settings, with real touches (needs Playwright)
+node tests/studio-check.js                # Tile Studio, and Your own tiles converting to it (needs Playwright)
 ```
 
 To install Playwright for the browser checks:
@@ -142,6 +143,7 @@ Where tests go:
 | Community tiles, `/tile-fetch`, safe mode | `tests/test_sandbox.py`, `tests/test_tilefetch.py`, and `tests/sandbox-check.js` in a browser |
 | Control tiles (buttons, device grants, confirms) | `tests/test_control_tiles.py`, and `tests/control-check.js` in a browser |
 | Community tiles' API keys | `tests/test_tilekeys.py`, and `tests/key-check.js` in a browser |
+| Tile Studio, and converting Your own tiles | `tests/test_studio.py`, and `tests/studio-check.js` in a browser |
 | A page or tile | It must load in `browser-check.js` without console errors. New pieces of a page go in the page's `index.html` |
 
 ## Open a pull request

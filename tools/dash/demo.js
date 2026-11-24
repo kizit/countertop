@@ -50,11 +50,12 @@ function demoJSON(u){
 // one tile of the asked-for type on a page of its own, made-up data, no personal settings
 function demoConfig(){
   const g = CFG.general && CFG.general.settings;
-  if (g) Object.assign(g, {place:"Anytown", lat:39.74, lon:-104.99});
-  SOURCES = {calendars:[{id:"demo", name:"Family", color:"#7cb7ff"}], teams:[{id:"demo", name:"Home FC", league:"usa.1"}], lists:[{id:"demo", name:"Grocery"}], albums:[], cams:[]};
+  if (g && !REAL) Object.assign(g, {place:"Anytown", lat:39.74, lon:-104.99});
+  if (!REAL) SOURCES = {calendars:[{id:"demo", name:"Family", color:"#7cb7ff"}], teams:[{id:"demo", name:"Home FC", league:"usa.1"}], lists:[{id:"demo", name:"Grocery"}], albums:[], cams:[]};
   let opt = {};
   try{ opt = JSON.parse(decodeURIComponent((location.search.match(/[?&]opt=([^&]+)/) || [])[1] || "null")) || {}; }catch(e){}
-  const T = TYPES[SOLO] || {}, sz = T.size || [12, 8];
+  const T = TYPES[SOLO] || {}, q = k => +((location.search.match(new RegExp("[?&]" + k + "=(\\d+)")) || [])[1] || 0);
+  const sz = q("w") && q("h") ? [q("w"), q("h")] : T.size || [12, 8];       // Tile Studio previews a tile at each of its sizes
   CFG.tiles = {on:true, settings:{items:[{id:"demo", type:SOLO, settings:Object.assign({}, T.demo || {}, opt)}]}};
   CFG.pages = {on:true, settings:{items:[{id:"main", name:"Main", on:true, cols:48, slots:[{id:"d1", x:0, y:0, w:Math.min(48, sz[0]), h:Math.min(32, sz[1]), mod:"demo"}]}]}};
   if (CFG.effects) CFG.effects.on = false;

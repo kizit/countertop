@@ -153,7 +153,8 @@ async function main() {
       const wrong = want.filter(k => !hit(k)).map(k => "missing " + k).concat(never.filter(hit).map(k => "unexpected " + k));
       if (wrong.length) throw new Error(wrong.join(", ") + " | saw " + probeHits.join(" "));
       const note = await page.evaluate(() => [MODULES.mA.editNote(), MODULES.mB.editNote()]);
-      if (!/home network/.test(note[0]) || note[1]) throw new Error("the grandfathered tile's settings note is wrong: " + JSON.stringify(note));
+      // both stay Your own tiles (their probes reach addresses Tile Studio can't), so both say so; only mA keeps its access
+      if (!/Can reach your home network/.test(note[0]) || /Can reach your home network/.test(note[1]) || !/is now Tile Studio/.test(note[1])) throw new Error("the grandfathered tile's settings note is wrong: " + JSON.stringify(note));
       const run = await page.$(".m-mine .mine-ask button");
       if (!run) throw new Error("the shared tile shows no Run button");
       if (await page.$$eval(".m-mine iframe.mine", f => f.length) !== 3) throw new Error("the shared tile's code is already in a frame");

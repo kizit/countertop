@@ -1,6 +1,8 @@
 /* Your own tile: HTML you paste (or have ChatGPT write), run in its own frame */
 Tile("custom", {
-  title:"Your own tile", cat:"Your own", cls:"m-mine", every:60, size:[12, 8, 4, 4],
+  // retired: Tile Studio (Controls → Library → Tiles) makes tiles now. Ones that already exist keep working; ones that
+  // work in the sandbox were converted into Tile Studio tiles by the server (tools/server/mytiles.py)
+  title:"Your own tile", cat:"Your own", cls:"m-mine", every:60, size:[12, 8, 4, 4], hidden:true,
   desc:"Paste HTML, CSS and JavaScript to make any tile you like, or have ChatGPT write it with the instructions in its settings. It runs in its own frame: it can't see or change the rest of the dashboard, and it can only load things from secure https:// addresses. Plain http:// addresses, which is how most devices on a home network answer, are blocked.",
   settings:{
     ask:{type:"text", label:"What should it show?", help:"Goes into the ChatGPT instructions below", placeholder:"e.g. days until summer vacation", default:""},
@@ -45,9 +47,12 @@ Tile("custom", {
   editNote(){
     if (this.waitsRun()) return '<p class="pd"><b>Shared code, not run yet.</b> This tile came in a shared layout. Read its code below, and run it only if you trust it.</p>' +
       '<button class="wide" data-act="minerun">Run its code</button>';
-    if (this.lanOpen()) return '<p class="pd" style="color:var(--warn,#f5b84a)"><b>Can reach your home network.</b> This tile was made before Your own tiles were limited to secure https:// addresses, ' +
+    const L = (typeof LEGACY === "object" && LEGACY[this.id]) || null;
+    const why = L && L.reasons && L.reasons.length ? '<p class="pd"><b>Your own tile is now Tile Studio.</b> This one stays as it is and keeps working, because: ' +
+      esc(L.reasons.join("; ")) + '. Convert it in Controls → Library → Tiles when you\'re ready (the parts above stop working, and Restore puts it back).</p>' : "";
+    if (this.lanOpen()) return why + '<p class="pd" style="color:var(--warn,#f5b84a)"><b>Can reach your home network.</b> This tile was made before Your own tiles were limited to secure https:// addresses, ' +
       'so its code can still reach plain http:// addresses and the devices on your home network that answer that way. Keep it only if you wrote it or trust whoever did.</p>';
-    return "";
+    return why;
   },
   render(el){
     const s = this.s, open = this.lanOpen(), key = [s.html, s.title, s.taps, s.frame, this.name, THEME && THEME.id, open, this.waitsRun()].join("\u0001");

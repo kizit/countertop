@@ -26,6 +26,7 @@ node tests/control-check.js                 # needs Playwright + Chromium
 node tests/touch-check.js                   # needs Playwright + Chromium
 node tests/controls-ux-check.js             # needs Playwright + Chromium
 node tests/key-check.js                     # needs Playwright + Chromium
+node tests/studio-check.js                  # needs Playwright + Chromium
 ```
 
 Restart the server after editing Python. Run the checks before you finish.

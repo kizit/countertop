@@ -1,5 +1,6 @@
 """The HTTP handler (every route) and main(), which starts the server."""
 import argparse
+import base64
 import json
 import platform
 import re
@@ -12,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
-from server import bench, sandbox, tiledata, tilefetch, tilekeys
+from server import bench, mytiles, sandbox, tiledata, tilefetch, tilekeys
 from server.core import VERSION
 
 
@@ -91,8 +92,13 @@ class Handler(BaseHTTPRequestHandler):
                 cfg["everyday"] = {"page": main, "tiles": defaults["tiles"]["settings"]["items"]}
             cfg["schema"] = SCHEMA
             cfg["sources"] = sources_public()
-            cfg["sandbox"] = sandbox.sandbox_view()
+            cfg["sandbox"] = sandbox.sandbox_view(parse_qs(urlparse(self.path).query).get("draft", [""])[0])
+            # Your own tiles still on the dashboard, and why each wasn't converted (server/mytiles.py)
+            cfg["legacy"] = mytiles.legacy_view(((cfg["modules"].get("tiles") or {}).get("settings") or {}).get("items"))
             self._json(cfg)
+        elif p.startswith("/studio/tile/"):
+            t = mytiles.studio_view(p[len("/studio/tile/"):])
+            self._json(t, 200) if t else self._json({"error": "No such tile"}, 404)
         elif p == "/community":
             self._json(community_index(bool(parse_qs(urlparse(self.path).query).get("refresh"))))     # the gallery's list, when Controls opens Community
         elif p == "/community/shot":
@@ -261,6 +267,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(commtiles.remove(body.get("type")))
             except ValueError as e:
                 self._json({"error": str(e)}, 400)
+        elif p.startswith("/studio/"):
+            self._studio(p[len("/studio/"):], body)
         elif p == "/sandbox/safe":
             sandbox.set_safe_mode(body.get("on") is True, "person")
             self._json({"safe": sandbox.safe_mode()["on"]})
@@ -317,6 +325,31 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404)
 
+    def _studio(self, what, body):
+        """Tile Studio (server/mytiles.py): save, preview drafts, delete, import, run, convert and restore."""
+        try:
+            if what == "save":
+                out = mytiles.save(body)
+            elif what == "draft":
+                out = {"id": sandbox.draft_put(body.get("tile"), body.get("of") or "")}
+            elif what == "delete":
+                out = mytiles.delete(body.get("id"))
+            elif what == "import":
+                out = mytiles.import_tile(body)
+            elif what == "trust":
+                out = mytiles.trust(body.get("id"))
+            elif what == "convert":
+                out = tile_convert(str(body.get("id") or ""))
+            elif what == "restore":
+                out = tile_restore(str(body.get("id") or ""))
+            elif what == "check":
+                out = mytiles.precheck(body.get("html"))
+            else:
+                return self._send(404)
+        except ValueError as e:
+            return self._json({"error": str(e)}, 400)
+        self._json(out)
+
     def _tile_fetch(self):
         """A web address read for a tile: only on the sites that kind of tile declared (tools/server/tilefetch.py)."""
         q = parse_qs(urlparse(self.path).query)
@@ -328,9 +361,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(403, json.dumps({"error": "This tile can't reach the internet."}).encode(), "application/json", inert)
         try:
             # a community tile's API keys are added by the server, only for the one site each is for (tilekeys.py)
-            res = tilefetch.cached_fetch(url, hosts, (q.get("maxAge") or ["300"])[0], tilekeys.fetch_keys(sandbox.community_tile(typ)), typ)
+            image = (q.get("as") or [""])[0] == "image"
+            res = tilefetch.cached_fetch(url, hosts, (q.get("maxAge") or ["300"])[0], tilekeys.fetch_keys(sandbox.keys_tile(sandbox.community_tile(typ))), typ, image)
         except tilefetch.FetchError as e:
             return self._send(e.code, json.dumps({"error": str(e)}).encode(), "application/json", inert)
+        if image:
+            # a picture for a tile's frame, which can only show data: addresses
+            return self._send(200, json.dumps({"data": "data:%s;base64,%s" % (res["type"], base64.b64encode(res["body"]).decode())}).encode(),
+                              "application/json", inert)
         ctype = "application/json" if "json" in res["type"] else "text/plain; charset=utf-8"
         self._send(200, res["body"], ctype, inert)
 
@@ -459,7 +497,7 @@ def main():
 
 # names used only inside functions: imported last, so these modules can use each other
 from server.actions import tile_act  # noqa: E402
-from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, live_tiles, tile_trust  # noqa: E402
+from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, live_tiles, tile_convert, tile_restore, tile_trust  # noqa: E402
 from server.core import CAL_STATUS, HERE, ICS_CACHE, LOG, OLD_LOG, SCREEN, WORK, _Tee, lan_ip, log_entry  # noqa: E402
 from server.feeds.calendar import SAMPLE_ICS, parse_ics  # noqa: E402
 from server.feeds.cams import live_cams  # noqa: E402

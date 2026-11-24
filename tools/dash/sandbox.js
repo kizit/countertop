@@ -6,7 +6,8 @@
    has navigated away and is removed. While a frame runs, this page checks in with the server every few seconds: an
    endless loop in a frame freezes the whole page on the Echo, and the server turns on safe mode when it goes quiet.
    A control tile's buttons are drawn here, below its frame, never by its code (sbxControls). */
-const SBX = {safe:false, max:6, beat:5, tiles:{}, frames:new Map(), has:{}, paused:{}, notes:[],
+let LEGACY = {};          // Your own tiles not converted to Tile Studio tiles, and why (/config → legacy)
+const SBX = {safe:false, max:6, beat:5, tiles:{}, frames:new Map(), has:{}, paused:{}, notes:[], log:{},
   session:Date.now().toString(36) + Math.random().toString(36).slice(2, 8), gap:0, lastTick:0, lastBeat:0, wasShowing:false};
 // this.feed(name) names → the dashboard's feed keys, and where each one's data lives in STATE
 const SBX_FEED = {weather:"wx", air:"aqi", events:"events", notes:"notes", teams:"team", albums:"photos", sales:"sales"};
@@ -19,7 +20,8 @@ function sbxSetup(cfg){
   SBX.safe = !!cfg.safe; SBX.max = +cfg.max || 6; SBX.beat = +cfg.beat || 5; SBX.tiles = cfg.tiles || {};
   for (const t of Object.values(SBX.tiles)){
     if (TYPES[t.type] && !TYPES[t.type].community) continue;          // never replaces a built-in tile
-    Tile(t.type, {title:t.title, desc:t.desc, cat:"Community", size:t.size, feeds:t.feeds || [], uses:t.uses || [],
+    // a Tile Studio tile (yours) is listed under Your own; one that came from someone else waits for Run (sbxAskRun)
+    Tile(t.type, {title:t.title, desc:t.desc, cat:t.mine || t.draft ? "Your own" : "Community", size:t.size, mine:t.mine || null, hidden:!!t.draft, feeds:t.feeds || [], uses:t.uses || [],
       every:t.every || 0, demo:t.demo || {}, demoData:t.demoData || {}, lang:t.lang || {}, hosts:t.hosts || [], taps:!!t.taps, version:t.version,
       devices:t.devices || {}, controls:t.controls || [],
       author:t.author, personal:t.personal || [], community:true, api:1, card:true, noFit:true, cls:"m-sbx",
@@ -46,8 +48,12 @@ function sbxGrantDefs(t){
 }
 // at the top of a community tile's settings in the editor: who made it, what it can see and do
 function sbxEditNote(m){
-  const L = [];
-  if (m.author) L.push(tr("Community tile by {who}.", {who:m.author}));
+  const L = [], mine = m.mine || {};
+  if (mine.review) return '<p class="pd"><b>' + esc(tr("Shared code, not run yet.")) + '</b> ' + esc(tr("This tile came from someone else. Read its code in Controls → Library → Tiles, and run it only if you trust it.")) + '</p>' +
+    '<button class="wide" data-act="minetrust">' + esc(tr("Run its code")) + '</button>';
+  if (mine.from === "custom") L.push(tr("Made from your Your own tile. Change it in Controls → Library → Tiles, where Restore puts the original back."));
+  else if (m.mine) L.push(tr("One of your own tiles. Change it in Controls → Library → Tiles → Tile Studio."));
+  if (m.author && !m.mine) L.push(tr("Community tile by {who}.", {who:m.author}));
   if ((m.controls || []).length) L.push(tr("Its buttons are drawn by Countertop below the tile, and work only the devices you pick here. The tile's own code can show them but never press them."));
   if ((m.personal || []).length) L.push(tr("Reviewed and contained, not sealed. Silk lets a tile's code send one request by navigating its own frame, and may allow other ways out. Only turn on tiles from authors you trust."));
   return L.length ? '<p class="pd">' + L.map(esc).join(" ") + '</p>' : "";
@@ -115,9 +121,11 @@ function sbxWanted(el){
   return !!pg && (SOLO || pg === sbxPageEl());
 }
 function sbxRender(m, el){
-  if (SBX.safe){ sbxDrop(m.id); return sbxSay(el, tr("Community tiles are off (safe mode). Turn them back on in Controls → Status.")); }
+  if (SBX.safe && !m.type.startsWith("draft-")){ sbxDrop(m.id); return sbxSay(el, tr("Community tiles are off (safe mode). Turn them back on in Controls → Status.")); }
   if ((SBX.tiles[m.type] || {}).revoked){ sbxDrop(m.id); return sbxSay(el, tr("Taken down from the community gallery, so it's off. Remove it in Controls → Library → Community.")); }
   if (SBX.paused[m.id]) return sbxSay(el, SBX.paused[m.id]);
+  if ((m.settings || {}).frame && (m.settings.frame || {}).type === "bool") el.classList.toggle("bare", m.s.frame === false);
+  if ((m.mine || {}).review){ sbxDrop(m.id); return sbxAskRun(m, el); }
   let rec = SBX.frames.get(m.id);
   if (rec && rec.el !== el){ sbxDrop(m.id); rec = null; }
   if (!rec){
@@ -127,6 +135,47 @@ function sbxRender(m, el){
   }
   rec.gone = 0;
   sbxUpdate(rec, true);
+}
+// a tile from someone else (it came in a shared layout or file): the box says so and waits for Run
+function sbxAskRun(m, el){
+  const key = "ask:" + m.name + PREVIEW;
+  if (el._sbxSaid === key) return;
+  el._sbxSaid = key;
+  el.innerHTML = '<div class="mine-ask"><b>' + esc(m.name) + '</b><span>' + esc(tr("This tile came from someone else, with its own code. It only runs if you say so.")) + '</span>' +
+    (PREVIEW || SOLO ? '<span>' + esc(tr("Tap Run on the dashboard to start it.")) + '</span>' : '<button type="button">' + esc(tr("Run it")) + '</button>') + '</div>';
+  const b = el.querySelector("button");
+  if (b) b.addEventListener("click", e => { e.stopPropagation(); if (e.isTrusted && !EDIT.on) sbxTrust(m); });
+}
+async function sbxTrust(m){
+  try{ await fetch("/studio/trust", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:m.type})}); }catch(e){}
+  for (const x of Object.values(MODULES)) if (x.type === m.type && x.mine) x.mine.review = false;
+  if (SBX.tiles[m.type] && SBX.tiles[m.type].mine) SBX.tiles[m.type].mine.review = false;
+  render();
+}
+// what Tile Studio lists under its preview: errors and blocked requests, by tile (Controls reads it with dashSbxLog)
+window.dashSbxLog = id => (SBX.log[id] || []).slice();
+function sbxLog(m, kind, text){
+  const L = SBX.log[m.id] = SBX.log[m.id] || [];
+  if (L.length && L[L.length - 1].text === text){ L[L.length - 1].n++; return; }
+  L.push({at:Date.now(), kind, text, n:1});
+  if (L.length > 30) L.shift();
+}
+// a picture on one of the tile's own sites, read by the server and handed to the frame as a data: address
+async function sbxImage(rec, url){
+  const m = rec.m, c = (m._si = m._si || {})[url] = m._si[url] || {data:null, error:"", busy:false, at:0};
+  const reply = () => { const r = SBX.frames.get(m.id); if (r && r.ready) sbxPost(r, {ct:"imaged", url, data:c.data, error:c.error}); };
+  if (!(m.hosts || []).length){ c.error = tr("This tile can't reach the internet."); sbxLog(m, "error", c.error + " (" + url.slice(0, 80) + ")"); return reply(); }
+  if (c.busy) return;
+  if (c.at && (c.data || Date.now() - c.at < 30e3)) return reply();
+  c.busy = true;
+  try{
+    const r = await fetch("/tile-fetch?type=" + encodeURIComponent(m.type) + "&as=image&maxAge=3600&url=" + encodeURIComponent(url), {cache:"no-store"});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.data) throw new Error(j.error || ("error " + r.status));
+    c.data = j.data; c.error = "";
+  }catch(e){ c.data = null; c.error = String(e.message || e).slice(0, 200); sbxLog(m, "error", tr("Picture {url}: {why}", {url:url.slice(0, 80), why:c.error})); }
+  c.busy = false; c.at = Date.now();
+  reply();
 }
 function sbxStart(m, el){
   if (SBX.frames.size >= SBX.max){       // make room: frames kept for tiles that have stopped showing go first
@@ -152,6 +201,7 @@ function sbxStart(m, el){
   if (strip) sbxControls(rec, cs, lay);
   // the first load is the tile's page; any later one means the frame went somewhere else
   f.addEventListener("load", () => { rec.loads++; if (rec.loads > 1) sbxEscaped(rec); });
+  rec.at = Date.now();
   f.src = "/tile-frame/" + encodeURIComponent(m.type) + "?v=" + (m.version || 1);
   el.appendChild(f);
   SBX.frames.set(m.id, rec);
@@ -229,7 +279,7 @@ async function sbxFetch(rec, url, maxAge){
   if (c.at && Date.now() - c.at < Math.max(30, +maxAge || 0) * 1000) return reply();
   c.busy = true;
   try{ c.data = await tileGet(m, url, maxAge); c.error = ""; }
-  catch(e){ c.error = String(e.message || e).slice(0, 200); }
+  catch(e){ c.error = String(e.message || e).slice(0, 200); sbxLog(m, "error", tr("Reading {url}: {why}", {url:url.slice(0, 80), why:c.error})); }
   c.busy = false; c.at = Date.now();
   reply();
 }
@@ -276,7 +326,12 @@ window.addEventListener("message", e => {
   else if (d.ct === "hold"){      // a finger held on a tile that takes taps: start editing with it, like any tile
     if (!EDIT.on && !SOLO && !PREVIEW && m.taps && now - (SBX.heldAt || 0) > 10e3){ SBX.heldAt = now; editEnter(m.id); }
   }
-    else if (d.ct === "error") reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200));
+  else if (d.ct === "error"){ sbxLog(m, "error", String(d.msg || "").slice(0, 200)); if (!m.type.startsWith("draft-")) reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200)); }
+  else if (d.ct === "blocked") sbxLog(m, "blocked", tr("Blocked: {what} {uri}", {what:String(d.what || "").slice(0, 40), uri:String(d.uri || "").slice(0, 120)}));
+  else if (d.ct === "image" && typeof d.url === "string" && d.url.length <= 2000) sbxImage(rec, d.url);
+  else if (d.ct === "reload" && now - (rec.at || 0) > 55e3 && !tileQuiet()){        // start again in a fresh frame (Your own tile's "reload every")
+    const el = rec.el; sbxDrop(rec.id); if (document.contains(el)) sbxRender(m, el);
+  }
 });
 // every second (from tick): frames for tiles that came into view, frames for tiles gone for a minute dropped
 function sbxTick(){

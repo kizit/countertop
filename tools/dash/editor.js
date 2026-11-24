@@ -593,6 +593,7 @@ function boxAct(a, el){
   else if (a === "setup") openSetup(el.dataset.kind);
   else if (a.startsWith("ent")) entAct(a, el);
   else if (a === "tksave" || a === "tkrm") sbxKeyAct(a, el);
+  else if (a === "minetrust"){ const m = MODULES[EDIT.tile]; if (m && m.mine && m.mine.review){ sbxTrust(m).then(() => edPaint(true)); } }
   else if (a === "minerun"){ const m = MODULES[EDIT.tile]; if (m && m.it.review){ remember(); delete m.it.review; render(m.id); edPaint(true); } }
   else if (a === "ai"){ const m = MODULES[EDIT.tile]; copyText(aiPrompt(m && m.s.ask)); }
   else if (a === "fit" && s && RG(s)){ const pg = curPg(), g = RG(s, pg), [dw, dh] = tsize(EDIT.tile || s.mod).map((v, i) => Math.min(v, i ? GR : GC)), R = {x:Math.min(g.x, GC - dw), y:Math.min(g.y, GR - dh), w:dw, h:dh};

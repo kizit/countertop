@@ -102,7 +102,7 @@ def dashboard_orientation(saved=None):
 # ---------- keeping settings safe ----------
 # dashboard.json carries a "schema" number. Each upgrade below runs once, in order, for files saved
 # before it existed; add a step (and bump CONFIG_SCHEMA) whenever the stored shape changes.
-CONFIG_SCHEMA = 3
+CONFIG_SCHEMA = 4
 BACKUP_DIR = WORK / "backups"
 BACKUP_KEEP = 12              # rolling copies of dashboard.json, newest kept
 BACKUP_EVERY = 15 * 60        # at most one routine copy per 15 minutes (Controls saves on every change)
@@ -285,6 +285,10 @@ def config_save(body, quiet=False, grant_lan=False):
             # Layout editors send a snapshot of the modules. Preserve the current mount.
             saved = {"modules": mods, "orientation": dashboard_orientation()}
             ledger = lan_check(_tile_items(mods), lan_ledger(), grant=grant_lan)
+            # Your own tile is retired: ones that will work in the sandbox become Tile Studio tiles (server/mytiles.py),
+            # after the line above has checked which of them really had home-network access, for their backup
+            if mytiles.convert_items(_tile_items(mods)):
+                ledger = lan_check(_tile_items(mods), ledger)
             if ledger["ids"]:
                 saved[LAN_KEY] = ledger
         else:
@@ -318,12 +322,87 @@ def tile_trust(tid):
             return False
         if t.pop("review", None) is None:
             return True
+        mytiles.convert_items(_tile_items(saved.get("modules")))       # now it may run: in the sandbox, if it works there
         saved["saved"] = int(time.time())
         config_backup()
         tmp = CONFIG_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
         tmp.replace(CONFIG_FILE)
         return True
+
+
+def tile_convert(item_id):
+    """Convert: a Your own tile that wouldn't work in the sandbox as it is becomes a Tile Studio tile anyway, with its
+    original kept for Restore. Returns {"type"} of the new tile."""
+    with CONFIG_LOCK:
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+        except (OSError, ValueError):
+            saved = {}
+        items = _tile_items(saved.get("modules"))
+        i = next((i for i, t in enumerate(items or []) if isinstance(t, dict) and t.get("id") == item_id and t.get("type") == "custom"), None)
+        if i is None:
+            raise ValueError("That Your own tile isn't on the dashboard")
+        if items[i].get("review"):
+            raise ValueError("Run this tile's code first, or remove it")
+        items[i].pop("keep", None)
+        new = mytiles.convert_item(items[i], force=True)
+        if not new:
+            raise ValueError("This tile's code is too large to convert")
+        items[i] = new
+        kept = lan_check(items, lan_ledger(saved))
+        if kept["ids"]:
+            saved[LAN_KEY] = kept
+        else:
+            saved.pop(LAN_KEY, None)
+        saved["saved"] = int(time.time())
+        config_backup()
+        tmp = CONFIG_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
+        tmp.replace(CONFIG_FILE)
+    return {"type": new["type"]}
+
+
+def tile_restore(tid):
+    """Restore: put a converted tile's original Your own tile back in every box that has the converted one, with the
+    home-network access it had, and remove the converted tile. The first box gets the original itself; any other box
+    gets a copy without that access."""
+    item, lan = mytiles.restore_item(tid)
+    with CONFIG_LOCK:
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+        except (OSError, ValueError):
+            saved = {}
+        items = _tile_items(saved.get("modules"))
+        found = 0
+        for i, t in enumerate(items if isinstance(items, list) else []):
+            if isinstance(t, dict) and t.get("type") == tid:
+                put = json.loads(json.dumps(item))
+                if found:
+                    put["id"] = t.get("id")
+                elif lan:
+                    put["lan"] = True
+                if t.get("name"):
+                    put["name"] = t["name"]
+                items[i] = put
+                found += 1
+        if found:
+            ledger = lan_ledger(saved)
+            if lan:
+                ledger = {"ids": ledger["ids"] | {item["id"]}, "code": ledger["code"] | {_code_hash(item)}}
+            kept = lan_check(items, ledger)
+            if kept["ids"]:
+                saved[LAN_KEY] = kept
+            else:
+                saved.pop(LAN_KEY, None)
+            saved["saved"] = int(time.time())
+            config_backup()
+            tmp = CONFIG_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(saved, indent=1, ensure_ascii=False))
+            tmp.replace(CONFIG_FILE)
+            tiledata.sync(_tile_ids(saved.get("modules")) or {})
+    mytiles.delete(tid)
+    return {"restored": found, "id": item["id"]}
 
 
 def _tile_items(mods):
@@ -368,3 +447,7 @@ def setting(mid, key):
 
 # names used only inside functions: imported last, so these modules can use each other
 from server.upgrades import CONFIG_UPGRADES  # noqa: E402
+
+
+# names used only inside functions: imported last
+from server import mytiles  # noqa: E402

@@ -210,7 +210,7 @@ V2_OWN = {"schema": 2, "modules": {
     "pages": {"on": True, "settings": {"items": [{"id": "main", "name": "Main", "on": True, "cols": 48, "slots": [
         {"id": "s1", "x": 0, "y": 0, "w": 12, "h": 8, "mod": "cam"}, {"id": "s2", "x": 12, "y": 0, "w": 12, "h": 8, "mod": "pihole"},
         {"id": "s3", "x": 24, "y": 0, "w": 12, "h": 8, "mod": "clock"}]}]}},
-    "tiles": {"on": True, "settings": {"items": [own("cam", "<img src='http://192.168.1.20/snap.jpg'>"), own("pihole", "<b>pi</b>"),
+    "tiles": {"on": True, "settings": {"items": [own("cam", "<img src='http://192.168.1.20/snap.jpg'>"), own("pihole", "<b>pi</b><img src='http://pi.hole/admin/img/logo.png'>"),
                                                   {"id": "clock", "type": "clock", "settings": {}}]}},
 }}
 
@@ -324,7 +324,7 @@ class TrustPrompt(unittest.TestCase):
     def test_run_is_saved_once(self):
         reset(V2_OWN)
         mods = ct.config_load()["modules"]
-        mods["tiles"]["settings"]["items"].append(own("imp1", "<b>shared</b>", review=True))
+        mods["tiles"]["settings"]["items"].append(own("imp1", "<b>shared</b><img src='http://192.168.1.9/x.png'>", review=True))
         ct.config_save({"modules": mods})
         self.assertTrue(items()["imp1"]["review"])
         self.assertTrue(ct.tile_trust("imp1"))

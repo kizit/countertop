@@ -1,6 +1,6 @@
 // Screenshots and GIFs for a release story: the Library, themes, effects, Community and sharing,
 // all with the fictional demo household and a fictional gallery (demo/fixtures/gallery-demo.js).
-// Needs Node, Playwright with Chromium, Python 3 and ffmpeg. Run: node demo/capture-release.js [explore|stills|gifs]
+// Needs Node, Playwright with Chromium, Python 3 and ffmpeg. Run: node demo/capture-release.js [stills|tiles|gifs]
 const http = require("node:http");
 const { spawn, execFileSync } = require("node:child_process");
 const fs = require("node:fs");
@@ -39,7 +39,7 @@ async function open(browser, base, scratch, { video = false, viewport = size, pa
     if (url.origin !== demoOrigin) return route.abort();
     const food = url.pathname.match(/^\/demo-food\/([a-z-]+\.jpg)$/);
     if (food) return route.fulfill({ contentType: "image/jpeg", body: fs.readFileSync(path.join(__dirname, "fixtures", "food", food[1])) });
-    return route.fulfill({ response: await route.fetch({ url: base + url.pathname + url.search }) });
+    return route.fulfill({ response: await route.fetch({ url: base + url.pathname + url.search, headers: { ...route.request().headers(), host: url.host } }) });
   });
   const page = await context.newPage();
   const start = performance.now();
@@ -168,6 +168,27 @@ async function community(browser, base, scratch) {
   gif([a], "community-browse");
 }
 
+// Community tiles: what a tile asks before you download it, and Tile Studio.
+async function tiles(browser, base, scratch) {
+  const { page, context } = await open(browser, base, scratch);
+  await toLibrary(page, "community");
+  await page.waitForTimeout(2000);
+  await page.locator(".lmain button, .lmain [data-cm]").filter({ hasText: "Porch lights" }).first().click();
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: path.join(output, "community-tile-permissions.png") });
+  await rail(page, "tiles").click();
+  await page.waitForTimeout(1000);
+  await page.locator('[data-l="s-new"]').first().click();
+  await page.waitForTimeout(2500);
+  await page.locator('input[data-s="name"]').fill("Days to summer");
+  await page.locator('textarea[data-s="description"]').fill("Counts down the days until the first day of summer.");
+  await page.locator('textarea[data-s="code"]').fill('Tile("days-to-summer", {\n  css: ".ds{text-align:center} .ds b{display:block;font-size:64px;color:var(--accent)}",\n  render(el){\n    const now = new Date(), y = now.getMonth() > 5 ? now.getFullYear() + 1 : now.getFullYear();\n    const days = Math.ceil((new Date(y, 5, 21) - now) / 864e5);\n    el.innerHTML = "<div class=ds><b>" + days + "</b>days until summer</div>";\n  }\n});\n');
+  await page.locator('textarea[data-s="description"]').click();
+  await page.waitForTimeout(3500);
+  await page.screenshot({ path: path.join(output, "tile-studio.png") });
+  await context.close();
+}
+
 async function main() {
   const which = process.argv[2] || "stills";
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "countertop-release-"));
@@ -187,6 +208,7 @@ async function main() {
     const base = "http://127.0.0.1:" + port;
     browser = await chromium.launch();
     if (which === "stills" || which === "all") await stills(browser, base, scratch);
+    if (which === "tiles" || which === "all") await tiles(browser, base, scratch);
     if (which === "tour" || which === "gifs" || which === "all") await tour(browser, base, scratch);
     if (which === "themes" || which === "gifs" || which === "all") await themesEffects(browser, base, scratch);
     if (which === "community" || which === "gifs" || which === "all") await community(browser, base, scratch);

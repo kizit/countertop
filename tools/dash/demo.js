@@ -3,6 +3,7 @@ function demoJSON(u){
   const now = new Date(), day = n => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
   const iso = (d, h, m) => { const x = new Date(d); x.setHours(h, m || 0, 0, 0); const p = v => String(v).padStart(2, "0");
     return x.getFullYear() + "-" + p(x.getMonth() + 1) + "-" + p(x.getDate()) + "T" + p(x.getHours()) + ":" + p(x.getMinutes()) + ":00"; };
+  if (/air-quality/.test(u)) return {current:{us_aqi:28}};        // before the forecast: its address matches too
   if (/api\.open-meteo\.com/.test(u)){
     const base = new Date(now); base.setMinutes(0, 0, 0);
     const H = {time:[], temperature_2m:[], precipitation_probability:[], weather_code:[], is_day:[]};
@@ -18,7 +19,6 @@ function demoJSON(u){
     const h = now.getHours();
     return {current:{temperature_2m:62, weather_code:2, is_day: h >= 7 && h < 18 ? 1 : 0}, hourly:H, daily:D};
   }
-  if (/air-quality/.test(u)) return {current:{us_aqi:28}};
   if (/^\/events/.test(u)) return {events:[
     {summary:"Soccer practice", start:iso(day(0), 18, 30)}, {summary:"Dentist", start:iso(day(1), 9)},
     {summary:"Book club", start:iso(day(2), 19)}, {summary:"Farmers market", start:iso(day(4), 0).slice(0, 10), allDay:true},

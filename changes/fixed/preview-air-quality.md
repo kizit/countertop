@@ -1,0 +1,1 @@
+- **Made-up air quality in previews.** The preview in Tile Studio and the tile examples now show made-up air quality, so tiles that read it no longer wait for it forever.

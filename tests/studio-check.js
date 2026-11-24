@@ -132,7 +132,7 @@ async function main() {
     assert.ok(await ctl.evaluate(() => document.querySelector("#lib .lstu-ai").nextElementSibling.querySelector('[data-s="name"]') !== null), "the AI panel is the first panel");
     await ctl.locator('#lib [data-s="ask"]').fill("a traffic light for air quality, and how long the dogs can stay out, thinking about the weather");
     const ask = await ctl.evaluate(() => stuAI());
-    for (const want of ["traffic light for air quality", '"aqi"', '"wx"', "this.feed(\"air\")", "size: [width, height", "every:", "taps:", "devices and controls", "```json", "```js"]) assert.ok(ask.includes(want), "the copied message has " + want);
+    for (const want of ["traffic light for air quality", '"aqi"', '"wx"', "this.feed(\"air\")", "size: [width, height", "every:", "taps:", "devices and controls", "ONE code block", "-----CODE-----"]) assert.ok(ask.includes(want), "the copied message has " + want);
     const reply = "Sure!\n```json\n" + JSON.stringify({ name: "Dog time", description: "Air quality light, and how long the dogs can stay out", size: [14, 9, 8, 6], every: 600, taps: false,
       feeds: ["wx", "aqi", "bogus"], hosts: ["api.example.com", "192.168.1.5"], settings: { dogs: { type: "int", label: "Dogs", default: 2, min: 1, max: 9 }, key: { type: "secret", label: "Key", host: "api.example.com" }, mine: { type: "source", kind: "lists" } }, sneaky: true }) +
       "\n```\n```js\nTile(\"my-dog-time\", { render(el){ el.innerHTML = '<b class=dog>Dogs out</b>'; } });\n```";
@@ -165,6 +165,34 @@ async function main() {
     const btns = await ctl.evaluate(() => stuParse(JSON.stringify({ devices: { lamp: { label: "Lamp", domains: ["light"] } }, controls: [{ id: "on", device: "lamp", action: "turn_on" }, { id: "bad", device: "lamp", action: "unlock" }] }), STU.t));
     assert.equal(btns.t.controls.length, 1);
     assert.deepEqual(btns.t.hosts, []);
+    // the reply a real chat gave for the dog-walk idea: plain fences, then the same with the labels pasted in their place, then no markers at all
+    const real = fs.readFileSync(require("node:path").join(__dirname, "fixtures", "studio-replies", "dog-walk.txt"), "utf8");
+    const shapes = { fences: real, labels: real.replace("```\n{", "json\n{").replace("```\n\n\n```\nTile(", "\njavascript\nTile(").replace(/```\s*$/, ""), bare: real.replace(/```\n?/g, "") };
+    const [jsonPart, codePart] = real.split(/```\n\n\n```\n/).map(x => x.replace(/```\n?/g, ""));
+    shapes.single = "```\n" + jsonPart.trim() + "\n-----CODE-----\n" + codePart.trim() + "\n```\n";
+    shapes.stringCode = JSON.stringify(Object.assign(JSON.parse(jsonPart), { code: codePart.trim() }));
+    for (const [how, text] of Object.entries(shapes)) {
+      const got = await ctl.evaluate(t => { const r = stuParse(t, stuBlank()); return r.error ? r : { name: r.t.name, desc: r.t.description, size: r.t.size, every: r.t.every, feeds: r.t.feeds, set: Object.keys(r.t.settings), choices: r.t.settings.dogSize.choices, code: r.t.code.slice(0, 18), end: r.t.code.slice(-3), did: r.did }; }, text);
+      assert.ok(!got.error, how + ": " + got.error);
+      assert.equal(got.name, "Walk the Dog?", how);
+      assert.match(got.desc, /^A traffic light/, how);
+      assert.deepEqual(got.size, [12, 8, 6, 4], how);
+      assert.equal(got.every, 900, how);
+      assert.deepEqual(got.feeds, ["wx", "aqi"], how);
+      assert.deepEqual(got.set, ["dogSize"], how);
+      assert.deepEqual(got.choices, ["Small", "Medium", "Large"], how);
+      assert.equal(got.code, 'Tile("dog-walk", {', how);
+      assert.equal(got.end, "});", how);
+    }
+    // other ways of saying it: data by its other names, settings as a list, a size as text
+    const alt = await ctl.evaluate(() => stuParse(JSON.stringify({ name: "Alt", size: "10 x 6", feeds: ["weather", "air quality"], settings: [{ key: "n", type: "integer", label: "N", default: 3 }, { name: "u", type: "select", options: ["a", "b"] }] }), stuBlank()));
+    assert.deepEqual(alt.t.feeds, ["wx", "aqi"]);
+    assert.deepEqual(alt.t.size.slice(0, 2), [10, 6]);
+    assert.equal(alt.t.settings.n.type, "int");
+    assert.deepEqual(alt.t.settings.u.choices, ["a", "b"]);
+    const msg = await ctl.evaluate(() => stuAI());
+    assert.ok(msg.includes("don't search the web") && msg.includes("is just a number") && msg.includes("ONE code block") && msg.includes("-----CODE-----"));
+    console.log("✓ a real chat reply fills the form whatever its fences look like");
     // Undo puts the form back
     await ctl.locator('#lib [data-l="s-unfill"]').click();
     await until(() => ctl.evaluate(() => STU.t.name === "My tile" && !STU.undo), "Undo restored the form");

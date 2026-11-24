@@ -19,7 +19,7 @@ import time
 from urllib.request import Request, urlopen
 
 from server.core import VERSION
-from server.sandbox import SBX_ID_RE, SBX_PERSONAL, TAKEDOWN_FILE, TILES_DIR, clean_tile, community_installed
+from server.sandbox import MINE_PREFIX, SBX_ID_RE, SBX_PERSONAL, TAKEDOWN_FILE, TILES_DIR, clean_tile, community_installed
 from server.tilekeys import forget_keys
 
 CHECK_EVERY = 86400          # the take-down check: once a day
@@ -74,6 +74,8 @@ def gallery_tile(entry):
     if not isinstance(item, dict):
         raise ValueError("has no tile in it")
     t = clean_tile(dict(item, version=entry.get("version")))
+    if t["id"].startswith(MINE_PREFIX):
+        raise ValueError("its id starts with %s, which is kept for tiles people make themselves" % MINE_PREFIX)
     if entry.get("id") != "tiles/" + t["id"]:
         raise ValueError("its gallery id doesn't match the tile inside")
     if t["hostsDropped"]:

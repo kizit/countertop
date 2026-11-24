@@ -216,7 +216,14 @@ def _upgrade_lan(m):
     return m, mark_lan_tiles(m)
 
 
-CONFIG_UPGRADES = [(1, _upgrade_v3), (2, _upgrade_looks), (3, _upgrade_lan)]
+# Tile Studio (schema 4): Your own tile is retired. The save that follows this step converts the Your own tiles that
+# will work in the sandbox (config_save → server/mytiles.py); the others stay as they are.
+def _upgrade_studio(m):
+    items = ((m.get("tiles") or {}).get("settings") or {}).get("items")
+    return m, isinstance(items, list) and any(isinstance(t, dict) and t.get("type") == "custom" for t in items)
+
+
+CONFIG_UPGRADES = [(1, _upgrade_v3), (2, _upgrade_looks), (3, _upgrade_lan), (4, _upgrade_studio)]
 
 
 # names used only inside functions: imported last, so these modules can use each other

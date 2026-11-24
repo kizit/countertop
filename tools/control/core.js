@@ -72,7 +72,7 @@ async function load(){
     const [j, s] = await Promise.all([fetch("/config?starters=1", {cache:"no-store"}).then(r => r.json()), fetch("/sources", {cache:"no-store"}).then(r => r.json())]);
     applyDisplayMode(j.orientation || "auto");
     everyday = j.everyday; schema = j.schema; mods = j.modules; SRC = s.sources || {}; KINDS = s.kinds || {};
-    SBXC = j.sandbox || {tiles:{}}; commDefs();
+    SBXC = j.sandbox || {tiles:{}}; LEGACYC = j.legacy || {}; commDefs(); stuFiles();
     FXLIB.setMine(mods.effects && mods.effects.settings.mine);
     if (needsSetup() && stack.length === 1) stack = ["root", "wiz"];       // a new install: walk through the basics first
     await titlesLoad; show(); statusLoad();
@@ -91,7 +91,10 @@ function save(quiet){          // quiet: an Undo toast is showing, so don't cove
       const r = await fetch("/config", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({modules: mods})});
       const j = await r.json();
       if (!r.ok || j.error) throw new Error(j.error || r.status);
+      const had = tileList().some(t => t.type === "custom");
       mods = j.modules;
+      if (had && !tileList().some(t => t.type === "custom" && LEGACYC[t.id])) stuSync().then(() => { if (!libEl().hidden) libShow(); });     // the server converted a Your own tile
+      else if (had) stuSync();
       if (!quiet) toast("Saved", "ok"); pvRefresh();
     }catch(e){ toast("Didn't save: " + e.message, "bad"); }
   }, 450);

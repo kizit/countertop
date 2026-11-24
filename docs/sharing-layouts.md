@@ -36,7 +36,9 @@ When a layout is shared, these never go in the file:
 - Settings of type `entity` (Home Assistant devices).
 - Settings a tile marks `share:false`, such as a note's text, countdown dates and picture links. Tile authors: add `share:false` to any setting that is likely to hold something personal.
 
-A **Your own tile** keeps its code, and Share says so. When someone opens the layout, that code doesn't run until they tap **Run** on the tile. It runs in its own frame, can't see or change the rest of the dashboard, and can load things only from secure https:// addresses, so it can't reach plain http:// addresses such as most devices on a home network.
+A tile you made in **Tile Studio** travels with its code. Whoever opens the layout sees it listed under what the layout comes with; it's added to their own tiles with a new name, and it doesn't run until they read its code and tap **Let it run** (Controls → Library → Tiles). See [Tile Studio](tile-api.md#tile-studio).
+
+An older **Your own tile** keeps its code too, and Share says so. When someone opens the layout, that code doesn't run until they tap **Run** on the tile. It runs in its own frame, can't see or change the rest of the dashboard, and can load things only from secure https:// addresses, so it can't reach plain http:// addresses such as most devices on a home network.
 
 ## What importing checks
 
@@ -93,4 +95,4 @@ The built-in effects are drawn by code, so they can't be shared as files.
 - Countertop reads the gallery's list only when you open Community (and when you press Refresh), keeps it for ten minutes, and sends nothing about your install.
 - **Submit yours** opens the gallery's submission form. Paste a share code (Share, then Copy share code); it's checked right away and reviewed before it appears.
 
-Layouts with a *Your own tile* (one that runs its own code) can't be in the gallery yet.
+Layouts with a Tile Studio tile or a *Your own tile* (tiles that run their own code) can't be in the gallery yet. Submit the tile itself instead, from Tile Studio.

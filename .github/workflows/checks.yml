@@ -68,11 +68,12 @@ jobs:
               node tests/tiles-check.js
               node tests/tile-data-check.js
           - id: sandbox-and-controls
-            label: sandbox, controls and API keys
+            label: sandbox, controls, API keys and Tile Studio
             checks: |
               node tests/sandbox-check.js
               node tests/control-check.js
               node tests/key-check.js
+              node tests/studio-check.js
           - id: touch-and-ux
             label: touch and Controls UX
             checks: |

@@ -303,15 +303,15 @@ function commDropTiles(type){
 }
 // the server's list of community tiles, again: after a download, an update or a removal
 async function commSync(){
-  try{ const j = await fetch("/config", {cache:"no-store"}).then(r => r.json()); SBXC = j.sandbox || {tiles:{}}; commDefs(); }catch(e){}
+  try{ const j = await fetch("/config", {cache:"no-store"}).then(r => r.json()); SBXC = j.sandbox || {tiles:{}}; LEGACYC = j.legacy || {}; commDefs(); }catch(e){}
 }
 // installed community tiles join the Library's tiles (DEFS), so they can be added, shared and imported like any other
 function commDefs(){
   for (const k of Object.keys(DEFS)) if (DEFS[k].community && !(SBXC.tiles || {})[k]) delete DEFS[k];
   for (const [type, t] of Object.entries(SBXC.tiles || {})){
     if (DEFS[type] && !DEFS[type].community) continue;          // never replaces a built-in tile
-    DEFS[type] = {title:t.title, desc:t.desc, cat:"Community", size:t.size, settings:t.settings || {}, community:true, gallery:t.gallery || null,
-      author:t.author || "", revoked:!!t.revoked, version:t.version};
+    DEFS[type] = {title:t.title, desc:t.desc, cat:t.mine ? "Your own" : "Community", size:t.size, settings:t.settings || {}, community:true, gallery:t.gallery || null,
+      author:t.author || "", revoked:!!t.revoked, version:t.version, mine:t.mine || null};
     TITLES[type] = t.title;
   }
 }

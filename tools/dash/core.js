@@ -3,6 +3,8 @@ const $ = id => document.getElementById(id);
 const PREVIEW = /[?&]preview=1/.test(location.search);
 const SOLO = (location.search.match(/[?&]solo=([\w-]+)/) || [])[1] || "";       // community tile ids have dashes
 if (SOLO) document.documentElement.classList.add("solo");
+const DRAFT_ID = (location.search.match(/[?&]draft=(draft-[0-9a-f]{12})\b/) || [])[1] || "";      // Tile Studio's preview of a tile being written
+const REAL = SOLO && /[?&]real=1/.test(location.search);       // a preview with this Countertop's own data, not made-up data
 const STILL = /[?&]still=1/.test(location.search);        // example thumbnails in Controls: draw once, then stop
 if (PREVIEW){        // Controls pauses its live preview while you scroll, so scrolling stays smooth
   const raf = window.requestAnimationFrame.bind(window); let q = [];
@@ -28,7 +30,7 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const getJSON = async (u, opt) => { if (SOLO){ const d = demoJSON(u); if (d !== undefined) return d; } const r = await fetch(u, Object.assign({cache:"no-store"}, opt || {})); if (!r.ok) throw new Error(u + " " + r.status); return r.json(); };
+const getJSON = async (u, opt) => { if (SOLO && !REAL){ const d = demoJSON(u); if (d !== undefined) return d; } const r = await fetch(u, Object.assign({cache:"no-store"}, opt || {})); if (!r.ok) throw new Error(u + " " + r.status); return r.json(); };
 
 /* ---------- config ---------- */
 let CFG = null, SCH = {};                                     // id → {on, settings}: dashboard-wide settings, plus one entry per placed tile

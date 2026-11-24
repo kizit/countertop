@@ -161,8 +161,11 @@ async function main() {
     // 2b. Library -> Add tile on roomy page vs full page (regression ada87d5)
     await ctl.evaluate(() => libOpen("tiles"));
     await until(() => ctl.locator('#lib [data-l="addtile"]').count().then(c => c > 5), "Library tiles loaded");
+    // every toast is kept: the theme's own "Saved" can arrive right after and cover the warning
+    await ctl.evaluate(() => { window.__toasts = []; new MutationObserver(() => window.__toasts.push(document.querySelector("#toast").textContent))
+      .observe(document.querySelector("#toast"), { childList: true, subtree: true, characterData: true }); });
     await ctl.evaluate(() => libAddTile("clock", "packed"));
-    await until(() => ctl.locator("#toast").textContent().then(t => /is full/.test(t)), "full-page warning toast");
+    await until(() => ctl.evaluate(() => window.__toasts.some(t => /is full/.test(t))), "full-page warning toast");
     const packedCount = await ctl.evaluate(() => gpAll().find(p => p.id === "packed").slots.length);
     assert.equal(packedCount, 1, "full page should not gain a box");
     await ctl.evaluate(() => libAddTile("clock", "roomy"));

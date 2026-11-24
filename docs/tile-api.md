@@ -201,3 +201,29 @@ A community tile that reads a site needing a key asks for it with a `secret` set
 - In the frame, `this.s.key` is `true` when a key is saved and `false` when not, so the tile can ask for one. The key itself never reaches any page.
 - `/tile-fetch` adds the key only to requests to exactly `host`. A redirect to another site never carries it, and is refused if its address holds the key. Wherever the site's answer repeats the key, it's blanked out (`********`) before the tile gets it.
 - If an update to the tile sends a key to another site or in another way, the saved key isn't used until the person types it again.
+
+### Web pictures and `fetch()` in a frame
+
+A community tile's frame has no network, but two ordinary ways of reading a site still work for the sites in its `hosts`:
+
+- `fetch("https://…")` (GET or HEAD only) is answered by the server through `/tile-fetch`, like `this.fetch`, and resolves to a `Response`. Anything else is refused with a `TypeError`.
+- An `<img>` whose address is on one of its sites is shown from a copy the server read (PNG, JPEG, GIF or WebP only, never SVG), whether it's in the HTML, set with `.src` or with `setAttribute`.
+
+`this.reloadIn(seconds)` (at least 55) asks the dashboard to start the tile over in a fresh frame, for code that reads everything once when it loads.
+
+## Tile Studio
+
+Controls → Library → Tiles → **New tile** opens Tile Studio, where anyone can write a tile without a code editor or a gallery. It's the same tile file as a community tile, with a form for its name, size, settings, sites, devices and buttons, and a box for its code. A preview beside it runs the tile sealed off like any community tile, with made-up data or the screen's own, at its small, usual or big size, and lists what went wrong inside (errors, refused requests and pictures that couldn't be read). **Copy instructions for ChatGPT** writes a request for an assistant that describes this API and the tile's own settings.
+
+- Tiles made here are saved in `mytiles/<id>.json` in the data folder, with ids that start with `my-`. Gallery and other community tiles can't use that prefix, so the two never meet. Each save adds one to the tile's version.
+- **Download file** and **Copy as text** give a tile file without the `my-`, ready to import on another Countertop or submit to the gallery. **Submit to the gallery** opens the gallery's submission form with the tile filled in (or copies it, when it's too big for an address).
+- A tile file imported here, and a Studio tile that arrives in a shared layout, gets a new `my-` id and doesn't run until the person reads its code and taps **Let it run**.
+- A Studio tile counts as a community tile everywhere else: in the 6-frame limit, safe mode, settings, API keys and control-tile grants.
+
+### What happened to Your own tile
+
+Your own tile (HTML in a frame of its own) is now Tile Studio. When Countertop updates, it checks each Your own tile:
+
+- One whose page works sealed off becomes a Studio tile in every box that had it. Its HTML is drawn into the tile, its inline `onclick` and other handlers keep working, and the https:// sites it reads become its `hosts`. The original is kept, and **Restore** puts it back.
+- One that can't move (it reads devices on the home network or plain http:// addresses, loads scripts or styles from the web, sends data, opens other pages, builds addresses that can't be checked, and so on) stays as it is and keeps working. Its settings and Controls → Library → Tiles say why, with **Convert** to make it a Studio tile anyway (the parts named stop working, and Restore puts it back).
+- A shared layout's Your own tile is checked the same way once the person taps Run on it.

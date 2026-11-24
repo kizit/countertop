@@ -80,11 +80,15 @@
   if (W.customElements) gone(CustomElementRegistry.prototype, "define");
 
   /* ---- 3. the bridge to the dashboard ---- */
-  var post = function (m) { try { P.postMessage(m, "*"); } catch (e) { /* the dashboard went away */ } };
+  // the dashboard only listens once the frame says it's ready: what the tile's code asks before that (a page's own
+  // scripts run while the frame loads) waits here, and goes right after
+  var EARLY = [];
+  var send = function (m) { try { P.postMessage(m, "*"); } catch (e) { /* the dashboard went away */ } };
+  var post = function (m) { if (EARLY) { if (EARLY.length < 100) EARLY.push(m); } else send(m); };
   var ROOT = D.getElementById("tile");
   var DEF = null, ME = null, S = {}, NAME = "", ID = "", WORDS = {}, LANGWORDS = null, LOCALE, QUIET = true, TAPS = false;
   var STORE = { data: {}, ready: false }, ASK = {}, ASKED = {}, FETCHED = {}, STATE = { has: null, urgent: null };
-  var due = false;
+  var due = false, RELOAD = null, WAITING = {}, IMAGES = {};
 
   W.Tile = function (type, def) { if (!DEF && def && typeof def === "object") DEF = def; };
   W.addEventListener("error", function (e) { post({ ct: "error", msg: String(e.message || "error").slice(0, 200) }); });
@@ -167,8 +171,77 @@
     // a control tile: the state of each device the person picked for it, by the slot names in its file ({} until known,
     // null for a slot not picked yet). The tile shows state; its buttons are drawn by the dashboard, outside this frame
     devices: function () { return ask("devices", null, {}); },
+    // start this tile again from scratch in `sec` seconds (at least a minute), as a fresh frame: for pages converted from
+    // Your own tile, which used to reload every few minutes
+    reloadIn: function (sec) {
+      if (RELOAD || QUIET) return;
+      RELOAD = setTimeout(function () { post({ ct: "reload" }); }, Math.max(60, +sec || 0) * 1000);
+    },
     act: function () { return Promise.reject(new Error("A community tile can't send actions. Its buttons are drawn by the dashboard.")); }
   };
+
+  /* ---- 4. fetch() and pictures from the tile's own sites, through the dashboard and the server ----
+     The frame has no network (connect-src 'none', img-src data: blob:), so these never reach anything by themselves.
+     fetch(url) asks the server to read it (only the sites the tile declared; GET only) and answers with a Response.
+     An <img> with an https:// address is shown from a copy the server read, as a data: address. */
+  var nativeResponse = W.Response;
+  W.fetch = function (input, init) {
+    var url = String(input && input.url ? input.url : input), method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") return Promise.reject(new TypeError("A tile can only read sites (GET), not send to them."));
+    if (!/^https:\/\//i.test(url)) return Promise.reject(new TypeError("A tile can only read https:// addresses on its own sites."));
+    return new Promise(function (ok, no) {
+      (WAITING[url] = WAITING[url] || []).push([ok, no]);
+      post({ ct: "fetch", url: url, maxAge: 30 });
+    });
+  };
+  function answer(url, c) {
+    var L = WAITING[url]; if (!L) return;
+    delete WAITING[url];
+    L.forEach(function (w) {
+      if (c.error) return w[1](new TypeError(c.error));
+      var text = typeof c.data === "string" ? c.data : JSON.stringify(c.data);
+      try { w[0](new nativeResponse(text, { status: 200, headers: { "Content-Type": typeof c.data === "string" ? "text/plain" : "application/json" } })); }
+      catch (e) { w[1](e); }
+    });
+  }
+  var srcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+  var setAttr = Element.prototype.setAttribute;
+  function picture(img, url) {
+    url = String(url);
+    if (!/^https:\/\//i.test(url)) return false;
+    img.setAttribute("data-ct-src", url);
+    var c = IMAGES[url];
+    if (c && c.data) { srcDesc.set.call(img, c.data); return true; }
+    if (!c) { c = IMAGES[url] = { imgs: [], data: null }; post({ ct: "image", url: url }); }
+    c.imgs.push(img);
+    return true;
+  }
+  if (srcDesc && srcDesc.set) {
+    Object.defineProperty(HTMLImageElement.prototype, "src", { configurable: true, enumerable: srcDesc.enumerable,
+      get: function () { return this.getAttribute("data-ct-src") || srcDesc.get.call(this); },
+      set: function (v) { if (!picture(this, v)) srcDesc.set.call(this, v); } });
+  }
+  Element.prototype.setAttribute = function (name, v) {
+    if (this instanceof HTMLImageElement && String(name).toLowerCase() === "src" && picture(this, v)) return;
+    return setAttr.call(this, name, v);
+  };
+  // pictures written as HTML (<img src="https://…">): the page's policy stops the browser's own request before it's sent
+  function scan(root) {
+    var L = root.querySelectorAll ? root.querySelectorAll("img[src^='https:'],img[src^='HTTPS:']") : [];
+    if (root.nodeName === "IMG" && /^https:/i.test(root.getAttribute("src") || "")) L = [root].concat([].slice.call(L));
+    for (var i = 0; i < L.length; i++) picture(L[i], L[i].getAttribute("src"));
+  }
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      if (m.type === "attributes") { if (m.target.nodeName === "IMG" && /^https:/i.test(m.target.getAttribute("src") || "")) picture(m.target, m.target.getAttribute("src")); }
+      else for (var i = 0; i < m.addedNodes.length; i++) if (m.addedNodes[i].nodeType === 1) scan(m.addedNodes[i]);
+    });
+  }).observe(D.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+  // what the page's policy stopped, for Tile Studio's list of problems
+  D.addEventListener("securitypolicyviolation", function (e) {
+    if (/^img-src/.test(e.violatedDirective || e.effectiveDirective || "") && /^https:/i.test(e.blockedURI || "")) return;     // shown through the server instead
+    post({ ct: "blocked", what: String(e.effectiveDirective || e.violatedDirective || "").slice(0, 40), uri: String(e.blockedURI || "").slice(0, 200) });
+  });
 
   function report() {
     if (!ME) return;
@@ -233,7 +306,18 @@
     } else if (d.ct === "fetched" && typeof d.url === "string") {
       FETCHED[d.url] = { data: d.data === undefined ? null : d.data, error: d.error || "", at: d.error ? (FETCHED[d.url] || {}).at || Date.now() : Date.now(), busy: false };
       if (d.error && FETCHED[d.url].data == null) FETCHED[d.url].data = null;
+      answer(d.url, { data: d.data === undefined ? null : d.data, error: d.error || "" });
       soon();
+    } else if (d.ct === "imaged" && typeof d.url === "string" && IMAGES[d.url]) {
+      var c = IMAGES[d.url];
+      if (typeof d.data === "string" && /^data:image\/(png|jpeg|gif|webp);base64,/.test(d.data)) {
+        c.data = d.data;
+        c.imgs.forEach(function (img) { if (img.getAttribute("data-ct-src") === d.url) srcDesc.set.call(img, d.data); });
+      } else {
+        delete IMAGES[d.url];
+        c.imgs.forEach(function (img) { img.dispatchEvent(new Event("error")); });
+      }
+      c.imgs = [];
     }
   });
   // holding a finger on the tile starts editing the screen, as it does on any other tile: the dashboard can't see
@@ -266,5 +350,5 @@
     e.preventDefault();
     if (ME && TAPS && !QUIET && DEF.submit) { try { DEF.submit.call(ME, e, ROOT, e.target); } catch (x) { post({ ct: "error", msg: String(x.message || x) }); } }
   }, true);
-  D.addEventListener("DOMContentLoaded", function () { post({ ct: "ready" }); });
+  D.addEventListener("DOMContentLoaded", function () { var L = EARLY; EARLY = null; send({ ct: "ready" }); L.forEach(send); });
 })();

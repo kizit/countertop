@@ -22,7 +22,7 @@ import time
 from urllib.parse import urljoin, urlsplit
 
 from server.core import VERSION
-from server.tilekeys import apply_keys, carries_key, hide_keys
+from server.tilekeys import _forms as key_forms, apply_keys, carries_key, hide_keys
 
 FETCH_MAX_BYTES = 1_000_000
 FETCH_TIMEOUT = 10.0
@@ -31,6 +31,8 @@ FETCH_USER_AGENT = "Mozilla/5.0 (compatible; Countertop/%s; +https://github.com/
 # a host a tile may declare: a public name, optionally "*." for one level of subdomain. Never an address.
 FETCH_HOST_RE = re.compile(r"^(\*\.)?(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$")
 FETCH_TYPES = ("application/json", "text/", "application/xml", "application/rss+xml", "application/atom+xml")
+# pictures a tile shows from its own sites (`as=image`): plain pictures only, never SVG, which can hold code and links
+IMAGE_TYPES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff", "image/gif": b"GIF8", "image/webp": b"RIFF"}
 
 _FETCH_NETS = [ipaddress.ip_network(n) for n in (
     # IPv4: this network, private, carrier-grade NAT, loopback, link-local, IETF and test ranges, 6to4 relay, benchmarking,
@@ -162,17 +164,17 @@ FETCH_RESOLVE = _resolve
 FETCH_OPEN = _open
 
 
-def fetch_url(url, hosts, keys=()):
+def fetch_url(url, hosts, keys=(), image=False):
     """{"type", "body"} for `url`, following the rules at the top of this file; FetchError otherwise. `keys` are the
-    tile's API keys, each added only for its own host."""
+    tile's API keys, each added only for its own host. `image`: a picture (PNG, JPEG, GIF or WebP) instead of text."""
     try:
-        return _fetch_url(url, hosts, keys)
+        return _fetch_url(url, hosts, keys, image)
     except FetchError as e:
         # a message never repeats a key, whatever the other end or the network library put in it
         raise FetchError(hide_keys(str(e), keys), e.code) if keys else e
 
 
-def _fetch_url(url, hosts, keys):
+def _fetch_url(url, hosts, keys, image=False):
     deadline = time.monotonic() + FETCH_TIMEOUT
     for hop in range(FETCH_MAX_REDIRECTS + 1):
         host, path = check_url(url, hosts)
@@ -208,6 +210,14 @@ def _fetch_url(url, hosts, keys):
         if len(body) > FETCH_MAX_BYTES:
             raise FetchError("the answer is larger than 1 MB")
         ctype = (heads.get("content-type") or "").split(";")[0].strip().lower()
+        if image:
+            # what the file is, by its first bytes: the type the site claims has to agree
+            kind = next((t for t, magic in IMAGE_TYPES.items() if body.startswith(magic) and (t != "image/webp" or body[8:12] == b"WEBP")), None)
+            if not kind or (ctype and ctype != kind and ctype != "application/octet-stream" and not (ctype == "image/jpg" and kind == "image/jpeg")):
+                raise FetchError("the answer isn't a PNG, JPEG, GIF or WebP picture (%s)" % (ctype or "no type")[:40])
+            if keys and any(f in body for k in keys for f in key_forms(k["value"])):
+                raise FetchError("the picture has this tile's key in it", 403)
+            return {"type": kind, "body": body}
         if not ctype.startswith(FETCH_TYPES) and not ctype.endswith("+json"):
             raise FetchError("the answer isn't text or data (%s)" % (ctype or "no type")[:40])
         return {"type": ctype, "body": hide_keys(body, keys)}
@@ -220,15 +230,15 @@ FETCH_LOCK = threading.Lock()
 FETCH_CACHE_MAX = 200
 
 
-def cached_fetch(url, hosts, max_age=300, keys=(), scope=""):
+def cached_fetch(url, hosts, max_age=300, keys=(), scope="", image=False):
     """fetch() with a cache: answers for `max_age` seconds (30 to 3600), failures for 30 seconds. The address is
     checked against `hosts` before the cache is, so a tile never gets another tile's answer for a site it didn't declare.
     An answer read with a tile's keys is kept for that kind of tile (`scope`) and those keys only."""
     check_url(url, hosts)
-    slot = url
+    slot = ("image\n" if image else "") + url
     if keys:
         sig = hashlib.sha256(json.dumps(sorted(json.dumps(k, sort_keys=True) for k in keys)).encode()).hexdigest()
-        slot = "%s\n%s\n%s" % (scope, sig, url)
+        slot = "%s\n%s\n%s" % (scope, sig, slot)
     try:
         keep = min(3600, max(30, int(max_age)))
     except (TypeError, ValueError):
@@ -241,7 +251,7 @@ def cached_fetch(url, hosts, max_age=300, keys=(), scope=""):
             raise hit[1]
         return hit[1]
     try:
-        res = fetch_url(url, hosts, keys)
+        res = fetch_url(url, hosts, keys, image) if image else fetch_url(url, hosts, keys)
     except FetchError as e:
         if e.code not in (400, 403):
             with FETCH_LOCK:

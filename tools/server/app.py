@@ -424,12 +424,12 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 merged.extend(tag(evs))
-                CAL_STATUS[cal.get("id")] = {"name": cal.get("name") or "Calendar", "at": now, "ok": True, "error": "", "count": len(evs)}
+                CAL_STATUS[cal.get("id")] = {"name": cal.get("name") or "Calendar", "at": now, "ok": True, "error": "", "count": len(evs), "fails": 0}
             except Exception as e:
                 msg = str(e).replace(url, "(link)")[:120]           # never echo the link: it is the password
                 errors.append("%s: %s" % (cal.get("name") or "Calendar", msg))
                 last = CAL_STATUS.get(cal.get("id")) or {}
-                CAL_STATUS[cal.get("id")] = dict(last, name=cal.get("name") or "Calendar", ok=False, error=msg, tried=now)
+                CAL_STATUS[cal.get("id")] = dict(last, name=cal.get("name") or "Calendar", ok=False, error=msg, tried=now, fails=last.get("fails", 0) + 1)
         merged.sort(key=lambda e: e["start"])
         seen, deduped = set(), []
         for e in merged:

@@ -239,6 +239,10 @@
   .lstu-n{display:flex;gap:8px;align-items:center;margin:6px 0}
   .lstu-n input{flex:1;min-width:0}
   .lstu-err{padding:7px 10px;border-radius:8px;background:#3a1d1d;color:#ffc9c9;margin-bottom:6px;word-break:break-word}
+  .lstu-err.fit{background:#3a2a12;color:#ffe0a8}
+  .lstu-sz{margin:0 0 8px}
+  .lstu-chk{position:fixed;left:-10000px;top:0;width:1920px;height:1080px;opacity:0;pointer-events:none;overflow:hidden}
+  .lstu-chk iframe{width:1920px;height:1080px;border:0}
   .lstu-err.blocked{background:#3a2a12;color:#ffe0a8}
   .lsz{display:flex;gap:10px;flex-wrap:wrap} .lsz .lfield{flex:1;min-width:110px}
   .lrow.lset{gap:4px} .lrow.lset > .lbtn{align-self:flex-start}

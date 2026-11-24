@@ -7,7 +7,7 @@
    endless loop in a frame freezes the whole page on the Echo, and the server turns on safe mode when it goes quiet.
    A control tile's buttons are drawn here, below its frame, never by its code (sbxControls). */
 let LEGACY = {};          // Your own tiles not converted to Tile Studio tiles, and why (/config → legacy)
-const SBX = {safe:false, max:6, beat:5, tiles:{}, frames:new Map(), has:{}, paused:{}, notes:[], log:{},
+const SBX = {safe:false, max:6, beat:5, tiles:{}, frames:new Map(), has:{}, paused:{}, notes:[], log:{}, fit:{},
   session:Date.now().toString(36) + Math.random().toString(36).slice(2, 8), gap:0, lastTick:0, lastBeat:0, wasShowing:false};
 // this.feed(name) names → the dashboard's feed keys, and where each one's data lives in STATE
 const SBX_FEED = {weather:"wx", air:"aqi", events:"events", notes:"notes", teams:"team", albums:"photos", sales:"sales"};
@@ -153,7 +153,15 @@ async function sbxTrust(m){
   render();
 }
 // what Tile Studio lists under its preview: errors and blocked requests, by tile (Controls reads it with dashSbxLog)
-window.dashSbxLog = id => (SBX.log[id] || []).slice();
+window.dashSbxLog = id => (SBX.log[id] || []).concat((SBX.fit[id] || []).map(text => ({kind:"fit", text, n:1})));
+// the frame's size check (words past the edge or on top of each other), kept as short notes for Tile Studio's preview only
+function sbxFit(m, d){
+  if (!SOLO || !m.type.startsWith("draft-") || !Array.isArray(d.issues)) return;
+  const q = v => REAL || typeof v !== "string" ? "" : v.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 30);
+  const n = (a, w) => a ? "“" + a + "”" : w;
+  SBX.fit[m.id] = d.issues.slice(0, 3).map(x => x && x.k === "lap" ? tr("{a} overlaps {b}", {a:n(q(x.a), tr("a shape")), b:n(q(x.b), tr("a shape"))}) :
+    x && x.k === "over" ? tr("{a} runs past the edge of the tile", {a:n(q(x.a), tr("a shape"))}) : "").filter(Boolean);
+}
 function sbxLog(m, kind, text){
   const L = SBX.log[m.id] = SBX.log[m.id] || [];
   if (L.length && L[L.length - 1].text === text){ L[L.length - 1].n++; return; }
@@ -361,6 +369,7 @@ window.addEventListener("message", e => {
     if (!EDIT.on && !SOLO && !PREVIEW && m.taps && now - (SBX.heldAt || 0) > 10e3){ SBX.heldAt = now; editEnter(m.id); }
   }
   else if (d.ct === "picked") sbxPicked(d);
+  else if (d.ct === "fit") sbxFit(m, d);
   else if (d.ct === "error"){ sbxLog(m, "error", String(d.msg || "").slice(0, 200)); if (!m.type.startsWith("draft-")) reportErr("community tile " + m.type, String(d.msg || "").slice(0, 200)); }
   else if (d.ct === "blocked") sbxLog(m, "blocked", tr("Blocked: {what} {uri}", {what:String(d.what || "").slice(0, 40), uri:String(d.uri || "").slice(0, 120)}));
   else if (d.ct === "image" && typeof d.url === "string" && d.url.length <= 2000) sbxImage(rec, d.url);

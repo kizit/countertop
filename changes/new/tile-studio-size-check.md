@@ -1,0 +1,1 @@
+- **Tile Studio warns when a tile doesn't fit its smallest size.** The problems list under the preview says when words or shapes run past the tile's edge or overlap, at the size showing and at the smallest size. The size buttons show the size in pixels, and the chat requests ask for the smallest size to show only the main thing and pass on any problems found.

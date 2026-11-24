@@ -6,7 +6,7 @@ Tile("image", {
     url:{type:"text", share:false, label:"Picture link", placeholder:"https://…/snapshot.jpg", help:"A link that opens a picture by itself (ends in .jpg, .png, .gif or .webp, or a webcam's snapshot link)", default:""},
     every:{type:"int", label:"Reload every (minutes, 0 = never)", default:10, min:0, max:1440},
     fit:{type:"choice", label:"Fit", choices:["Fill the box", "Show all of it"], default:"Fill the box"},
-    caption:{type:"text", label:"Caption", default:""}
+    caption:{type:"text", share:false, label:"Caption", default:""}
   },
   css:`.m-img{padding:0;display:flex;align-items:center;justify-content:center;background:#000}
     .m-img img{width:100%;height:100%;display:block}

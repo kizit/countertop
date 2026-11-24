@@ -1,7 +1,8 @@
 // API keys for community tiles, end to end in the shell the Echo runs, with real touches: hold the tile, type a key in
 // its settings, tap Save key. The key reaches the server's own file and nowhere else: not the settings, not /config,
 // not the page, not the tile's frame (which only learns that a key is saved), not a shared layout. Then Remove key.
-// Also: shared layouts never carry a Home Assistant tile's lock switch, taps setting or renamed things.
+// Also: shared layouts never carry a Home Assistant tile's lock switch, taps setting or renamed things, nor the personal
+// text of the World clock, Picture, Stocks and Your own tiles.
 // The test tile is tests/fixtures/community-tiles/key-check.json; its site reads are answered here (no internet).
 // Needs Node, Python 3 and Playwright with Chromium. Run with: node tests/key-check.js
 const fs = require("node:fs");
@@ -156,6 +157,23 @@ async function main() {
     assert.ok(!/secure|One tap|confirm|Kid/.test(ha.out), "exported: " + ha.out);
     assert.match(ha.read, /"type":"ha","settings":\{\}/);
     assert.ok(!/secure|One tap|confirm|names/.test(ha.read), "imported: " + ha.read);
+    // personal text typed into tiles (family places, a picture's caption, the stocks you own, what you asked for) stays home too
+    const pers = await ctl.evaluate(() => {
+      const mk = (id, type, settings) => ({ id, type, settings });
+      tileList().push(mk("wc_x", "worldclock", { places: ["Grandma, Europe/London"] }), mk("im_x", "image", { caption: "Our house" }),
+        mk("st_x", "stocks", { syms: ["AAPL"] }), mk("cu_x", "custom", { ask: "days until Mia's birthday" }));
+      const sl = ["wc_x", "im_x", "st_x", "cu_x"].map((m, i) => ({ id: "q" + i, mod: m, x: i * 6, y: 0, w: 6, h: 12 }));
+      const out = JSON.stringify(libPack({ id: "p_q", name: "Q", slots: sl }, null, "Mine", "").pkg);
+      const read = libRead({ countertop: "layout", pages: [{ boxes: [{ x: 0, y: 0, w: 24, h: 12, tiles: [
+        { type: "worldclock", settings: { places: ["Mom, Asia/Tokyo"] } }, { type: "image", settings: { caption: "Home" } },
+        { type: "stocks", settings: { syms: ["TSLA"] } }, { type: "custom", settings: { ask: "my diary" } }] }] }] });
+      return { out, read: JSON.stringify(read.boxes) };
+    });
+    for (const t of ["worldclock", "image", "stocks", "custom"]) assert.match(pers.out, new RegExp('"type":"' + t + '"'));
+    assert.ok(!/Grandma|Our house|AAPL|Mia/.test(pers.out), "exported: " + pers.out);
+    assert.ok(!/Mom|Home"|TSLA|diary/.test(pers.read), "imported: " + pers.read);
+    console.log("✓ World clock places, Picture caption, Stocks symbols and Your own tile's prompt never travel in a layout");
+
     await ctl.close();
     console.log("✓ Home Assistant tiles never share or import their lock switch, their taps setting or renamed things");
 

@@ -4,7 +4,7 @@ Tile("stocks", {
   title:"Stocks", cat:"Money", every:60, size:[12, 10, 8, 5],
   desc:"Prices for the stocks, funds or indexes you pick, with today's change and a little chart of the day. Prices can be up to 15 minutes old. Not investment advice.",
   settings:{
-    syms:{type:"list", label:"Symbols", help:"One per line, like on Yahoo Finance: AAPL, VOO, ^GSPC (S&P 500), BTC-USD", placeholder:"AAPL", default:["^GSPC", "^DJI", "^IXIC"]},
+    syms:{type:"list", share:false, label:"Symbols", help:"One per line, like on Yahoo Finance: AAPL, VOO, ^GSPC (S&P 500), BTC-USD", placeholder:"AAPL", default:["^GSPC", "^DJI", "^IXIC"]},
     names:{type:"bool", label:"Show company names", default:true},
     chart:{type:"bool", label:"Little chart of the day", default:true}
   },

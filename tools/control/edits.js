@@ -57,7 +57,7 @@ document.addEventListener("change", e => {
     try{ if (t.value) localStorage.setItem("countertop.screenSize", t.value); else localStorage.removeItem("countertop.screenSize"); }catch(e){}
     toast(t.value ? "/dash in this browser now keeps that size" : "Dashboard in this browser fills the window", "ok"); return;
   }
-  if ((d.lk && d.lv === undefined) || d.lfrom || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
+  if ((d.lk && d.lv === undefined) || d.lwall || d.lfrom || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
   if (d.sf){       // show only the fields that apply, and refresh per-kind labels and help text
     const cur = stack[stack.length - 1].split(":"), K = KINDS[cur[1]]; if (!K) return;
     const getVal = w => { const el = document.querySelector('[data-sf="' + w + '"]'); return el ? el.value : ""; };

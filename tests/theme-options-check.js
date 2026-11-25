@@ -140,6 +140,55 @@ async function main() {
     // and a file or code that carries them in is ignored on the way in
     const read = await ctl.evaluate(() => themeRead({ values: { accent: "#112233", wallpaper: "w-aaaaaaaaaaaa", album: "x", bg: "Wallpaper" } }).values);
     assert.deepEqual(read, { accent: "#112233", bg: "Wallpaper" });
+    // ----- the editor: tabs, visual choices, palettes, per-section reset, wallpaper upload, per-theme effects
+    await ctl.evaluate(() => { go("look:new"); });
+    await until(() => ctl.evaluate(() => !!document.querySelector(".ltabs")), "the theme editor's tabs");
+    const tabs = await ctl.evaluate(() => [...document.querySelectorAll(".ltabs button")].map(b => b.textContent));
+    assert.deepEqual(tabs, ["Colors", "Type", "Surfaces", "Spacing", "Background", "Effects"]);
+    const click = sel => ctl.click(sel);
+    const val = k => ctl.evaluate(k => DRAFT.values[k], k);
+    await click('.ltabs [data-id="type"]');
+    await click('.opt[data-lk="fontBody"][data-lv="Nunito"]');
+    await click('.opt[data-lk="fontDisplay"][data-lv="Bebas Neue"]');
+    assert.equal(await val("fontBody"), "Nunito");
+    assert.equal(await val("fontDisplay"), "Bebas Neue");
+    assert.equal(await ctl.evaluate(() => document.querySelectorAll('.opt[data-lk="fontDisplay"]').length), 9, "all 8 fonts and Default for big numbers");
+    assert.equal(await ctl.evaluate(() => document.querySelectorAll('.opt[data-lk="fontBody"]').length), 5, "five readable text fonts");
+    await click('.ltabs [data-id="surface"]');
+    await click('.opt[data-lk="surface"][data-lv="Glass"]'); await click('.opt[data-lk="shape"][data-lv="Soft"]');
+    await click('.ltabs [data-id="space"]'); await click('.opt[data-lk="density"][data-lv="Roomy"]');
+    assert.deepEqual([await val("surface"), await val("shape"), await val("density")], ["Glass", "Soft", "Roomy"]);
+    assert.match(await ctl.evaluate(() => document.querySelector(".lpic.big i").getAttribute("style")), /border-radius:1\.0*3?em|border-radius:1em/, "the picture shows the corners");
+    await click('.ltabs [data-id="colors"]');
+    await click('[data-lact="pal"][data-id="1"]');
+    assert.deepEqual([await val("mode"), await val("accent"), await val("bg"), await val("bgColor")], ["Light", "#a2662f", "Color", "#efe6d6"], "a palette sets mode, accent and background");
+    await click('[data-lact="reset"]');
+    assert.equal(await val("accent"), "#7cb7ff", "Reset this section puts the colors back");
+    assert.equal(await val("fontBody"), "Nunito", "and leaves the other sections alone");
+    // the preview on the screen follows the draft
+    await until(() => ctl.evaluate(() => !!PV.trial), "a trial for the preview");
+    // a wallpaper: only real pictures, kept on this server, never in what's shared
+    await click('.ltabs [data-id="bg"]'); await click('.opt[data-lk="bg"][data-lv="Wallpaper"]');
+    const png1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    await ctl.setInputFiles('input[data-lwall]', { name: "w.png", mimeType: "image/png", buffer: png1 });
+    await until(() => ctl.evaluate(() => /^w-[0-9a-f]{12}$/.test(DRAFT.values.wallpaper || "")), "the wallpaper is saved on the server");
+    const wid = await val("wallpaper");
+    assert.equal((await fetch(srv.base + "/wallpaper/" + wid)).status, 200);
+    await ctl.setInputFiles('input[data-lwall]', { name: "x.svg", mimeType: "image/svg+xml", buffer: Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>") });
+    await ctl.waitForTimeout(300);
+    assert.equal(await val("wallpaper"), wid, "an SVG is not taken");
+    const out = await ctl.evaluate(() => JSON.stringify(themePortable(lookVals("new"))));
+    assert.ok(!out.includes("w-") && !out.includes("wallpaper"), "the draft shares without its wallpaper");
+    await click('[data-lact="wallrm"]');
+    assert.equal(await val("wallpaper"), "");
+    // effects picked for this theme
+    await click('.ltabs [data-id="fx"]'); await click('[data-lact="fxmode"][data-id="pick"]');
+    assert.ok((await val("fxPick")).length >= 1);
+    const first = await ctl.evaluate(() => document.querySelector('[data-lact="fxpick"]').dataset.id);
+    await click('[data-lact="fxpick"][data-id="' + first + '"]');
+    assert.equal((await val("fxPick")).includes(first), !["snow"].includes(first) ? true : false);
+    await click('[data-lact="fxmode"][data-id="mine"]');
+    assert.deepEqual(await val("fxPick"), []);
     console.log("✓ theme options draw, fit the grid editor, and keep local wallpapers and albums home");
   });
   process.exit(ok ? 0 : 1);

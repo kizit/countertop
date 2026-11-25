@@ -578,3 +578,7 @@
      unless the tile's design picked a font of its own (.ownfont) */
   html.dfont :is(.m-clock,.m-weather):not(.ownfont) :is(.t,.tt){font-family:var(--font-display)}
   #tinter{position:fixed;inset:0;z-index:3;pointer-events:none}
+  #edpanel .clrs{display:flex;align-items:center;gap:8px}
+  #edpanel .themeclr{padding:5px 11px;border-radius:999px;background:#212832;color:#c3cad3;border:2px solid transparent;font-size:13px}
+  #edpanel .themeclr.on{border-color:#7cb7ff;color:#fff}
+  #edpanel .dzsw button[data-v=theme]{font-size:13px;font-weight:700;color:#0a0c0f;display:flex;align-items:center;justify-content:center}

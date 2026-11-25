@@ -7,7 +7,7 @@ Tile("clock", {
     font:{look:true, type:"choice", label:"Font", choices:["Style default", "System", "Outfit", "Bebas Neue", "DM Serif Display", "Fraunces", "JetBrains Mono", "Nunito", "Space Grotesk"], default:"Style default"},
     size:{look:true, type:"int", label:"Text size (%)", min:60, max:160, default:100},
     align:{look:true, type:"choice", label:"Align", choices:["Left", "Center", "Right"], default:"Left"},
-    color:{look:true, type:"color", label:"Time color", default:"#ffffff"},
+    color:{look:true, theme:true, type:"color", label:"Time color", default:"#ffffff"},
     ampm:{type:"bool", label:"Show AM/PM", default:true},
     seconds:{type:"bool", label:"Show seconds", default:false},
     date:{part:"date", type:"bool", label:"Show the date", default:true},

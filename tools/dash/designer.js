@@ -210,7 +210,7 @@ function designDown(e){
     const sec = newSel && $("dzsec"); if (sec) sec.scrollIntoView({block:"start"}); };
   addEventListener("pointermove", move); addEventListener("pointerup", up); addEventListener("pointercancel", up);
 }
-const DZ_SW = ["#ffffff", "#d5dbe3", "#8a939e", "accent", "#ffd36e", "#ff9f5a", "#7fd18a", "#ff7a8a"];
+const DZ_SW = ["theme", "#ffffff", "#d5dbe3", "#8a939e", "accent", "#ffd36e", "#ff9f5a", "#7fd18a", "#ff7a8a"];
 function panelDesign(){
   const m = dzM(), X = dzX(); if (!m || !X) return "";
   const f = EDIT.focus, P = m.parts(), sel = f.sel, o = sel && X.parts[sel], styles = presetsOf(m), n = designUsers(m.type, X.id);
@@ -228,8 +228,8 @@ function panelDesign(){
     const p = P.find(x => x.id === sel) || {}, v = (k, d) => o[k] == null ? d : o[k];
     h += '<div class="sh" id="dzsec">' + esc(p.label || sel) + '</div><div class="grp">';
     h += '<label class="kv"><span>Size</span><span><input type="range" min="2" max="70" step="0.5" data-dz="s" value="' + v("s", 8) + '"></span></label>';
-    h += '<div class="kv col"><span>Color</span><div class="dzsw">' + DZ_SW.map(c => '<button data-act="dzc" data-v="' + c + '" style="background:' + (c === "accent" ? "var(--accent)" : c) + '"' +
-      ((o.c || "") === (c === "accent" ? "var(--accent)" : c) ? ' class="on"' : "") + ' title="' + (c === "accent" ? "Accent color (follows the look)" : c) + '"></button>').join("") +
+    h += '<div class="kv col"><span>Color</span><div class="dzsw">' + DZ_SW.map(c => '<button data-act="dzc" data-v="' + c + '" style="background:' + (c === "accent" ? "var(--accent)" : c === "theme" ? "var(--text,var(--fg))" : c) + '"' +
+      ((c === "theme" ? !o.c : (o.c || "") === (c === "accent" ? "var(--accent)" : c)) ? ' class="on"' : "") + ' title="' + (c === "accent" ? "Accent color (follows the look)" : c === "theme" ? "Theme: follows the theme's text color" : c) + '">' + (c === "theme" ? "T" : "") + '</button>').join("") +
       '<input type="color" data-dz="c" value="' + esc(/^#[0-9a-f]{6}$/i.test(o.c || "") ? o.c : "#ffffff") + '"></div></div>';
     h += '<label class="kv"><span>Font</span><select data-dz="f"><option value="">As the style had it</option>' + Object.keys(FONTS).map(f => '<option' + (o.f === f ? " selected" : "") + '>' + esc(f) + '</option>').join("") + '</select></label>';
     h += '<div class="kv col"><span>Weight</span><div class="seg2">' + [["Light", 200], ["Regular", 400], ["Bold", 700]].map(([l, w]) => '<button data-act="dzw" data-v="' + w + '"' + (Math.abs((o.w || 400) - w) < 100 ? ' class="on"' : "") + '>' + l + '</button>').join("") + '</div></div>';
@@ -275,7 +275,7 @@ function designAct(a, el){
   }
   const o = f.sel && dzP(f.sel); if (!o) return;
   remember();
-  if (a === "dzc") o.c = v === "accent" ? "var(--accent)" : v;
+  if (a === "dzc") o.c = v === "accent" ? "var(--accent)" : v === "theme" ? "" : v;
   if (a === "dzw") o.w = +v;
   if (a === "dza"){       // keep it where it is on screen while changing which edge is anchored
     const n = document.querySelector('#edfocus .ftile [data-part="' + f.sel + '"]');

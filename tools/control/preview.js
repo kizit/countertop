@@ -23,7 +23,7 @@ function pvApplyNav(){
     document.body.classList.remove("nav-collapsed");
     return;
   }
-  const collapsed = PV.navManual != null ? !PV.navManual : innerWidth < 1400;
+  const collapsed = PV.navManual != null ? !PV.navManual : innerWidth < 1480;
   document.body.classList.toggle("nav-collapsed", collapsed);
   const b = $("pvnav");
   if (b){

@@ -595,3 +595,7 @@
   #edpanel .themeclr{padding:5px 11px;border-radius:999px;background:#212832;color:#c3cad3;border:2px solid transparent;font-size:13px}
   #edpanel .themeclr.on{border-color:#7cb7ff;color:#fff}
   #edpanel .dzsw button[data-v=theme]{font-size:13px;font-weight:700;color:#0a0c0f;display:flex;align-items:center;justify-content:center}
+  /* Controls desktop host mode: top bar and right inspector are rendered natively by Controls at 100% scale */
+  body.ed-host #edbar,body.ed-host #edpanel{display:none !important}
+  body.ed-host #edfocus{right:0}
+  body.ed-grid #edgrid{opacity:.65}

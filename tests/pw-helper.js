@@ -99,6 +99,7 @@ async function runSuite(suiteName, fn) {
       viewport = { width: 1920, height: 1080 },
       hasTouch = false,
       isMobile = false,
+      userAgent = "",
       useFixtures = false,
       realSaves = false,
       stubFullscreen = hasTouch,
@@ -106,7 +107,9 @@ async function runSuite(suiteName, fn) {
       label = "ctx-" + (tracked.length + 1),
       trace = true,
     } = opts;
-    const ctx = await browser.newContext({ viewport, hasTouch, isMobile });
+    const ctxOpts = { viewport, hasTouch, isMobile };
+    if (userAgent) ctxOpts.userAgent = userAgent;
+    const ctx = await browser.newContext(ctxOpts);
     let tracing = false;
     if (trace) {
       await ctx.tracing.start({ screenshots: true, snapshots: true }).then(() => { tracing = true; }).catch(() => {});

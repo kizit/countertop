@@ -163,7 +163,7 @@ function designPaint(){
   F.classList.toggle("night", EDIT.page === "night");
   const el = MOUNTED[m.id], W0 = (el && el.offsetWidth) || 600, H0 = (el && el.offsetHeight) || 300;
   const {width, height} = F.getBoundingClientRect();
-  const top = $("edbar").getBoundingClientRect().bottom + 34;
+  const top = document.body.classList.contains("ed-host") ? 24 : $("edbar").getBoundingClientRect().bottom + 34;
   const aw = Math.max(1, width - 80), ah = Math.max(1, height - top - 60), k = Math.min(aw / W0, ah / H0, 3);
   const st = F.querySelector(".fst");
   if (!st.firstChild || st._for !== m.id + W0 + "x" + H0){
@@ -207,7 +207,7 @@ function designDown(e){
   };
   const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); removeEventListener("pointercancel", up); const d = EDIT.focus && EDIT.focus.drag; if (EDIT.focus) EDIT.focus.drag = null;
     if (d && !d.moved) EDIT.hist.pop(); render(m.id); edPaint(true); designPaint();
-    const sec = newSel && $("dzsec"); if (sec) sec.scrollIntoView({block:"start"}); };
+    const sec = newSel && edPan().querySelector("#dzsec"); if (sec) sec.scrollIntoView({block:"start"}); };
   addEventListener("pointermove", move); addEventListener("pointerup", up); addEventListener("pointercancel", up);
 }
 const DZ_SW = ["theme", "#ffffff", "#d5dbe3", "#8a939e", "accent", "#ffd36e", "#ff9f5a", "#7fd18a", "#ff7a8a"];

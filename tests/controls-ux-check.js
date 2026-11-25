@@ -727,6 +727,15 @@ async function main() {
     }, "Ctrl+S saved layout editor changes");
     await until(() => dp.evaluate(() => !document.body.classList.contains("editing-desk") && document.getElementById("insp").hidden), "Save exited 3-pane studio");
 
+    // Desktop mode keeps today's Library fixes: Theme and Effects opened from Controls' home show the live preview every time, and the preview size buttons are touch-only
+    for (const [row, label] of [["themes", "Theme"], ["effects", "Effects"], ["themes", "Theme (again)"]]) {
+      await dp.evaluate(() => { stack = ["root"]; show(); });
+      await dp.locator('[data-act="lib"][data-id="' + row + '"]').click();
+      await until(() => dp.evaluate(() => { const f = document.getElementById("libpv"); return !!f && /\/dash\/content\?preview=1/.test(f.getAttribute("src") || "") && f.classList.contains("on"); }), "desktop " + label + " preview rendered", 15000);
+      await dp.evaluate(() => { libClose(); show(); });
+    }
+    assert.equal(await dp.evaluate(() => document.getElementById("pvsize").hidden), true, "preview size buttons are hidden in desktop mode");
+
     assert.deepEqual(deskErrs, []);
     await deskCtx.close();
     console.log("✓ desktop 3-pane PC studio: pulled-out inspector, unified toolbar, Grid toggle, search, cross-pane drag, Duplicate, Arrow nudge, Ctrl+Z & Ctrl+S");

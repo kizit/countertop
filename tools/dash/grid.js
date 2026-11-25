@@ -4,7 +4,18 @@
    worked out from landscape. A box with no room in one of them is left off that screen (s.loff, s.p.off). */
 const U = 2, LC = 24 * U, LR = 16 * U;     // sizes below are written in 24x16 units and scaled by U
 // the gap between boxes follows the theme's Spacing (Compact, Normal, Roomy); the editor places boxes with it so it matches the screen
-const gapPx = () => THEMELIB.spacing(typeof THEMEV === "undefined" ? null : THEMEV).gap;
+/* The gaps and page margins are written in pixels at 1920x1080. On a smaller screen (an Echo Show 5 is 960x480) they shrink with it,
+   so the 32 rows (48 in portrait) still have room: --gs is 1 up to a 1920x1080 screen and smaller below it. */
+function screenScale(){
+  const w = innerWidth, h = innerHeight, s = Math.min(1, Math.max(w, h) / 1920, Math.min(w, h) / 1080);
+  document.documentElement.style.setProperty("--gs", s < 1 ? s.toFixed(4) : "1");
+}
+screenScale(); addEventListener("resize", screenScale);
+// the gap between boxes as drawn (the grid's own computed gap, so the editor agrees with the screen whatever the theme and screen size)
+function gapPx(){
+  const g = document.querySelector(".cgrid"), v = g && parseFloat(getComputedStyle(g).rowGap);
+  return v >= 0 ? v : THEMELIB.spacing(typeof THEMEV === "undefined" ? null : THEMEV).gap * (parseFloat(document.documentElement.style.getPropertyValue("--gs")) || 1);
+}
 const PC = LR, PR = LC;
 let GC = LC, GR = LR;                                // the grid being edited (32x48 while the editor shows portrait)
 const dims = o => o === "p" ? [PC, PR] : [LC, LR];
@@ -254,7 +265,7 @@ function placeSlot(d, s, pg){
   d.classList.toggle("off", !r);
   if (!r) return;
   d.style.setProperty("--slot-col", (r.x + 1) + " / span " + r.w); d.style.setProperty("--slot-row", (r.y + 1) + " / span " + r.h);
-  const n = r.w * (o === "p" ? 1080 / PC : 1920 / LC) <= narrowAt(s);
+  const n = r.w * (o === "p" ? Math.min(innerWidth, innerHeight) / PC : Math.max(innerWidth, innerHeight) / LC) <= narrowAt(s);
   if (d.classList.contains("narrow") !== n){ d.classList.toggle("narrow", n); if (d.isConnected) live(s).forEach(id => render(id)); } }
 function portraitRows(slots, showing, all){
   const boxes = slots.filter(s => (all || live(s).length) && showing(s)).sort((a, b) => a.y - b.y || a.x - b.x);

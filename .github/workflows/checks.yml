@@ -66,6 +66,7 @@ jobs:
             checks: |
               node tests/browser-check.js
               node tests/tiles-check.js
+              node tests/tile-fit-check.js
               node tests/tile-data-check.js
               node tests/snapshot-check.js
           - id: sandbox-and-controls

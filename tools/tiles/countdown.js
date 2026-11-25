@@ -1,7 +1,7 @@
 /* Countdown: days until the dates you care about */
 Tile("countdown", {
   api:1, uses:[],
-  title:"Countdown", cat:"Time", every:600, size:[12, 8, 8, 5],
+  title:"Countdown", cat:"Time", every:600, size:[12, 8, 8, 5], grow:"value",
   desc:"Days until the dates you care about: a trip, a birthday, the last day of school. The nearest one is big; the next few are listed under it. Past dates drop off on their own.",
   settings:{
     dates:{type:"list", share:false, label:"Dates", help:"One per line: name, then the date. For example: Beach trip, 2027-06-14", placeholder:"Beach trip, 2027-06-14", default:[]},
@@ -13,7 +13,8 @@ Tile("countdown", {
     .m-count .big b{font-size:96px;font-weight:200;line-height:1;color:var(--accent)}
     .m-count .big span{font-size:26px;color:var(--dim)}
     .m-count .what{font-size:32px;font-weight:500;line-height:1.2}
-    .m-count .li .t{min-width:110px}`,
+    .m-count .li .t{min-width:110px}
+    .m-count.tight .big b{font-size:64px} .m-count.tight .big span{font-size:20px} .m-count.tight .what{font-size:24px}`,
   cls:"m-count",
   list(){
     const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -32,7 +33,7 @@ Tile("countdown", {
     const L = this.list(), esc = x => this.esc(x), tr = (x, v) => this.t(x, v);
     if (!L.length){ el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="empty">Add dates in this tile\'s settings</div>'; return; }
     const a = L[0], n = a.days;
-    let h = '<h3>' + esc(this.name) + '</h3><div class="what">' + esc(a.name) + '</div><div class="big"><b>' + (n === 0 ? tr("Today!") : n) + '</b><span>' +
+    let h = '<h3>' + esc(this.name) + '</h3><div class="what">' + esc(a.name) + '</div><div class="big" data-keep><b>' + (n === 0 ? tr("Today!") : n) + '</b><span>' +
       (n === 0 ? "" : tr(n === 1 ? "day to go" : "days to go")) + '</span></div>';
     h += L.slice(1, 1 + (this.s.more == null ? 3 : this.s.more)).map(x => '<div class="li"><div class="t">' + x.days + (x.days === 1 ? " day" : " days") + '</div><div class="s">' + esc(x.name) + '</div></div>').join("");
     el.innerHTML = h;

@@ -1,6 +1,6 @@
 /* Dad joke: a groaner, with the punchline a few seconds later */
 Tile("joke", {
-  title:"Dad joke", cat:"Fun", cls:"m-fun", every:5, size:[10, 6, 8, 6],
+  title:"Dad joke", cat:"Fun", cls:"m-fun", every:5, size:[10, 6, 8, 6], narrow:340,
   desc:"A dad joke from icanhazdadjoke.com. The punchline shows a few seconds after the setup.",
   settings:{
     every:{type:"int", label:"Seconds per joke", default:90, min:20, max:3600},

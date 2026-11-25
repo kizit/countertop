@@ -17,7 +17,7 @@ Tile("sunmoon", {
     const x = 10 + f * 280, y = 90 - Math.sin(f * Math.PI) * 80, mo = moon(now), dm = Math.round(len2 - len);
     el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="arc"><svg viewBox="0 0 300 96" preserveAspectRatio="none"><path d="M10 90 Q150 -70 290 90" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-dasharray="4 5"/>' +
       '<line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,.15)"/>' + (up ? '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="9" fill="#ffd166"/>' : "") + '</svg></div>' +
-      '<div class="rs"><div>🌅 ' + fmtTime(rise) + '<small>' + tr("Sunrise") + '</small></div><div style="text-align:right">🌇 ' + fmtTime(set) + '<small>' + tr("Sunset") + '</small></div></div>' +
+      '<div class="rs" data-keep><div>🌅 ' + fmtTime(rise) + '<small>' + tr("Sunrise") + '</small></div><div style="text-align:right">🌇 ' + fmtTime(set) + '<small>' + tr("Sunset") + '</small></div></div>' +
       '<div class="ft">' + tr("{h} h {min} min of daylight", {h:Math.floor(len / 60), min:Math.round(len % 60)}) + (dm ? " · " + tr("{change} min tomorrow", {change:(dm > 0 ? "+" : "−") + Math.abs(dm)}) : "") + ' · ' + mo[0] + ' ' + mo[1] + '</div>';
   }
 });

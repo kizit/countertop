@@ -19,7 +19,7 @@ Tile("photos", {
       return;
     }
     if (!el._layers){
-      el.innerHTML = '<div class="blur"></div><div class="img"></div><div class="blur" style="opacity:0"></div><div class="img" style="opacity:0"></div><div class="cap"></div>';
+      el.innerHTML = '<div class="blur" data-deco></div><div class="img"></div><div class="blur" data-deco style="opacity:0"></div><div class="img" style="opacity:0"></div><div class="cap"></div>';
       el._layers = true; el._flip = 0; el._order = []; el._i = -1; el._errs = 0;
     }
     if (el._shown && Date.now() - el._shownAt < (s.every || 60) * 1000 - 500) return;

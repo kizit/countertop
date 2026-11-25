@@ -28,6 +28,8 @@ Tile("daily", {
 | `css`, `cls` | The tile's own styles and the class its element gets |
 | `demo`, `demoData` | Settings and stored data for the Library's example pictures |
 | `api`, `uses` | The tile API version the tile is written for (`1`) and what it uses (`"store"`, `"fetch"`, `"events"`…) |
+| `narrow` | Width in pixels (on a 1920×1080 screen) at or below which the tile switches to its compact look, `.slot.narrow` in its CSS. Without it, a box 560 px wide or narrower is compact |
+| `grow` | How the tile uses extra space. `"value"` enlarges the main value (the `data-keep` element) while everything still fits |
 | `hosts` | The sites the tile reads with `this.fetch`, like `["api.example.com"]` or `["*.example.com"]` for one level of subdomain. Names only, no addresses |
 
 ## What a tile can use
@@ -233,3 +235,13 @@ Your own tile (HTML in a frame of its own) is now Tile Studio. When Countertop u
 - One whose page works sealed off becomes a Studio tile in every box that had it. Its HTML is drawn into the tile, its inline `onclick` and other handlers keep working, and the https:// sites it reads become its `hosts`. The original is kept, and **Restore** puts it back.
 - One that can't move (it reads devices on the home network or plain http:// addresses, loads scripts or styles from the web, sends data, opens other pages, builds addresses that can't be checked, and so on) stays as it is and keeps working. Its settings and Controls → Library → Tiles say why, with **Convert** to make it a Studio tile anyway (the parts named stop working, and Restore puts it back).
 - A shared layout's Your own tile is checked the same way once the person taps Run on it.
+
+## Fitting a tile to its box
+
+A box can be small, wide, tall or large, and the screen fits the tile to it: text shrinks a little, then whole lines and rows that don't fit are dropped (never half a row). Three marks tell it what matters:
+
+- `data-keep` on the main content (a number, a value, the times). Everything else is shrunk and dropped first, and the main content is never taken out. Without a mark, only the first thing in the tile is protected, which is usually just the title.
+- `data-deco` on a decoration that bleeds past the tile (a blurred backdrop). It doesn't count when working out whether the tile fits.
+- `.mini` on the tile when a tile without a card (clock, weather) is too small for its normal layout. Style it to show less, and the fitter shrinks that instead of the normal layout.
+
+A tile with a card also gets `data-room` (`wide`, `tall` and/or `big`) and `--room` (its area as a multiple of its usual area), so its CSS can show more when there is room. Text inside an element that hides its own overflow is cut at the last whole line with "…".

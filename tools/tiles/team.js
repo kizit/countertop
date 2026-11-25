@@ -1,6 +1,6 @@
 /* Team: your team's next match, live score and last result */
 Tile("team", {
-  title:"Team", cat:"Sports", cls:"m-team", every:300, size:[12, 8, 8, 6], feeds:["team"],
+  title:"Team", cat:"Sports", cls:"m-team", every:300, size:[12, 8, 8, 6], narrow:400, feeds:["team"],
   takeover:"Take over the box on match day",
   desc:"Your team's next match, the live score during a game and the last result. Narrow boxes list the next few matches. Hides itself when no match is near, so a box can show something else. Set up teams in Setup → Sports teams.",
   settings:{

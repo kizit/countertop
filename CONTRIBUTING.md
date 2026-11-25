@@ -171,6 +171,7 @@ What reviewers look for:
 - Nothing personal or secret leaks into logs, diagnostics, shared layouts or the repository.
 - It has tests, and a release note if people will notice it.
 - Text on screen is short, plain and friendly, in the same voice as the rest of Countertop.
+- Countertop is a home dashboard, not a kitchen-specific one: avoid "kitchen" in on-screen text, prompts and docs unless it names a theme or content (Kitchen table, kitchen tips).
 
 ## Releases
 

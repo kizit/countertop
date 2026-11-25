@@ -48,7 +48,7 @@ function libRail(){
     item("layouts", "Layouts", libBuiltIn().length + savedList().length) + item("tiles", "Tiles", Object.keys(DEFS).length || "") +
     item("themes", "Themes", looks().length + 1 + THEMELIB.L.length) + item("effects", "Effects", FXLIB.L.filter(d => !(FXDRAFT && FXDRAFT.isNew && d.id === FXDRAFT.id) && fxC(d.id).on).length + " on") +
     '<div class="lsep">Yours</div>' + item("mine", "My layouts", savedList().length) +
-    '<div class="lsep">Make</div>' + '<button data-l="s-new"' + (LIB.view === "studio" ? ' class="on"' : "") + '>New tile</button>' + item("share", "Share a layout") + item("import", "Import a file") +
+    '<div class="lsep">Make</div>' + '<button data-l="s-new"' + (LIB.view === "studio" ? ' class="on"' : "") + '>Tile Studio</button>' + '<button data-l="s-theme"' + (libSub() && LIB.sub[LIB.sub.length - 1] === "tstudio" ? ' class="on"' : "") + '>Theme Studio</button>' + item("share", "Share a layout") + item("import", "Import a file") +
     '<div class="lsep">Community</div>' + item("community", "Browse community", COMM.data && commUpdates() ? commUpdates() + " new" : null);
 }
 // Add page and Change layout open the Library to pick: a bar says what the pick is for
@@ -445,11 +445,12 @@ function libSubShow(){
   const {h, title} = screenFor(cur);
   const side = (S.length > 1 ? '<button class="lback" data-l="sback">‹ ' + esc(backLabel(S[S.length - 2])) + '</button>' : "") +
     (h.startsWith('<div class="big">') ? "" : '<div class="big">' + esc(title) + '</div>') + h;
-  const el = libEl(), box = el.querySelector(".lside");
-  if (box && !ECHO){ el.querySelector(".lrail").innerHTML = libRail(); box.innerHTML = side; }      // the preview keeps running
+  const restore = scrollKeep("lib:" + cur), el = libEl(), box = el.querySelector(".lside");
+  if (box){ el.querySelector(".lrail").innerHTML = libRail(); box.innerHTML = side; }      // redraw in place: the preview keeps running, and the scroll position stays (on the Echo too)
   else el.innerHTML = '<nav class="lrail">' + libRail() + '</nav><div class="lmain">' + (ECHO ? '<div class="lside">' + side + '</div>' :
     '<div class="lsplit"><div class="lside">' + side + '</div><div class="lpvcol"><div class="lbig' + (displayMode === "auto" ? "" : " port") + '"><iframe id="libpv" tabindex="-1" aria-hidden="true" title="Live preview"></iframe></div>' +
     '<p class="lnote">Your dashboard, live. Changes show here before you use them.</p></div></div>') + '</div>';
+  restore();
   fxPreviews();
   libPv();
 }
@@ -562,9 +563,10 @@ function libDropSaved(sp){
 }
 function libTap(t){
   const d = t.dataset, a = d.l;
-  if ((a === "close" || a === "view" || a === "sback") && libDirty()) return;
-  if ((a === "close" || a === "view" || a === "s-new") && LIB.view === "studio" && stuDirty() && !confirm("Leave Tile Studio without saving your changes?")) return;
-  if ((a === "close" || a === "view") && LIB.view === "studio"){ clearInterval(STU.poll); STU.t = null; }
+  if ((a === "close" || a === "view" || a === "sback" || a === "s-theme") && libDirty()) return;
+  if ((a === "close" || a === "view" || a === "s-new" || a === "s-theme") && LIB.view === "studio" && stuDirty() && !confirm("Leave Tile Studio without saving your changes?")) return;
+  if ((a === "close" || a === "view" || a === "s-theme") && LIB.view === "studio"){ clearInterval(STU.poll); STU.t = null; }
+  if (a === "s-theme"){ libOpen("themes"); LIB.sub.push("tstudio"); libShow(); return; }
   if (a === "sback"){ LIB.sub.pop(); libShow(); return; }
   if (a === "close"){ libClose(); show(); return; }
   if (a === "view"){ if (d.item) LIB.shareOf = d.item; else if (d.id === "share") LIB.shareOf = LIB.shareOf || "main"; LIB.q = ""; LIB.chip = "all"; libGo(d.id); return; }

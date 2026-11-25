@@ -1,0 +1,1 @@
+- **Home-neutral wording.** The Theme Studio prompt and examples no longer assume the screen is in a kitchen.

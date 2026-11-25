@@ -49,5 +49,6 @@ Restart the server after editing Python. Run the checks before you finish.
 - Keep pages light enough for the Echo Show browser.
 - For changes people will notice, add a one-line note under `changes/new/`, `changes/changed/` or `changes/fixed/`. Don't edit `CHANGELOG.md` or `VERSION`; releases do that.
 - Write on-screen text, release notes and commit messages in plain, friendly language for the household, in the present tense.
+- Countertop is a home dashboard, not a kitchen device. Keep wording home-neutral ("a screen in my home"). Use "kitchen" only where it is a theme or content name (the Kitchen table theme, kitchen tips) or an example a user typed.
 - Never commit anything from `work/`, real links, keys, IP addresses or personal details. Use the demo data.
 - Keep a pull request to one change.

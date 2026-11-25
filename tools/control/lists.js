@@ -184,11 +184,22 @@ function backLabel(prev){
   return !prev ? "" : LBL[prev] ? LBL[prev] : prev === "look:new" ? "New theme" : prev.startsWith("look:") ? "Customize" : prev.startsWith("theme:") ? lookName(prev.slice(6)) : prev.startsWith("src:") ? KINDS[prev.slice(4)].title :
     prev === "page:main" ? "Main" : prev.startsWith("page:") ? ((cpById(prev.slice(5)) || {}).name || "Page") : prev === "saved" ? "Saved layouts" : prev.startsWith("fx:") ? (FXLIB.BY[prev.slice(3)] || {}).name || "Effect" : "Back";
 }
+// Redrawing the screen you are already on (an option tapped in the theme editor) keeps its scroll position.
+// A different screen starts at the top, as before.
+let lastShown = "";
+function scrollKeep(cur){
+  const same = cur === lastShown; lastShown = cur;
+  if (!same) return () => {};
+  const els = [document.querySelector(".lmain"), document.querySelector(".lside")].filter(Boolean), tops = els.map(e => e.scrollTop), y = window.scrollY;
+  return () => { els.forEach((e, i) => { e.scrollTop = tops[i]; }); if (window.scrollY !== y) window.scrollTo(0, y); };
+}
 function show(){
   if (libSub()){ libShow(); return; }          // Themes and Effects are open in the Library
   const cur = stack[stack.length - 1];
   const {h, title} = screenFor(cur);
+  const restore = scrollKeep(cur);
   $("screen").innerHTML = h;
+  restore();
   if (document.getElementById("llitems")) llRefresh();      // a list's items, ready to edit
   const choice = cur === "wiz" && WIZ.step === 4 ? WIZ.starter || (sameEverydayLayout() ? "everyday" : "") : "";
   $("starterpv").innerHTML = choice && choiceOf(choice) ? starterPreview(choice) : "";

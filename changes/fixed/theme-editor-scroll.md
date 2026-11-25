@@ -1,0 +1,1 @@
+- **The theme editor keeps its place.** Tapping an option while customizing a theme no longer jumps the page back to the top, and the tab you were on stays open.

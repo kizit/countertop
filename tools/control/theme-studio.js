@@ -1,6 +1,6 @@
 /* ---------- Theme Studio: make a theme with an AI of your choice, or from a wallpaper ----------
    Like Tile Studio, Countertop has no AI built in. It writes a prompt that explains the theme settings; you give it to the AI you
-   already use (with a photo of your kitchen if it can look at pictures) and paste back what it answers. Whatever comes back is
+   already use (with a photo of your room if it can look at pictures) and paste back what it answers. Whatever comes back is
    checked here, setting by setting, and opens as an ordinary new-theme draft in the theme editor: the same preview, Save and
    Cancel as a theme you make by hand. Nothing is saved until you press Save.
    "From a wallpaper" picks a palette from a picture on this device. The picture isn't uploaded or stored.
@@ -87,9 +87,9 @@ const THEMESTUDIO = (function(){
   // the prompt to give an AI: what a theme is, every setting with its allowed values, and the theme to start from (only what may be shared)
   function prompt(want, current){
     const L = [
-      "I'm designing a theme for Countertop, a home dashboard that runs on a screen in my kitchen. A theme sets colors, fonts, the shape and edges of the tiles, spacing and the background. Please design one.",
+      "I'm designing a theme for Countertop, a home dashboard that runs on a screen in my home. A theme sets colors, fonts, the shape and edges of the tiles, spacing and the background. Please design one.",
       "", "What I'd like: " + (str1(want) || "(nothing in particular: surprise me with something tasteful)"),
-      "If I've attached a photo of my kitchen, match its colors, materials and mood.", "",
+      "If I've attached a photo of the room it will be in, match its colors, materials and mood.", "",
       "Reply with ONLY one JSON object: no text before or after it, no CSS, no links, no images. Use only these fields and values:", "",
       '"name": a short name (up to 60 characters)', '"description": one sentence about the look (up to 500 characters)',
       '"category": one of ' + TL.CATEGORIES.map(c => '"' + c + '"').join(", ")];
@@ -171,9 +171,9 @@ function thsResult(res, which){
 function thsScreen(){
   const o = id => '<option value="' + esc(id) + '"' + (id === THS.from ? " selected" : "") + '>' + esc(lookName(id)) + '</option>';
   let h = '<div class="big">Theme Studio</div><p class="intro">Describe the look you want to an AI you already use, then paste back what it writes. Countertop has no AI of its own and sends nothing anywhere: you copy and paste.</p>';
-  h += sec("1 · Describe it", '<div class="row col"><textarea data-tst-in="want" maxlength="600" rows="3" placeholder="Warm and calm, like my oak kitchen. Soft corners, a serif for the clock.">' + esc(THS.want) + '</textarea></div>' +
+  h += sec("1 · Describe it", '<div class="row col"><textarea data-tst-in="want" maxlength="600" rows="3" placeholder="Warm and calm, like my oak living room. Soft corners, a serif for the clock.">' + esc(THS.want) + '</textarea></div>' +
     '<div class="row col"><label class="foot">Start from <select data-tst-in="from"><optgroup label="Yours">' + ["default"].concat(looks().map(x => x.id)).map(o).join("") + '</optgroup><optgroup label="Built in">' + THEMELIB.L.map(x => o(x.id)).join("") + '</optgroup></select></label></div>',
-    "If your AI can look at pictures, attach a photo of your kitchen to it.");
+    "If your AI can look at pictures, attach a photo of the room it will be in to it.");
   h += sec("2 · Give the AI this prompt", '<div class="row"><textarea class="code" readonly data-tst-in="prompt" rows="5" style="flex:1;font-size:12px">' + esc(thsPrompt()) + '</textarea></div>' +
     '<button class="btnrow blue" data-tst="copy">Copy the prompt</button>', "It lists every setting a theme has. It includes the theme above, but never your wallpaper, photos or anything private.");
   h += sec("3 · Paste what it wrote", '<div class="row col"><textarea data-tst-in="paste" maxlength="' + THEMESTUDIO.MAX_TEXT + '" rows="5" class="code" placeholder="{ &quot;name&quot;: &quot;…&quot;, &quot;mode&quot;: &quot;Light&quot;, … }">' + esc(THS.paste) + '</textarea></div>' +

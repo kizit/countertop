@@ -64,24 +64,19 @@ function themeValues(){
   PREFS.forEach(k => { if (g[k] !== undefined) v[k] = g[k]; });
   return v;
 }
-function hexA(hex, a){
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return null;
-  const n = parseInt(m[1], 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
-}
 function themeApply(){
   const v = THEMEV = themeValues(), R = document.documentElement, st = R.style;
-  const light = v.mode === "Light";
-  R.classList.toggle("light", light);
+  const r = THEMELIB.resolve(v);
+  R.classList.toggle("light", r.light);
   R.classList.toggle("notitles", v.titles === false);
   if (v.accent) st.setProperty("--accent", v.accent);
   // Text color: every tile's text, with the dimmer lines a faded version of it. Empty = automatic (from Light or dark).
-  const tc = /^#[0-9a-f]{6}$/i.test(v.textColor || "") ? v.textColor : "", TV = {"--fg":1, "--fg2":.88, "--fg3":.8, "--dim":.72, "--faint":.5};
-  R.classList.toggle("tcol", !!tc);
-  for (const k in TV){ if (tc) st.setProperty(k, hexA(tc, TV[k])); else st.removeProperty(k); }
+  R.classList.toggle("tcol", !!r.tc);
+  const VAR = {fg:"--fg", fg2:"--fg2", fg3:"--fg3", dim:"--dim", faint:"--faint"};
+  for (const k in VAR){ if (r.tc) st.setProperty(VAR[k], r.text[k]); else st.removeProperty(VAR[k]); }
   // Big numbers color: the clock's time and the temperature. Empty = the same as the text.
-  if (/^#[0-9a-f]{6}$/i.test(v.bigColor || "")) st.setProperty("--big", v.bigColor); else st.removeProperty("--big");
-  const op = v.tiles === "Clear" ? 0 : v.tiles === "See-through" ? (v.opacity || 60) / 100 : light ? .9 : .84;
-  st.setProperty("--card", light ? "rgba(250,251,253," + op + ")" : "rgba(18,22,28," + op + ")");
+  if (r.bc) st.setProperty("--big", r.bc); else st.removeProperty("--big");
+  st.setProperty("--card", r.card);
   R.classList.toggle("clear", v.tiles === "Clear");
   const ts = (v.textScale || 100) / 100;
   st.setProperty("--ts", ts); R.classList.toggle("tscale", ts !== 1);

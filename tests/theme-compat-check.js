@@ -16,8 +16,10 @@ const CUSTOM = {
   tWins: { mode: "Light", textColor: "#224466", themeWins: true, tiles: "See-through", opacity: 70 },
   tClear: { tiles: "Clear", bg: "Color", bgColor: "#102030", textScale: 120, titles: false },
 };
-const PROPS = ["color", "backgroundColor", "borderTopColor", "borderTopWidth", "borderRadius", "paddingTop", "paddingLeft", "boxShadow",
-  "rowGap", "columnGap", "fontFamily"];
+// Colors, shadows and fonts are checked on every element. Sizes (border, radius, padding, gaps) only on the cards and the page:
+// inside a tile the fitter scales content to the machine's fonts, so those sizes differ from one computer to another.
+const PROPS = ["color", "backgroundColor", "borderTopColor", "boxShadow", "fontFamily"];
+const SIZE_PROPS = ["borderTopWidth", "borderRadius", "paddingTop", "paddingLeft", "rowGap", "columnGap"];
 
 async function main() {
   const ok = await runSuite("theme-compat-check", async ({ openContext, watchErrors, onCleanup }) => {
@@ -37,19 +39,19 @@ async function main() {
       await page.goto(srv.base + "/dash/content?still=1&theme=" + id, { waitUntil: "load" });
       await until(() => page.evaluate(() => document.querySelectorAll(".card").length > 3), "cards for " + id);
       await page.waitForTimeout(400);
-      got[id] = await page.evaluate(props => {
+      got[id] = await page.evaluate(([props, sizeProps]) => {
         const out = {}, seen = {}, root = document.documentElement;
         out["html"] = { cls: [...root.classList].sort().join(" "), vars: ["--fg", "--fg2", "--fg3", "--dim", "--faint", "--card", "--line", "--accent", "--big", "--ts"].map(k => getComputedStyle(root).getPropertyValue(k).trim()).join("|") };
         for (const el of document.querySelectorAll("body *")) {
           if (/^(SCRIPT|STYLE|CANVAS|IFRAME|svg|path)$/i.test(el.tagName) || el.closest("#fx,#dimmer")) continue;
-          const key0 = el.tagName.toLowerCase() + "." + [...el.classList].sort().join(".") + (el.dataset.mod ? "[" + el.dataset.mod + "]" : "");
+          const key0 = el.tagName.toLowerCase() + "." + (el.classList[0] || "") + (el.dataset.mod ? "[" + el.dataset.mod + "]" : "");   // not the later classes: the fitter adds those by size
           const n = seen[key0] = (seen[key0] || 0) + 1;
           if (n > 2) continue;
           const cs = getComputedStyle(el);
-          out[key0 + "#" + n] = props.map(p => cs[p]).join("|");
+          out[key0 + "#" + n] = props.concat(el.matches(".card, .page, .cgrid") ? sizeProps : []).map(p => cs[p]).join("|");
         }
         return out;
-      }, PROPS);
+      }, [PROPS, SIZE_PROPS]);
     }
     if (WRITE) { fs.writeFileSync(SNAP, JSON.stringify(got, null, 1) + "\n"); console.log("wrote " + SNAP); return; }
     const want = JSON.parse(fs.readFileSync(SNAP, "utf8"));

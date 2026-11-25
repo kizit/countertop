@@ -2,9 +2,9 @@
 function rootScreen(){
   let h = '<div class="big">Dashboard</div>';
   h += statusRows();
-  h += sec("", ECHO ? '<button class="btnrow pri" data-act="echoedit">Edit the screen</button>'
+  h += '<div class="editcta">' + sec("", ECHO ? '<button class="btnrow pri" data-act="echoedit">Edit the screen</button>'
     : '<button class="btnrow pri" data-act="edit" data-id="main">Edit dashboard on screen</button>',
-    ECHO ? "Add tiles, move and resize them, and change each tile's settings. You can also hold any tile on the screen for a second." : "Add tiles, move and resize them, and change each tile's settings on the preview. You can also hold a tile on the screen itself.");
+    ECHO ? "Add tiles, move and resize them, and change each tile's settings. You can also hold any tile on the screen for a second." : "Add tiles, move and resize them, and change each tile's settings on the preview. You can also hold a tile on the screen itself.") + '</div>';
   const g = mods.general ? mods.general.settings : {};
   const setup = sec("Setup",
     KIND_ORDER.filter(k => KINDS[k]).map(k => { const c = (SRC[k] || []).length;

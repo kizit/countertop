@@ -169,18 +169,25 @@ function ctxFor(spec){
   if (spec.startsWith("edbox:")){
     const sid = spec.slice(6), w = pvWin();
     if (!w || !w.dashEditing || !w.dashEditing()) return [];
+    const pan = () => (!($("insp") && $("insp").hidden) && $("insp-body")) || w.document.getElementById("edpanel");
     const clickAct = a => {
-      const b = w.document.querySelector('#edpanel [data-act="' + a + '"], .eslot.sel [data-act="' + a + '"]');
+      const p = pan();
+      const b = (p && p.querySelector('[data-act="' + a + '"]')) || w.document.querySelector('.eslot.sel [data-act="' + a + '"]');
       if (!b) return;
+      if (p === $("insp-body") && typeof w.dashHostDown === "function"){
+        w.dashHostDown({target:b, preventDefault(){}});
+        return;
+      }
       const o = {bubbles:true, cancelable:true, button:0, pointerType:"mouse"};
       b.dispatchEvent(new w.PointerEvent("pointerdown", o));
       w.dispatchEvent(new w.PointerEvent("pointerup", o));
     };
     return [
-      {label:"Tile settings", fn:() => { const p = w.document.getElementById("edpanel"); if (p && p.dataset.view === "add") clickAct("back"); const b = w.document.querySelector('.eslot[data-slot="' + sid + '"]'); if (b && typeof pvSelectBox === "function") pvSelectBox(w, b); }},
+      {label:"Tile settings", fn:() => { const p = pan(); if (p && p.dataset.view === "add") clickAct("back"); const b = w.document.querySelector('.eslot[data-slot="' + sid + '"]'); if (b && typeof pvSelectBox === "function") pvSelectBox(w, b); }},
       {label:"Add tile to this box", fn:() => clickAct("add")},
       {label:"Usual size", fn:() => clickAct("fit")},
       {label:"Fill free space", fn:() => clickAct("grow")},
+      {label:"Duplicate box", fn:() => clickAct("dup")},
       "-",
       {label:"Remove box", cls:"red", fn:() => clickAct("del")},
     ];
@@ -302,7 +309,7 @@ document.addEventListener("keydown", e => {
     const w = pvEdWin();
     if (w){
       e.preventDefault();
-      const pv = w.document.getElementById("edpanel"), view = pv && pv.dataset.view || "";
+      const pv = (!($("insp") && $("insp").hidden) && $("insp-body")) || w.document.getElementById("edpanel"), view = pv && pv.dataset.view || "";
       if ((view && !view.startsWith("page:")) || w.document.querySelector(".eslot.sel")) w.dispatchEvent(new w.KeyboardEvent("keydown", {key:"Escape", bubbles:true, cancelable:true}));
       else w.dashEdit(false);
       return;

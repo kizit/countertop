@@ -566,42 +566,87 @@ async function main() {
     assert.equal(await dp.evaluate(() => mineList().some(m => m.name === "Desk FX Cancel")), false, "Esc should not save discarded effect");
     console.log("✓ Ctrl+S saves drafts and Esc closes drafts without saving");
 
-    // 6f. Desktop layout editor in preview: wheel scroll, pointer cursor, right-click menu, mouse drag, Arrow nudge, Ctrl+Z undo, Ctrl+S save
+    // 6f. Desktop 3-pane PC layout studio: pulled-out right inspector, unified toolbar, sidebar toggle, Grid toggle,
+    //     Add-a-tile search, wheel scroll, cross-pane tile drag, Duplicate box, right-click menu, mouse drag, Arrow nudge, Ctrl+Z & Ctrl+S
     await dp.evaluate(() => { stack = ["root"]; show(); });
     await until(() => dp.evaluate(() => {
       const f = document.getElementById("pvf");
       return f && f.contentWindow && typeof f.contentWindow.dashEdit === "function" && f.contentWindow.document.querySelector('[data-mod]');
     }), "preview iframe ready");
     await dp.locator("#pvedit").click();
-    await until(() => dp.evaluate(() => pvWin().dashEditing()), "preview entered layout editor");
+    await until(() => dp.evaluate(() => pvWin().dashEditing() && document.body.classList.contains("editing-desk") && !document.getElementById("insp").hidden), "3-pane PC studio entered");
     const pvFrame = dp.frameLocator("#pvf");
     await pvFrame.locator('.eslot[data-slot="ms3"]').waitFor();
 
-    const edStyle = await dp.evaluate(() => {
+    // Verify pulled-out right inspector, hidden duplicate iframe chrome, and auto-collapsed sidebar at 1280px (< 1400px)
+    const studioState = await dp.evaluate(() => {
       const d = pvWin().document;
       return {
         slotCursor: getComputedStyle(d.querySelector(".eslot")).cursor,
-        panelTouch: getComputedStyle(d.getElementById("edpanel")).touchAction,
+        iframeBarHidden: getComputedStyle(d.getElementById("edbar")).display === "none",
+        iframePanelHidden: getComputedStyle(d.getElementById("edpanel")).display === "none",
+        inspH: document.getElementById("insp").getBoundingClientRect().height,
+        navCollapsed: document.body.classList.contains("nav-collapsed"),
+        addPgBtn: !!document.querySelector('#pvpage [data-edtab="+"]'),
       };
     });
-    assert.equal(edStyle.slotCursor, "pointer", "layout editor boxes should use pointer cursor in desktop mode");
-    assert.equal(edStyle.panelTouch, "auto", "layout editor panel should use native scrolling in desktop mode");
+    assert.equal(studioState.slotCursor, "pointer", "layout editor boxes should use pointer cursor in desktop mode");
+    assert.equal(studioState.iframeBarHidden, true, "iframe #edbar should be hidden in PC host mode");
+    assert.equal(studioState.iframePanelHidden, true, "iframe #edpanel should be hidden in PC host mode");
+    assert.ok(studioState.inspH >= 790, "pulled-out right inspector should span full viewport height, got " + studioState.inspH);
+    assert.equal(studioState.navCollapsed, true, "left sidebar should auto-collapse below 1400px while editing");
+    assert.equal(studioState.addPgBtn, true, "unified toolbar should include + Page tab");
 
-    // Wheel scrolling inside the layout editor panel (Add a tile list)
-    await pvFrame.locator('#edpanel [data-act="add"]').click();
-    await pvFrame.locator("#edpanel .tc").first().waitFor();
-    const edPanelBox = await pvFrame.locator("#edpanel").boundingBox();
-    await dp.mouse.move(edPanelBox.x + edPanelBox.width / 2, edPanelBox.y + edPanelBox.height / 2);
+    // Sidebar toggle expands and collapses left nav; wide viewport (>= 1400px) shows all 3 panes automatically
+    await dp.locator("#pvnav").click();
+    assert.equal(await dp.evaluate(() => document.body.classList.contains("nav-collapsed")), false, "clicking #pvnav should show sidebar");
+    await dp.locator("#pvnav").click();
+    assert.equal(await dp.evaluate(() => document.body.classList.contains("nav-collapsed")), true, "clicking #pvnav again should hide sidebar");
+
+    // Grid toggle in unified top toolbar
+    await dp.locator("#pvgrid").click();
+    assert.equal(await dp.evaluate(() => pvWin().document.body.classList.contains("ed-grid") && document.getElementById("pvgrid").classList.contains("on")), true, "Grid toggle should show snap grid");
+    await dp.locator("#pvgrid").click();
+    assert.equal(await dp.evaluate(() => !pvWin().document.body.classList.contains("ed-grid")), true, "Grid toggle should hide snap grid");
+
+    // Pulled-out right inspector: Add a tile search + native wheel scrolling + cross-pane drag onto canvas
+    await dp.locator('#insp-body [data-act="add"]').click();
+    await dp.locator('#insp-body input[data-addq="1"]').waitFor();
+    const allTileCards = await dp.locator("#insp-body .tc").count();
+    await dp.locator('#insp-body input[data-addq="1"]').fill("clock");
+    const filteredCards = await dp.locator("#insp-body .tc").count();
+    assert.ok(filteredCards >= 1 && filteredCards < allTileCards, "search should filter Add a tile list");
+    await dp.locator('#insp-body input[data-addq="1"]').fill("");
+
+    const inspBox = await dp.locator("#insp-body").boundingBox();
+    await dp.mouse.move(inspBox.x + inspBox.width / 2, inspBox.y + 200);
     await dp.mouse.wheel(0, 700);
-    await until(() => dp.evaluate(() => pvWin().document.getElementById("edpanel").scrollTop > 40), "wheel scroll in layout editor panel");
-    await pvFrame.locator('#edpanel [data-act="back"]').click();
+    await until(() => dp.evaluate(() => document.getElementById("insp-body").scrollTop > 40), "native wheel scroll in pulled-out right inspector");
+    await dp.evaluate(() => { document.getElementById("insp-body").scrollTop = 0; });
 
-    // Right-click a box in the layout editor -> desktop context menu opens in Controls
+    // Cross-pane drag a tile from #insp-body onto empty space in the middle canvas (#pvf)
+    const slotsBeforeDrag = await dp.evaluate(() => pvWin().curPg().slots.length);
+    const noteCard = dp.locator('#insp-body .tc[data-type="note"]').first();
+    await noteCard.scrollIntoViewIfNeeded();
+    const ncBox = await noteCard.boundingBox();
+    const pvBox = await dp.locator("#pvf").boundingBox();
+    await dp.mouse.move(ncBox.x + ncBox.width / 2, ncBox.y + ncBox.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(pvBox.x + pvBox.width * 0.85, pvBox.y + pvBox.height * 0.72, { steps: 12 });
+    await dp.mouse.up();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n + 1, slotsBeforeDrag), "cross-pane tile drag added a box");
+    await dp.locator("#pvundo").click();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n, slotsBeforeDrag), "Undo button removed cross-pane dropped box");
+    await dp.locator('#insp-body [data-act="back"]').click();
+
+    // Right-click a box in the middle canvas -> desktop context menu opens with Duplicate box & Remove box
     await pvFrame.locator('.eslot[data-slot="ms3"]').click({ button: "right" });
     await dp.locator("#ctxmenu").waitFor({ state: "visible" });
     assert.ok(await dp.locator('#ctxmenu button', { hasText: "Remove box" }).isVisible());
-    await dp.keyboard.press("Escape");
-    await until(() => dp.evaluate(() => document.getElementById("ctxmenu").hidden), "Esc closes editor box context menu");
+    await dp.locator('#ctxmenu button', { hasText: "Duplicate box" }).click();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n + 1, slotsBeforeDrag), "Duplicate box created a copy");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n, slotsBeforeDrag), "Ctrl+Z undid Duplicate box");
 
     // Arrow key nudges selected tile (ms3 is at x=24, y=0, w=12, h=8), Ctrl+Z undoes it
     await pvFrame.locator('.eslot[data-slot="ms3"]').click();
@@ -611,8 +656,8 @@ async function main() {
     await dp.keyboard.press("Control+z");
     await until(() => dp.evaluate(() => pvWin().curPg().slots.find(s => s.id === "ms3").x === 24), "Ctrl+Z undid ms3 nudge");
 
-    // Mouse drag moves ms3 into empty space to the right, then Ctrl+S saves
-    const ms3Box = await pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox();
+    // Mouse drag moves ms3 into empty space to the right, then Ctrl+S saves and exits 3-pane studio cleanly
+    const ms3Box = await until(() => pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox(), "ms3 bounding box");
     await dp.mouse.move(ms3Box.x + ms3Box.width / 2, ms3Box.y + ms3Box.height / 2);
     await dp.mouse.down();
     await dp.mouse.move(ms3Box.x + ms3Box.width / 2 + 80, ms3Box.y + ms3Box.height / 2 + 60, { steps: 10 });
@@ -627,10 +672,11 @@ async function main() {
         .modules.pages.settings.items.find(p => p.id === "main").slots.find(s => s.id === "ms3");
       return saved && saved.x === draggedPos.x && saved.y === draggedPos.y;
     }, "Ctrl+S saved layout editor changes");
+    await until(() => dp.evaluate(() => !document.body.classList.contains("editing-desk") && document.getElementById("insp").hidden), "Save exited 3-pane studio");
 
     assert.deepEqual(deskErrs, []);
     await deskCtx.close();
-    console.log("✓ desktop layout editor: wheel scroll, pointer cursor, right-click menu, mouse drag, Arrow nudge, Ctrl+Z undo & Ctrl+S save");
+    console.log("✓ desktop 3-pane PC studio: pulled-out inspector, unified toolbar, Grid toggle, search, cross-pane drag, Duplicate, Arrow nudge, Ctrl+Z & Ctrl+S");
   });
 }
 

@@ -16,7 +16,7 @@ Tile("agenda", {
     el.innerHTML = '<h3>' + esc(this.name) + '</h3>' + (list.length ? list.map(e => {
       const d = e.date, ds = d.toDateString();
       const p = ds === today ? "" : ds === tmr ? tr("Tmrw") + " " : d.toLocaleDateString([], d - Date.now() > 6 * 86400e3 ? {month:"short", day:"numeric"} : {weekday:"short"}) + " ";
-      return '<div class="li"' + (e.color ? ' style="--ec:' + esc(e.color) + '"' : "") + '><div class="t">' + p + (e.allDay ? tr("All day") : d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})) + '</div><div class="s">' + esc(e.summary) +
+      return '<div class="li"' + (list[0] === e ? " data-keep" : "") + (e.color ? ' style="--ec:' + esc(e.color) + '"' : "") + '><div class="t">' + p + (e.allDay ? tr("All day") : d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})) + '</div><div class="s">' + esc(e.summary) +
         (e.rep ? '<span class="rep">' + esc(e.rep) + '</span>' : "") + '</div></div>';
     }).join("") : '<div class="empty">' + tr(none ? "Connect a calendar in Setup → Calendars" : "Nothing coming up") + '</div>');
   }

@@ -1,0 +1,1 @@
+- **Planes overhead shows kilometers, meters and km/h** when the dashboard uses metric units, and a "Planes to list" of 0 shows just the map with a count.

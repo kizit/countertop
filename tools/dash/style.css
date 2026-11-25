@@ -150,6 +150,7 @@
   .m-stage img.dkmap{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.9) saturate(.35)}
   .m-stage .osmc{left:10px;bottom:6px;font-size:11px;opacity:.55}
   .m-stage .tl{left:22px;top:18px;display:flex;flex-direction:column;gap:2px}
+  .m-stage .tl.low{top:auto;bottom:30px}
   .m-stage .tl b{font-size:30px;font-weight:600}
   .m-stage .tl span{font-size:20px;color:#cdd3db}
   .m-stage .br{right:22px;bottom:24px;font-size:20px;color:#cdd3db;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:10px}
@@ -162,6 +163,8 @@
   .m-stage .rbar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.08);z-index:3}
   .m-stage .rbar i{display:block;height:100%;background:#7cb7ff;transition:width .3s}
   .m-stage .v-space .img{position:absolute;inset:0;background-size:cover;background-position:center}
+  .m-stage .v-space.short .bl{padding:40px 20px 14px}
+  .m-stage .v-space.short .bl span,.m-stage .v-space.short .bl small:not(:first-child){display:none}
   .m-stage .trk{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
   .m-stage .trk path{fill:none;stroke-width:3;stroke-linecap:round}
   .m-stage .trk .p{stroke:rgba(255,190,107,.45);stroke-dasharray:2 8}

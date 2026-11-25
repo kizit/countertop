@@ -60,7 +60,7 @@ Tile("custom", {
     if (el._k !== key){
       el._k = key; el._at = Date.now();
       if (this.waitsRun()) return this.askRun(el);
-      el.innerHTML = (s.title ? '<h3>' + esc(this.name) + '</h3>' : "") + '<iframe class="mine" sandbox="allow-scripts" referrerpolicy="no-referrer" title="' + esc(this.name) + '"></iframe>';
+      el.innerHTML = (s.title ? '<h3>' + esc(this.name) + '</h3>' : "") + '<iframe class="mine" data-keep sandbox="allow-scripts" referrerpolicy="no-referrer" title="' + esc(this.name) + '"></iframe>';
       const f = el.querySelector("iframe");
       f.style.pointerEvents = s.taps ? "auto" : "none";
       f.srcdoc = this.doc(s.html, open);

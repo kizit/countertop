@@ -4,7 +4,7 @@ viewTile("iss", {
   desc:"Where the International Space Station is right now, on a world map with its path, height and speed."
 }, {
   build(box){
-    box.innerHTML = '<div class="map"><div class="lyr base"></div><svg class="trk"></svg><div class="iss">🛰️</div></div><div class="ovl tl"><b>Space station</b><span class="is"></span></div>' + OSM_CREDIT;
+    box.innerHTML = '<div class="map" data-keep><div class="lyr base"></div><svg class="trk"></svg><div class="iss">🛰️</div></div><div class="ovl tl"><b>Space station</b><span class="is"></span></div>' + OSM_CREDIT;
     this.box = box;
   },
   show(){ this.active = true; this.poll(); },
@@ -32,6 +32,9 @@ viewTile("iss", {
     // keep the track continuous around the station: each point goes to its copy nearest the station
     const px = (lat, lon) => { let x = TILE.x(lon, z) - x0; while (x - ix > world / 2) x -= world; while (x - ix < -world / 2) x += world; return [x, TILE.y(lat, z) - y0]; };
     const sat = box.querySelector(".iss"); sat.style.left = ix + "px"; sat.style.top = iy + "px";
+    // the station never sits under the title: when it gets close to it, the title moves to the bottom corner
+    const tl = box.querySelector(".tl"), r = 30;
+    tl.classList.toggle("low", ix > 22 - r && ix < 22 + tl.offsetWidth + r && iy > 18 - r && iy < 18 + tl.offsetHeight + r);
     // ground track, split where it wraps around the world
     let past = "", fut = "", prev = null;
     (d.track || []).forEach(p => {

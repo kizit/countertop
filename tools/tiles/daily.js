@@ -14,18 +14,19 @@ Tile("daily", {
   css:`.m-daily{display:flex;flex-direction:column}
     .m-daily h3 small{font-weight:400;color:var(--dim)}
     .m-daily .add{display:flex;gap:8px;margin:2px 0 8px}
-    .m-daily .add input{flex:1;min-width:0;font:inherit;font-size:22px;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:inherit;outline:none}
+    .m-daily .add input{flex:1;min-width:0;font:inherit;font-size:22px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--line);color:inherit;outline:none}
     .m-daily .add input:focus{border-color:var(--accent)}
     .m-daily .add button{font:inherit;font-size:28px;line-height:1;width:2.2em;border:0;border-radius:12px;background:var(--accent);color:#fff}
-    .m-daily .dl{flex:1;overflow:hidden}
-    .m-daily .di{display:flex;align-items:center;gap:.55em;font-size:26px;padding:.3em 0;border-bottom:1px solid rgba(255,255,255,.07)}
-    .m-daily .di .cb{width:1.25em;height:1.25em;flex:none;border-radius:.3em;border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:.9em}
+    .m-daily .dl{flex:1 1 auto;min-height:0}
+    .m-daily .di{display:flex;align-items:center;gap:.55em;font-size:26px;padding:.3em 0;border-bottom:1px solid var(--line)}
+    .m-daily .di .cb{width:1.25em;height:1.25em;flex:none;border-radius:.3em;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;font-size:.9em}
     .m-daily .di.done .cb{background:var(--accent);border-color:var(--accent);color:#fff}
     .m-daily .di .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .m-daily .di.done .tx{text-decoration:line-through;opacity:.45}
     .m-daily .di .rm{color:var(--dim);padding:0 .3em;font-size:1.2em;line-height:1}
     .m-daily .empty{color:var(--dim);font-size:22px}
-    .m-daily.narrow .di{font-size:21px}`,
+    .m-daily.narrow .di{font-size:21px}
+    .m-daily.mini h3{display:none} .m-daily.mini .add{margin:0 0 4px} .m-daily.mini .add input{padding:4px 10px}`,
   cls:"m-daily",
   dayNow(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); },
   render(el){
@@ -43,7 +44,7 @@ Tile("daily", {
     el.innerHTML = '<h3><span>' + esc(this.name) + '</span>' + (items.length ? '<small>' + (left ? left + " to go" : "all done ✓") + '</small>' : "") + '</h3>' +
       (s.add !== false ? '<form class="add"><input type="text" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="Add something for today"><button type="submit" aria-label="Add">+</button></form>' : "") +
       (!st.ready ? '<div class="empty">Loading…</div>'
-        : items.length ? '<div class="dl">' + items.slice(0, max).map(i => '<div class="di' + (i.done ? " done" : "") + '" data-id="' + esc(i.id) + '"><span class="cb">' + (i.done ? "✓" : "") +
+        : items.length ? '<div class="dl">' + items.slice(0, max).map(i => '<div' + (i === items[0] ? " data-keep" : "") + ' class="di' + (i.done ? " done" : "") + '" data-id="' + esc(i.id) + '"><span class="cb">' + (i.done ? "✓" : "") +
           '</span><span class="tx">' + esc(i.text) + '</span><span class="rm" data-rm="1" aria-label="Delete">×</span></div>').join("") + '</div>' +
           (items.length > max ? '<div class="empty">+' + (items.length - max) + ' more</div>' : "")
         : '<div class="empty">' + (s.add !== false ? "Nothing yet. Add the first thing above." : "Nothing on this list. Turn on the Add box in its settings to add things.") + '</div>');

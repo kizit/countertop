@@ -19,7 +19,7 @@ Tile("image", {
     if (!due && el._k === key) return;
     el._at = Date.now(); el._k = key;
     const src = s.url + (+s.every > 0 ? (s.url.includes("?") ? "&" : "?") + "_=" + Math.floor(Date.now() / 60e3) : "");
-    el.innerHTML = '<img referrerpolicy="no-referrer" alt="" style="object-fit:' + (s.fit === "Show all of it" ? "contain" : "cover") + '" src="' + esc(src) + '">' + (s.caption ? '<div class="cap">' + esc(s.caption) + '</div>' : "");
+    el.innerHTML = '<img data-keep referrerpolicy="no-referrer" alt="" style="object-fit:' + (s.fit === "Show all of it" ? "contain" : "cover") + '" src="' + esc(src) + '">' + (s.caption ? '<div class="cap">' + esc(s.caption) + '</div>' : "");
     el.querySelector("img").onerror = () => { el.innerHTML = '<div class="empty" style="padding:20px">Couldn\'t load that picture. Check the link.</div>'; };
   },
   every:60

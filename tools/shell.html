@@ -156,13 +156,22 @@
   /* ---------- iframe management ---------- */
   var pending = "";
   var frame = document.getElementById("f");
-  // back on the dashboard after Controls (or a fresh load): it already has the latest files
-  function watchLoad(f){ f.addEventListener("load", function(){ try{ if (/\/dash\/content/.test(f.contentWindow.location.pathname)) pending = ""; }catch(e){} }); }
-  watchLoad(frame);
   var lastTick = Date.now();
   var lastLoad = Date.now();
   var version = null;
   var swapping = false;
+  // back on the dashboard after Controls or the editor (or any fresh load): it already has the latest files and
+  // settings, so note the version it loaded. Otherwise the next look at /version would see the save that came just
+  // before and load the whole dashboard again a few seconds later, under whoever is using it.
+  function watchLoad(f){
+    f.addEventListener("load", function(){
+      try{ if (!/\/dash\/content/.test(f.contentWindow.location.pathname)) return; }catch(e){ return; }
+      pending = "";
+      fetch("/version", {cache:"no-store"}).then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){ if (j && j.v && version !== null) version = j.v; }).catch(function(){});
+    });
+  }
+  watchLoad(frame);
   window.contentTick = function(){ lastTick = Date.now(); };
   window.SHELL_V = 4;
   // ?edit=1 and ?page=<name> (back from Controls) are for the dashboard inside, once
@@ -194,8 +203,28 @@
     var done = false;
     function finish(){
       if (done) return; done = true;
+      var old = frame, now = "";
+      // while the new one loaded, the screen moved on: Controls or the editor opened (the new dashboard would cover
+      // them), so drop it and try again once they close; or someone swiped, so show the page they swiped to
+      if (reason !== "stalled"){
+        var away = false;
+        try{ away = !/\/dash\/content/.test(old.contentWindow.location.pathname); }catch(e){}
+        if (away || busy()){
+          try{ if (nf.contentWindow.sbxLeave) nf.contentWindow.sbxLeave(); }catch(e){}
+          if (nf.parentNode) nf.parentNode.removeChild(nf);
+          swapping = false; pending = reason;
+          return;
+        }
+        try{ now = old.contentWindow.dashPage ? old.contentWindow.dashPage() : ""; }catch(e){}
+        try{
+          var w = nf.contentWindow;
+          if (now && now !== (pg || "main") && w.pageList && w.showPage){ var i = w.pageList().indexOf(now); if (i >= 0) w.showPage(i); }
+        }catch(e){}
+      }
+      // the old dashboard says goodbye to the server now, while it is still on the page: once its frame is taken
+      // out, its goodbye can be lost, and the server would take its quiet for a frozen screen (safe mode)
+      if (reason !== "stalled") try{ if (old.contentWindow.sbxLeave) old.contentWindow.sbxLeave(); }catch(e){}
       nf.className = "";
-      var old = frame;
       frame = nf;
       lastTick = Date.now(); lastLoad = Date.now();
       setTimeout(function(){ if (old && old.parentNode) old.parentNode.removeChild(old); swapping = false; }, 1200);

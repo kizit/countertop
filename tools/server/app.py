@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
-from server import bench, mytiles, sandbox, tiledata, tilefetch, tilekeys
+from server import bench, mytiles, sandbox, snapshot, tiledata, tilefetch, tilekeys
 from server.core import VERSION
 
 
@@ -194,6 +194,12 @@ class Handler(BaseHTTPRequestHandler):
             if parse_qs(urlparse(self.path).query).get("check"):
                 update_check(force=True)
             self._json(status_view())
+        elif p == "/snapshot/want":
+            self._json(snapshot.wanted())
+        elif p == "/snapshot":
+            v = snapshot.view()
+            v["summary"] = redact(v["summary"]) if v["summary"] else ""
+            self._json(v)
         elif p == "/diagnostics":
             name = "countertop-diagnostics-%s.zip" % time.strftime("%Y%m%d-%H%M")
             self._send(200, diagnostics_zip(), "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % name})
@@ -249,6 +255,13 @@ class Handler(BaseHTTPRequestHandler):
             elif body.get("task") == "js-error":
                 SCREEN["errors"].append({"at": time.time(), "error": str(body.get("error") or "")[:300]})
             self._send(204)
+        elif p == "/snapshot/request":
+            self._json(snapshot.request_capture())
+        elif p == "/snapshot":
+            try:
+                self._json(snapshot.store(body))
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
         elif p == "/sandbox/beat":
             try:
                 self._json(sandbox.sandbox_beat(body, self.client_address[0], dash_version()))
@@ -529,5 +542,5 @@ from server import commtiles  # noqa: E402
 from server.library import trial_add, trial_apply, trial_screen, trial_stop, trial_version  # noqa: E402
 from server.lists import list_push, local_list_apply, local_list_source, local_list_view, notes_apply, notes_view, pushed_list, reminders_apply, reminders_list_name, reminders_loop  # noqa: E402
 from server.sources import SOURCES_FILE, SOURCE_KINDS, sources_apply, sources_load, sources_public  # noqa: E402
-from server.status import diagnostics_zip, status_view, update_check, update_loop  # noqa: E402
+from server.status import diagnostics_zip, redact, status_view, update_check, update_loop  # noqa: E402
 from server.upgrades import migrate_v3  # noqa: E402

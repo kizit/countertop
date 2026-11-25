@@ -248,6 +248,14 @@ def _tail(path, n=400, max_bytes=400_000):
         return "(couldn't read: %s)\n" % e
 
 
+def screen_report():
+    data, at, _want, now = snapshot.current()
+    if not data:
+        return {"measured": False, "note": "No screen was measured. In Controls > Status, press Report a problem; the dashboard has to be open on a screen."}
+    return {"measured": True, "ago_s": int(now - at), "screen": data,
+            "page_errors": [e["error"] for e in list(SCREEN["errors"])[-10:]]}
+
+
 def diagnostics_zip():
     sec = _secrets()
     R = lambda t: redact(t, sec)
@@ -298,6 +306,8 @@ def diagnostics_zip():
         "  status.json      what Controls > Status shows\n"
         "  settings.json    your dashboard settings\n"
         "  sources.json     your calendars, lists, teams, albums, cams and Home Assistant, without links, sync keys or tokens\n"
+        "  screen.json      what the dashboard screen's own browser measured: its size, theme, and where each piece of text sits\n"
+        "                   (positions, font sizes and text lengths only, never the words), or a note if no screen was measured\n"
         "  heartbeat.log    the last check-ins and page errors from your screen\n"
         "  console.log      the server's recent output (the same as `docker logs`)\n"
         "  server.log       the end of work/server.log, if your setup writes one\n"
@@ -313,6 +323,7 @@ def diagnostics_zip():
         z.writestr("status.json", R(json.dumps(status, indent=1, ensure_ascii=False)))
         z.writestr("settings.json", R(json.dumps(mods, indent=1, ensure_ascii=False)))
         z.writestr("sources.json", R(json.dumps(srcs, indent=1, ensure_ascii=False)))
+        z.writestr("screen.json", R(json.dumps(screen_report(), indent=1, ensure_ascii=False)))
         z.writestr("heartbeat.log", R(_tail(LOG)))
         z.writestr("console.log", R("\n".join(CONSOLE) + "\n"))
         z.writestr("server.log", R(_tail(work / "server.log")))
@@ -321,7 +332,7 @@ def diagnostics_zip():
 
 
 # names used only inside functions: imported last, so these modules can use each other
-from server import bench, sandbox  # noqa: E402
+from server import bench, sandbox, snapshot  # noqa: E402
 from server.config import CONFIG_PROBLEM, SERVER_START, config_load, lan_tiles  # noqa: E402
 from server.core import CAL_STATUS, CONSOLE, HERE, LOG, REPO, SCREEN, VERSION, WORK  # noqa: E402
 from server.feeds.meals import MEAL_STATUS  # noqa: E402

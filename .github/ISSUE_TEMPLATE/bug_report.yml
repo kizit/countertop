@@ -55,6 +55,12 @@ body:
       label: Countertop version
       description: Shown in Controls → Status, e.g. v0.2.0
   - type: textarea
+    id: screen
+    attributes:
+      label: Screen details
+      description: Filled in by the bug report button in Controls > Status: the browser, screen size, theme and any text that overlaps or is cut off. Measurements only, never the words on your screen. Read it, and delete anything you don't want to share.
+      render: text
+  - type: textarea
     id: diagnostics
     attributes:
       label: Diagnostics file

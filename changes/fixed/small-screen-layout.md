@@ -1,0 +1,1 @@
+- **Small screens.** The dashboard and the layout editor now fit small screens like the Echo Show 5: gaps and margins scale down with the screen, so tiles no longer run off the bottom or drift out of line with the editor's boxes. Larger screens look the same.

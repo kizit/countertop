@@ -114,9 +114,10 @@ function libTileShot(t, d, big){
 }
 // where a w x h tile really sits in the (landscape) preview page: inside its 36/22px margins, on a 48 x 32 grid with 16px gaps
 function libTileRect(w, h){
-  const [sw, sh] = screenSz.split("x").map(Number), cw = (sw - 72 - 47 * 16) / 48, ch = (sh - 22 - 26 - 31 * 16) / 32;
+  const [sw, sh] = screenSz.split("x").map(Number), f = Math.min(1, Math.max(sw, sh) / 1920, Math.min(sw, sh) / 1080), gap = 16 * f, mx = 36 * f, my = 22 * f, mb = 26 * f;
+  const cw = (sw - 2 * mx - 47 * gap) / 48, ch = (sh - my - mb - 31 * gap) / 32;
   w = Math.max(1, Math.min(48, w)); h = Math.max(1, Math.min(32, h));
-  return {x:36, y:22, w:w * cw + (w - 1) * 16, h:h * ch + (h - 1) * 16};
+  return {x:mx, y:my, w:w * cw + (w - 1) * gap, h:h * ch + (h - 1) * gap};
 }
 function libFitShots(){
   const root = libEl().querySelector(".lmain");

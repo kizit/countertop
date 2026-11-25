@@ -146,6 +146,13 @@ async function main() {
     await ctl.evaluate(() => libClose());
     console.log("✓ tapping a theme option keeps the scroll position and tab");
 
+    // Library previews are shaped like the screen: landscape stays landscape (no portrait frame) when Orientation is set to Landscape
+    const lbigPort = async mode => { await ctl.evaluate(m => { displayMode = m; libClose(); libOpen("themes"); }, mode); await sleep(400); return ctl.evaluate(() => document.querySelector("#lib .lbig").classList.contains("port")); };
+    assert.equal(await lbigPort("landscape"), false, "Library preview is portrait-shaped with Orientation set to Landscape");
+    assert.equal(await lbigPort("left"), true, "Library preview should be portrait-shaped for a portrait orientation");
+    await ctl.evaluate(() => { displayMode = "auto"; libClose(); });
+    console.log("✓ Library preview follows the screen orientation");
+
     // The same on Controls' own theme editor screen (page scroll), as used without the Library
     await ctl.evaluate(() => { stack = ["root", "looks"]; show(); draftNew(""); LTAB = "type"; go("look:new"); });
     await ctl.waitForSelector('#screen .ltabs button.on');

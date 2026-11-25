@@ -57,6 +57,11 @@ function scr(){
   const [w, h] = screenSz.split("x").map(Number);
   return displayMode === "left" || displayMode === "right" ? [h, w] : [w, h];
 }
+// attributes for a Library preview box: shaped like the screen as it is now (portrait only when the screen is turned on its side)
+function lbigAttrs(){
+  const [w, h] = scr();
+  return 'class="lbig' + (h > w ? " port" : "") + '" style="aspect-ratio:' + w + "/" + h + '"';
+}
 // fit a preview iframe (laid out at the screen's real size) into its box
 function scrFit(f, boxWidth){
   const [w, h] = scr(); f.style.width = w + "px"; f.style.height = h + "px"; f.style.transform = "scale(" + boxWidth / w + ")";

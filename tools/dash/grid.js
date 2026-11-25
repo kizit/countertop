@@ -2,7 +2,9 @@
    A page has one set of boxes with two arrangements. Landscape is the box's x, y, w, h on 48x32. Portrait is s.p on a
    32x48 grid (the same cells turned on their side) once someone arranges the page for portrait; until then portrait is
    worked out from landscape. A box with no room in one of them is left off that screen (s.loff, s.p.off). */
-const U = 2, LC = 24 * U, LR = 16 * U, GAP = 16;     // sizes below are written in 24x16 units and scaled by U
+const U = 2, LC = 24 * U, LR = 16 * U;     // sizes below are written in 24x16 units and scaled by U
+// the gap between boxes follows the theme's Spacing (Compact, Normal, Roomy); the editor places boxes with it so it matches the screen
+const gapPx = () => THEMELIB.spacing(typeof THEMEV === "undefined" ? null : THEMEV).gap;
 const PC = LR, PR = LC;
 let GC = LC, GR = LR;                                // the grid being edited (32x48 while the editor shows portrait)
 const dims = o => o === "p" ? [PC, PR] : [LC, LR];

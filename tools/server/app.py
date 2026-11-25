@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
-from server import bench, mytiles, sandbox, snapshot, tiledata, tilefetch, tilekeys
+from server import bench, mytiles, sandbox, snapshot, tiledata, tilefetch, tilekeys, wallpaper
 from server.core import VERSION
 
 
@@ -232,6 +232,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, (HERE / "media.mp3").read_bytes(), "audio/mpeg")
         elif p == "/favicon.ico":
             self._send(204)
+        elif p.startswith("/wallpaper/"):
+            # a picture uploaded for a theme background; only the ones this server stored, as an image and nothing else
+            got = wallpaper.read(p[len("/wallpaper/"):])
+            if got:
+                self._send(200, got[0], got[1], {"Cache-Control": "max-age=86400", "X-Content-Type-Options": "nosniff"})
+            else:
+                self._send(404)
         elif re.fullmatch(r"/lang/[a-z]{2}\.json", p) and (HERE / "lang" / p[6:]).is_file():
             # words for the Language setting: English text → translation (tools/lang/, docs/languages.md)
             self._send(200, (HERE / "lang" / p[6:]).read_bytes(), "application/json; charset=utf-8")
@@ -304,6 +311,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(config_save(body))
             except Exception as e:
                 self._json({"error": str(e)}, 400)
+        elif p == "/wallpaper":
+            try:
+                self._json(wallpaper.save(body.get("data")))
+            except wallpaper.WallpaperError as e:
+                self._json({"error": str(e)}, 400)
+        elif p == "/wallpaper/delete":
+            self._json({"ok": wallpaper.delete(str(body.get("id") or ""))})
         elif p == "/trial":
             try:
                 self._json(trial_add(body))

@@ -11,7 +11,11 @@ const assert = require("node:assert/strict");
 const { root, until, makeDataDir, startServer, runSuite } = require("./pw-helper");
 
 const TILE_TYPES = fs.readdirSync(path.join(root, "tools", "tiles")).filter(f => f.endsWith(".js")).map(f => f.slice(0, -3)).sort();
-const SCREENS = [[1920, 1080], [1280, 800]];
+// FIT_THEME=tRoomy (or tCompact) renders the tiles in a theme with that spacing, on the first screen size only: tiles must still fit
+// when a theme changes the gap and the padding inside tiles (the theme options test covers the grid itself)
+const FIT_THEME = process.env.FIT_THEME || "";
+const SCREENS = FIT_THEME ? [[1920, 1080]] : [[1920, 1080], [1280, 800]];
+const THEME_Q = FIT_THEME ? "&theme=" + FIT_THEME : "";
 const MIN_TEXT = 12;      // px, as drawn
 const MIN_TOUCH = 28;     // px, shortest side of a button (listed only)
 
@@ -54,7 +58,7 @@ function inspect([MIN_TEXT, MIN_TOUCH]) {
 
 async function main() {
   await runSuite("tile-fit-check", async ({ openContext, watchErrors, onCleanup }) => {
-    const data = makeDataDir("tilefit");
+    const data = makeDataDir("tilefit", { setup: (dir, cfg) => { cfg.modules.look.settings.items = [{ id: "tCompact", name: "Compact", values: { density: "Compact" } }, { id: "tRoomy", name: "Roomy", values: { density: "Roomy" } }]; } });
     onCleanup(() => fs.rmSync(data, { recursive: true, force: true }));
     const srv = await startServer(data);
     onCleanup(() => srv.stop());
@@ -87,7 +91,7 @@ async function main() {
       await Promise.all(pages.map(async page => {
         for (let j; (j = next++) < work.length;) {
           const { type, label, sw, sh } = work[j];
-          await page.goto(srv.base + "/dash/content?preview=1&solo=" + encodeURIComponent(type) + "&w=" + sw + "&h=" + sh + "&still=1", { waitUntil: "load" });
+          await page.goto(srv.base + "/dash/content?preview=1&solo=" + encodeURIComponent(type) + "&w=" + sw + "&h=" + sh + "&still=1" + THEME_Q, { waitUntil: "load" });
           let res = null;
           try { res = await until(() => page.evaluate(inspect, [MIN_TEXT, MIN_TOUCH]).then(r => (r.missing ? null : r)), type + " " + label, 8000); } catch (e) { skipped++; continue; }
           await page.waitForTimeout(250);

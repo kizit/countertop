@@ -252,7 +252,7 @@ function libPack(p, look, name, desc){
     if (tiles.length > 1) b.every = sl.every || 45;
     return b;
   });
-  const lk = {}; LOOK_KEYS.forEach(k => { if (look && look[k] !== undefined) lk[k] = look[k]; });
+  const lk = themePortable(look || {});
   return {pkg:{countertop:"layout", format:LIB_FMT, name, description:desc || "", made:new Date().toISOString().slice(0, 10), look:lk, pages:[{name, boxes}]}, flags};
 }
 const b64enc = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -382,7 +382,7 @@ function libRead(j){
     return o;
   });
   const look = {}, LSD = (schema.look && schema.look.settings) || {};
-  for (const k of LOOK_KEYS) if (j.look && j.look[k] !== undefined){ const c = libClean(LSD[k], j.look[k]); if (c !== undefined) look[k] = c; }
+  for (const k of LOOK_KEYS) if (!THEMELIB.LOCAL.includes(k) && j.look && j.look[k] !== undefined){ const c = libClean(LSD[k], j.look[k]); if (c !== undefined) look[k] = c; }
   for (const k in uses) uses[k] = [...new Set(uses[k])];
   return {name:str(j.name, 80) || "Shared layout", desc:str(j.description, 500), made:str(j.made, 10), look, boxes,
     skipped:[...skipped], need:[...need.values()], mine:[...mine.values()], kinds:KIND_ORDER.filter(k => uses[k]).concat(Object.keys(uses).filter(k => !KIND_ORDER.includes(k))), uses, multi:[...multi], code};

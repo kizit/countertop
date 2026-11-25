@@ -80,19 +80,31 @@ function themeApply(){
   R.classList.toggle("clear", v.tiles === "Clear");
   const ts = (v.textScale || 100) / 100;
   st.setProperty("--ts", ts); R.classList.toggle("tscale", ts !== 1);
+  // shape: fonts, corners, tile edges and spacing (THEMELIB.tokens); an unset token falls back to the stylesheet's own value
+  const TK = THEMELIB.tokens(v);
+  for (const k in TK){ if (TK[k] === null) st.removeProperty(k); else st.setProperty(k, TK[k]); }
+  R.classList.toggle("dfont", !!TK["--font-display"]);
   if (v.bg === "Color" && v.bgColor) st.setProperty("--bg", v.bgColor);
-  if (v.bg !== "Sky"){ FXCFG.sky = false; $("skyA").style.background = "var(--bg)"; $("skyB").style.opacity = 0; }
+  if (v.bg !== "Sky"){ FXCFG.sky = false; $("skyB").style.opacity = 0; }
+  const BG = THEMELIB.background(v, THEME_WALLPAPER(v));
+  if (v.bg !== "Sky") $("skyA").style.background = BG || "var(--bg)";
   if (v.fx === "Off") FXCFG.any = false;
+  FXCFG.pick = Array.isArray(v.fxPick) && v.fxPick.length ? v.fxPick : null;       // effects this theme plays, in place of the ones turned on in Effects
   let dm = $("dimmer"); if (!dm){ dm = document.createElement("div"); dm.id = "dimmer"; document.body.appendChild(dm); }
   dm.style.opacity = (v.dim || 0) / 100;
+  let ti = $("tinter"); if (!ti){ ti = document.createElement("div"); ti.id = "tinter"; document.body.appendChild(ti); }
+  const tint = /^#[0-9a-f]{6}$/i.test(v.tint || "") && v.tintAmt > 0;
+  ti.style.background = tint ? v.tint : ""; ti.style.opacity = tint ? Math.min(60, v.tintAmt) / 100 : 0;
   if (typeof sbxThemeChanged === "function") sbxThemeChanged();
 }
-// background photos (Background: Photos) come from the first photo album in Setup
+// an uploaded wallpaper lives on this Countertop's own server; the theme only names it
+const THEME_WALLPAPER = v => v.bg === "Wallpaper" && /^w-[0-9a-f]{12}$/.test(v.wallpaper || "") ? "/wallpaper/" + v.wallpaper : "";
+// background photos (Background: Photos) come from the theme's photo album (the first one in Setup if none is picked), a new one every few minutes
 function themePhotos(){
   if (THEMEV.bg !== "Photos") return;
-  const A = STATE.albums[""] || Object.values(STATE.albums)[0], P = (A && A.photos) || [];
+  const A = STATE.albums[THEMEV.album || ""] || STATE.albums[""] || Object.values(STATE.albums)[0], P = (A && A.photos) || [];
   if (!P.length) return;
-  const ph = P[Math.floor(Date.now() / 300e3) % P.length];
+  const ph = P[Math.floor(Date.now() / (Math.max(1, +THEMEV.photoEvery || 5) * 60e3)) % P.length];
   $("skyA").style.background = 'center/cover no-repeat url("' + ph.url + '")';
 }
 function themeTick(){       // a different theme's time has come: start fresh with it

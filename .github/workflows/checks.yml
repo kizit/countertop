@@ -67,6 +67,8 @@ jobs:
               node tests/browser-check.js
               node tests/tiles-check.js
               node tests/tile-fit-check.js
+              FIT_THEME=tRoomy node tests/tile-fit-check.js
+              FIT_THEME=tCompact node tests/tile-fit-check.js
               node tests/tile-data-check.js
               node tests/snapshot-check.js
           - id: sandbox-and-controls
@@ -84,6 +86,7 @@ jobs:
               node tests/themes-check.js
               node tests/text-colors-check.js
               node tests/theme-compat-check.js
+              node tests/theme-options-check.js
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

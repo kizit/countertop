@@ -53,15 +53,14 @@ function teamMatchesOn(day, teams){
 
 
 /* clock and weather styles: a preset picks the layout and a font; font, size, alignment and parts can be changed on top */
-const FONTS = {System:'-apple-system,system-ui,"Segoe UI",Roboto,sans-serif', Outfit:'"Outfit",system-ui,sans-serif', "Bebas Neue":'"Bebas Neue",Impact,sans-serif',
-  "DM Serif Display":'"DM Serif Display",Georgia,serif', Fraunces:'"Fraunces",Georgia,serif', "JetBrains Mono":'"JetBrains Mono",ui-monospace,monospace',
-  Nunito:'"Nunito",system-ui,sans-serif', "Space Grotesk":'"Space Grotesk",system-ui,sans-serif'};
+const FONTS = THEMELIB.FONTS;       // the bundled fonts, defined once in tools/shared/themes.js
 const STYLE_FONT = {classic:"System", bold:"Bebas Neue", serif:"DM Serif Display", digital:"JetBrains Mono", rounded:"Nunito", stacked:"Outfit", minimal:"Outfit",
   "big-temperature":"Outfit", compact:"System", "big-icon":"Nunito"};
 const slug = x => String(x || "Classic").toLowerCase().replace(/\s+/g, "-");
 function styleBox(m, s, st, defAlign){
   const f = !s.font || s.font === "Style default" ? STYLE_FONT[st] : s.font;
   m.style.fontFamily = FONTS[f] || "";
+  m.classList.toggle("ownfont", !!s.font && s.font !== "Style default");      // a font picked in the design beats the theme's Big numbers font
   m.style.setProperty("--cz", Math.max(.6, Math.min(1.6, (+s.size || 100) / 100)));
   const a = (s.align || defAlign).toLowerCase(), jc = a === "left" ? "flex-start" : a === "center" ? "center" : "flex-end";
   m.style.textAlign = a; m.style.setProperty("--jc", jc);

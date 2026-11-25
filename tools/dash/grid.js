@@ -125,7 +125,11 @@ function clippedInside(el){
   }
   return null;
 }
-if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => { FITGEN++; });
+// a theme's font arrives after the first draw and changes how tall lines are: fit every tile again with it
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => {
+  FITGEN++;
+  requestAnimationFrame(() => document.querySelectorAll(".slot > .card").forEach(el => { if (!el.hidden && !(MODULES[el.dataset.mod] || {}).noFit) cardFit(el); }));
+});
 function slotFit(el, m){
   if (m.card) return;
   if (el.querySelector(":scope > .dz")){ el.style.zoom = ""; el._fit = null; return; }      // a design fits itself (designRender)

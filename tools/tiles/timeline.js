@@ -11,7 +11,7 @@ Tile("timeline", {
     .m-tl .hr{position:absolute;top:0;bottom:22px;border-left:1px solid var(--surface-line)}
     .m-tl .hr span{position:absolute;bottom:-24px;left:-14px;font-size:15px;color:var(--faint);white-space:nowrap}
     .m-tl .hr.first span{left:0} .m-tl .hr.last span{left:auto;right:-1px}
-    .m-tl .ev{position:absolute;height:38px;border-radius:9px;background:var(--ec,color-mix(in srgb,var(--accent) 35%,transparent));padding:6px 10px;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid var(--surface-line)}
+    .m-tl .ev{position:absolute;height:38px;border-radius:9px;background:var(--ec,color-mix(in srgb,var(--accent) 35%,transparent));padding:6px 10px;font-size:19px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid var(--surface-line)}
     .m-tl .now{position:absolute;top:-4px;bottom:18px;border-left:2px solid var(--bad)}
     .m-tl{display:flex;flex-direction:column}`,
   cls:"m-tl", noFit:true,

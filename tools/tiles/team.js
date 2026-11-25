@@ -10,6 +10,36 @@ Tile("team", {
     always:{type:"bool", label:"Always show, even with no match coming", default:false}
   },
 
+  /* The team's own colors (the feed's `colors`: main and alternate, "#rrggbb"). The card's gradient is a deep shade of them, so the
+     light text on it always reads; the crest and the badge use the colors themselves, with dark or light letters, whichever reads.
+     No colors: the stylesheet's usual red, blue and gold stay. */
+  lum(h){ const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; },
+  mix(a, b, t){ const n = i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t); return "#" + [1, 3, 5].map(i => ("0" + n(i).toString(16)).slice(-2)).join(""); },
+  ink(bg){ const r = c => (Math.max(this.lum(c), this.lum(bg)) + .05) / (Math.min(this.lum(c), this.lum(bg)) + .05); return r("#ffffff") >= r("#14171c") ? "#ffffff" : "#14171c"; },   // white or near-black letters, whichever reads better
+  readable(bg){     // the color for a label's background: the team's own, nudged a little darker or lighter only if no letters read on it
+    for (let i = 0; i < 10; i++){
+      const ink = this.ink(bg), r = (Math.max(this.lum(ink), this.lum(bg)) + .05) / (Math.min(this.lum(ink), this.lum(bg)) + .05);
+      if (r >= 4.5) return bg;
+      bg = this.mix(bg, ink === "#ffffff" ? "#000000" : "#ffffff", .08);
+    }
+    return bg;
+  },
+  deep(h){ let x = h; for (let i = 0; i < 12 && this.lum(x) > .045; i++) x = this.mix(x, "#000000", .22); return x; },     // dark enough for light text
+  palette(colors){
+    const ok = c => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c);
+    if (!Array.isArray(colors) || !ok(colors[0])) return null;
+    const main = colors[0].toLowerCase(), alt = ok(colors[1]) ? colors[1].toLowerCase() : main;
+    const bright = this.lum(main) < .02 && this.lum(alt) < .02 ? "#e8e8e8" : this.lum(main) < .02 ? alt : main;    // a black team still needs something to show
+    const badge = this.readable(alt === main ? this.mix(main, "#ffffff", .35) : alt), crest = this.readable(main);
+    return {"--team":crest, "--teamy":badge,
+      "--teamb":this.deep(main), "--teamm":this.deep(this.mix(main, alt, .6)), "--teame":this.deep(this.mix(alt, "#000000", .35)),
+      "--teamh":this.mix(bright, "#ffffff", .78), "--teamt":this.ink(crest), "--teambt":this.ink(badge),
+      "--teamline":this.mix(bright, "#000000", .15) + "99", "--teamring":"0 0 0 2px rgba(255,255,255,.22)"};
+  },
+  paint(el, t){
+    const P = this.palette(t && t.colors), VARS = ["--team", "--teamy", "--teamb", "--teamm", "--teame", "--teamh", "--teamt", "--teambt", "--teamline", "--teamring"];
+    VARS.forEach(k => P ? el.style.setProperty(k, P[k]) : el.style.removeProperty(k));
+  },
   // a playoff or knockout round, not just any cup match (a regular cup game isn't "PLAYOFFS")
   isPlayoff(notes){ return /\b(play-?offs?|postseason|knockout|(semi|quarter)-?finals?|finals?|round of \d+|last (16|32|8))\b/i.test(notes || ""); },
   compact(el, t){
@@ -32,6 +62,7 @@ Tile("team", {
       h += '<div class="lst">Last: <b class="' + r.toLowerCase() + '">' + r + " " + esc(L.us) + "–" + esc(L.them) + '</b> ' + (L.home ? "vs " : "@ ") + esc(L.opp) + '</div>';
     }
     el.classList.add("up");
+    this.paint(el, t);
     el.innerHTML = h;
   },
   data(){ const id = this.s.team || ((SOURCES.teams || [])[0] || {}).id; return id ? STATE.teams[id] : null; },
@@ -68,6 +99,7 @@ Tile("team", {
       const r = L.winner === true ? "W" : (Number(L.us) === Number(L.them) ? "D" : "L");
       h += '<div class="last">Last: <b class="' + r.toLowerCase() + '">' + r + " " + esc(L.us) + "–" + esc(L.them) + '</b> ' + (L.home ? "vs. " : "@ ") + esc(L.opp) + '</div>';
     }
+    this.paint(el, t);
     el.innerHTML = h;
   }
 });

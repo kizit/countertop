@@ -50,7 +50,21 @@ const THEMELIB = (function(){
     T("minimal", "Minimal", "No boxes, deep green on warm paper", {mode:"Light", bg:"Color", bgColor:"#f4f0e8", tiles:"Clear", accent:"#376a63", fx:"Off"}, "minimal"),
     T("kitchen-table", "Kitchen table", "Light tiles on sage green", {mode:"Light", bg:"Color", bgColor:"#dce4cf", accent:"#56703b", fx:"Off"}, "kitchen"),
     T("weather-station", "Weather station", "Teal on deep blue-green, see-through tiles", {bg:"Color", bgColor:"#132d38", accent:"#69daca", tiles:"See-through", opacity:55}, "weather"),
-    T("family-planner", "Family planner", "Light tiles on soft lavender", {mode:"Light", bg:"Color", bgColor:"#e4dfed", accent:"#76508a", fx:"Off"}, "planner")];
+    T("family-planner", "Family planner", "Light tiles on soft lavender", {mode:"Light", bg:"Color", bgColor:"#e4dfed", accent:"#76508a", fx:"Off"}, "planner"),
+    // the six below use the theme options (fonts, tile edges and corners, spacing, gradients and textures, their own effects);
+    // tests/theme-contrast-check.js checks their text against the tile colors they really draw
+    T("retro-digital", "Retro digital", "Amber numbers on dark tiles with sharp outlines", {bg:"Texture", texture:"Grid", bgColor:"#17120b", accent:"#ffb23e", textColor:"#f2e2c4", bigColor:"#ffb23e",
+      fontBody:"Space Grotesk", fontDisplay:"JetBrains Mono", surface:"Outline", shape:"Square", fxPick:["stars"]}),
+    T("newspaper", "Newspaper", "Editorial serif type on warm paper, with fine rules", {mode:"Light", bg:"Texture", texture:"Paper", bgColor:"#ece5d6", accent:"#a8231b", textColor:"#221e18",
+      fontBody:"Fraunces", fontDisplay:"DM Serif Display", surface:"Outline", shape:"Square", fx:"Off"}),
+    T("mid-century", "Mid-century", "Walnut and amber, soft corners, vintage type", {mode:"Light", bg:"Color", bgColor:"#c79d72", tiles:"See-through", opacity:78, accent:"#a63f22", textColor:"#2b2019",
+      fontBody:"Nunito", fontDisplay:"Fraunces", surface:"Soft", shape:"Soft", fx:"Off"}),
+    T("japandi", "Japandi", "Natural linen, no boxes, plenty of quiet space", {mode:"Light", bg:"Texture", texture:"Linen", bgColor:"#e9e2d4", tiles:"Clear", accent:"#52613f", textColor:"#2a2822",
+      fontBody:"Outfit", fontDisplay:"Outfit", surface:"Flat", shape:"Soft", density:"Roomy", fx:"Off"}),
+    T("nordic", "Nordic", "Soft blue mist, bright rounded cards, clean type", {mode:"Light", bg:"Gradient", gradient:"Mist", tiles:"See-through", opacity:82, accent:"#2f6a8c", textColor:"#17232e",
+      fontBody:"Nunito", fontDisplay:"Space Grotesk", surface:"Glass", shape:"Soft", fxPick:["snow", "clouds"]}),
+    T("after-hours", "After hours", "Dim, muted violet for the evening", {bg:"Color", bgColor:"#100d18", tiles:"See-through", opacity:72, accent:"#c09cf5", textColor:"#ece6f6", bigColor:"#d6c0ff", dim:15,
+      fontBody:"Outfit", fontDisplay:"Bebas Neue", surface:"Soft", shape:"Rounded", fxPick:["stars"]})];
   /* One place that turns a theme's values into colors, for both the dashboard (themeApply) and the Controls previews
      (lookColors), so they can't drift apart. Appearance precedence, lowest to highest (see docs/theming.md):
      built-in defaults < the active theme's values < a tile's preset/own design < Theme colors win (themeWins) over tile colors;

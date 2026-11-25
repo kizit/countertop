@@ -154,6 +154,9 @@ async function main() {
     for (const k of ["scriptOut", "scriptHere", "scriptTileFetch"]) assert.match(out[k], /blocked|no answer/, k + ": " + out[k]);
     assert.ok(!outside.some(u => u.includes("leak.example.com")), "a script from elsewhere is never even requested");
     assert.equal(out.open, "blocked");
+    assert.equal(out.fontSelf, "sent");
+    assert.deepEqual(await frameOf("hostile").evaluate(() => [...document.fonts].map(f => f.family)), [], "the fonts message the tile sent to itself was ignored: no font exists in its frame");
+    for (const k of ["fontUrl", "fontSame"]) assert.match(out[k], /blocked|refused|no answer/, k + ": a tile can't load a font by address (" + out[k] + ")");
     assert.equal(out.events, "[]", "it didn't declare events");
     assert.equal(out.weather, "null", "it didn't declare the weather");
     assert.match(out.act, /^refused/);
@@ -164,6 +167,21 @@ async function main() {
     assert.equal(Object.getPrototypeOf(st.hostile_a), Object.prototype);
     assert.ok(!fetches.some(([t]) => t === "hostile"), "it never got a site read for it");
     console.log("✓ the hostile tile: no WebRTC (every way back tried), no inner frames, no network, no other tile's data, no actions");
+
+    // --- theme tokens and fonts: bytes sent by the dashboard, never loaded by address ---
+    const hostFrame = frameOf("moon-facts");
+    await page.evaluate(() => { const r = document.documentElement.style; r.setProperty("--font", '"Outfit", sans-serif'); r.setProperty("--font-display", '"Fraunces", serif'); r.setProperty("--ok", "#123456"); sbxThemeChanged(); });
+    const themed = async () => hostFrame.evaluate(() => ({ ok: getComputedStyle(document.documentElement).getPropertyValue("--ok").trim(), font: getComputedStyle(document.documentElement).getPropertyValue("--font").trim(),
+      fg: getComputedStyle(document.documentElement).getPropertyValue("--fg").trim(), outfit: [...document.fonts].filter(f => /Outfit/.test(f.family) && f.status === "loaded").length, fraunces: [...document.fonts].filter(f => /Fraunces/.test(f.family) && f.status === "loaded").length, nunito: [...document.fonts].filter(f => /Nunito/.test(f.family)).length }));
+    let th = null;
+    for (let i = 0; i < 40; i++){ th = await themed(); if (th.ok === "#123456" && th.outfit && th.fraunces) break; await page.evaluate(() => window.dashGoPage && 0); await sleep(250); }
+    assert.equal(th.ok, "#123456", "the semantic tokens reach the frame");
+    assert.ok(th.fg, "the old names still arrive");
+    assert.match(th.font, /Outfit/);
+    assert.ok(th.outfit && th.fraunces, "the theme's body and display fonts load from bytes sent by the dashboard");
+    assert.equal(th.nunito, 0, "only the fonts the theme names are sent");
+    assert.equal(th.outfit, 1, "each font once");
+    console.log("✓ theme tokens and the theme's fonts reach the frame as data; the policy still refuses a font by address");
 
     // --- the four built-ins draw the same in a frame as in the page ---
     await page.evaluate(() => window.dashGoPage("c:cmp"));

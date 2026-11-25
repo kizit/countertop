@@ -85,6 +85,7 @@ function themeApply(){
   if (v.fx === "Off") FXCFG.any = false;
   let dm = $("dimmer"); if (!dm){ dm = document.createElement("div"); dm.id = "dimmer"; document.body.appendChild(dm); }
   dm.style.opacity = (v.dim || 0) / 100;
+  if (typeof sbxThemeChanged === "function") sbxThemeChanged();
 }
 // background photos (Background: Photos) come from the first photo album in Setup
 function themePhotos(){

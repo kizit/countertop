@@ -14,7 +14,7 @@ Controls shows the server's health from /status and offers a redacted bug-report
 import sys
 from pathlib import Path
 
-VERSION = "0.7.0"                 # bump with each release; CHANGELOG.md says what changed
+VERSION = "0.8.0"                 # bump with each release; CHANGELOG.md says what changed
 
 # The server's code lives in tools/server/, one file per area. Everything is re-exported here so
 # `python3 tools/countertop.py` and `import countertop` work as before.

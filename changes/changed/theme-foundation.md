@@ -1,1 +1,0 @@
-- **Themes share one color resolver.** The Controls previews now use the same tile opacity as the dashboard, and the dashboard styles use named color and shape tokens. Nothing changes on screen.

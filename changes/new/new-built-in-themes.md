@@ -1,1 +1,0 @@
-- **Six new built-in themes.** Retro digital (amber numbers, sharp outlines), Newspaper (editorial serif type on paper), Mid-century (walnut and amber), Japandi (linen and quiet space), Nordic (soft blue mist) and After hours (dim violet). Each uses its own fonts, tile edges, corners, spacing and background, and is checked for text that reads clearly from across a room.

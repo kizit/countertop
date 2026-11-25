@@ -1,1 +1,0 @@
-- **Screen reloads after saving.** After you save in the editor or close Settings, the screen no longer loads itself a second time a few seconds later. That extra reload could undo a swipe, cover Settings you had just opened, or make community tiles look frozen and turn on safe mode.

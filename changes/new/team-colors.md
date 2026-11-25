@@ -1,1 +1,0 @@
-- **The Team tile wears your team's colors.** The card, crest and badge use the team's own colors when the league lists them, with letters that stay readable on any pair; without colors it looks as before.

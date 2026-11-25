@@ -1,1 +1,0 @@
-- **Calendar "didn't load" warning.** The status page now waits for a calendar to fail twice in a row before flagging it, so a single network hiccup no longer shows a red warning.

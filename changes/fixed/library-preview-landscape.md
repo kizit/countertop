@@ -1,1 +1,0 @@
-- **Library previews with Screen set to Landscape.** Previews in Library (Themes, Effects, Layouts, Community) now stay landscape-shaped when Controls > Screen > Orientation is set to Landscape, instead of showing in a tall portrait frame. They also follow the screen's own proportions.

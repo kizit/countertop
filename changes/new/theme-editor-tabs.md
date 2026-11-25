@@ -1,1 +1,0 @@
-- **A tabbed theme editor.** Customizing a theme now has Colors, Type, Surfaces, Spacing, Background and Effects tabs with a picture for every choice, ready-made palettes, a wallpaper picker, photo album and interval, a tint, effects picked per theme, and Reset this section. The Clock's time color and tile designs get a Theme swatch that follows the theme.

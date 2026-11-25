@@ -1,1 +1,0 @@
-- **Test at a fixed screen size.** In Controls > Screen, pick a screen (for example Echo Show 15 or Echo Show 8) and the dashboard in that browser keeps that size instead of following the window.

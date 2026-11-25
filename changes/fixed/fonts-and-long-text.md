@@ -1,1 +1,0 @@
-- **Tiles refit when a theme's font arrives, and long text no longer breaks them.** Month, Week, Day timeline and Note no longer clip when a font loads after the first draw. A long opponent name wraps to two lines in the Team tile, a long pinned note on the List tile can't push the list out of its box, and that note is readable on light themes.

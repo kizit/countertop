@@ -2,6 +2,46 @@
 
 Each version gets a section here. The newest is on top. Install a version from the [releases page](https://github.com/kizit/countertop/releases); Docker and Unraid use the `ghcr.io/kizit/countertop` image with the same tag.
 
+## v0.8.0 (2026-11-25)
+
+### New
+- **Bug reports include what your screen measured.** The bug report button in Controls > Status asks the dashboard screen to measure itself, then opens the GitHub form with the browser, screen size, theme and any text that overlaps or is cut off already filled in. The diagnostics file has the same measurements. They are sizes and positions only, never the words on your screen, and nothing is sent until you submit the form.
+- **Desktop mode for Controls.** On a computer with a mouse and keyboard, Controls now uses native scrolling, a tighter layout, hover states, right-click and `⋯` menus, and keyboard shortcuts (`Esc`, `Ctrl/⌘+S`, `Ctrl/⌘+Z`, arrow keys). Editing the screen opens a full-height 3-pane layout studio with a top toolbar, snap-grid toggle, Duplicate box and a searchable, drag-to-add tile list. Switch between Automatic, Desktop and Touch in Controls → Screen, or with `/control?input=desktop|touch|auto`. The Echo always uses touch mode, and the preview's "With browser bar" size is gone.
+- **Drag to swap or stack tiles.** Dragging one tile onto another in the layout editor now offers both **Swap** and **Stack**—release on **Swap** to trade places, or on **Stack** to combine them so they take turns in the same box.
+- **Effects: Turn all off / Turn all on.** Two buttons at the top of Library → Effects, so you can switch everything off and turn on only the ones you want.
+- **Test at a fixed screen size.** In Controls > Screen, pick a screen (for example Echo Show 15 or Echo Show 8) and the dashboard in that browser keeps that size instead of following the window.
+- **Full screen on tap, per browser.** Controls > Screen has a "Full screen when you tap /dash" choice under "This browser only", and /dash?fullscreen=0 (or =1) sets it from the address bar. Turning it off keeps /dash in its window, handy when testing on a computer. The default is unchanged.
+- **Six new built-in themes.** Retro digital (amber numbers, sharp outlines), Newspaper (editorial serif type on paper), Mid-century (walnut and amber), Japandi (linen and quiet space), Nordic (soft blue mist) and After hours (dim violet). Each uses its own fonts, tile edges, corners, spacing and background, and is checked for text that reads clearly from across a room.
+- **Screen size for previews.** Controls > Screen has a Screen size setting with every Echo Show model and some common screens. The preview, the Library and the layout editor in Controls are drawn at that size, and an Echo can use its own. /dash in a browser can match it too.
+- **Theme Studio and Tile Studio in the Library's Make section.** Theme Studio now sits beside Tile Studio (formerly "New tile") in the Library sidebar.
+- **The Team tile wears your team's colors.** The card, crest and badge use the team's own colors when the league lists them, with letters that stay readable on any pair; without colors it looks as before.
+- **A tabbed theme editor.** Customizing a theme now has Colors, Type, Surfaces, Spacing, Background and Effects tabs with a picture for every choice, ready-made palettes, a wallpaper picker, photo album and interval, a tint, effects picked per theme, and Reset this section. The Clock's time color and tile designs get a Theme swatch that follows the theme.
+- **More theme options.** Themes can set a text font and a big-numbers font, tile edges (Flat, Soft, Outline, Glass) and corners, three spacings (Compact, Normal, Roomy), gradient and texture backgrounds, your own wallpaper, a tint, the photo album and how often it changes, and which effects play. Existing themes look the same. A wallpaper stays on your Countertop and is never included when you share a theme.
+- Theme Studio: describe a look to an AI you already use (Countertop writes the prompt and checks the answer), or start from a wallpaper's colors, and edit the result like any new theme. Shared themes can now be filed under a category for the community gallery.
+- **A few new options for list, food and home tiles.** Note can align right, In season follows a custom tile name and can show the southern hemisphere's seasons, Meal ideas hides its per-meal switches unless it follows the time of day, and List hides its sale options until store deals are set up.
+- **Planes overhead shows kilometers, meters and km/h** when the dashboard uses metric units, and a "Planes to list" of 0 shows just the map with a count.
+- **New options on the calendar tiles.** Week ahead and Month can hide the weather (Month can also hide holidays), Next hours and the Night clock can choose which calendars they show, Next hours can hide events, and a tall Week ahead shows more events per day. Matches show the icon for their sport.
+
+### Changed
+- **Fewer built-in themes in the list.** Themes now shows Dark, Light and the newer built-ins; the other earlier ones (Glass, Photo frame, Calm evening, Atmospheric, Minimal, Kitchen table, Weather station, Family planner) are tucked behind "Show classic themes". They all still work, and one you use or schedule stays in the list.
+- **New installs call the dashboard "Countertop".** The default Dashboard name (browser tab, shopping-list page) is now Countertop instead of Kitchen. A name you already saved keeps working.
+- **Home-neutral wording.** The Theme Studio prompt and examples no longer assume the screen is in a kitchen.
+- **Themes share one color resolver.** The Controls previews now use the same tile opacity as the dashboard, and the dashboard styles use named color and shape tokens. Nothing changes on screen.
+
+### Fixed
+- **Calendar "didn't load" warning.** The status page now waits for a calendar to fail twice in a row before flagging it, so a single network hiccup no longer shows a red warning.
+- **Dessert ideas fit the smallest Dinner box.** A two-line recipe title is no longer cut off.
+- **Tiles refit when a theme's font arrives, and long text no longer breaks them.** Month, Week, Day timeline and Note no longer clip when a font loads after the first draw. A long opponent name wraps to two lines in the Team tile, a long pinned note on the List tile can't push the list out of its box, and that note is readable on light themes.
+- **Library previews with Screen set to Landscape.** Previews in Library (Themes, Effects, Layouts, Community) now stay landscape-shaped when Controls > Screen > Orientation is set to Landscape, instead of showing in a tall portrait frame. They also follow the screen's own proportions.
+- **Theme and Effects open with their live preview.** Opening either from the Controls home screen, after the Library had been closed once, left the preview blank.
+- **Stray "Countertop" tooltip on Mac.** The menu bar app no longer pops up a "Countertop" tooltip away from the menu bar when the pointer rests elsewhere. It also stops redrawing its icon on every status check and only updates it when the status changes.
+- **Screen reloads after saving.** After you save in the editor or close Settings, the screen no longer loads itself a second time a few seconds later. That extra reload could undo a swipe, cover Settings you had just opened, or make community tiles look frozen and turn on safe mode.
+- **Small screens.** The dashboard and the layout editor now fit small screens like the Echo Show 5: gaps and margins scale down with the screen, so tiles no longer run off the bottom or drift out of line with the editor's boxes. Larger screens look the same.
+- **The theme editor keeps its place.** Tapping an option while customizing a theme no longer jumps the page back to the top, and the tab you were on stays open.
+- **Lists, food and home tiles fit their boxes.** Note, List, Meal ideas, In season, Home, Sensor and Tempo keep their main content in small, narrow and tall boxes and follow the theme's colors. Meal ideas' "Recipe" pill no longer covers the title, Tempo's cycle line wraps instead of clipping, and Home and Sensor examples no longer use French or UK spellings.
+- **Picture, sports, fun and the remaining tiles fit their boxes.** Photo frame shows a whole photo on blurred bars whenever filling the box would crop a lot (not just portrait photos), Space photo drops its explanation in short boxes so it never covers the picture, Planes overhead stacks the map above the list in narrow and tall boxes and keeps plane labels inside the map, Space station moves its title out of the way of the station, and Team only shows PLAYOFFS for real playoff and knockout rounds. Agenda, Next event, Daily to-do, On sale, Stocks, Dad joke, On this day, Kitchen tip, Live cam and Picture from a link keep their main content at every size and follow the theme's colors.
+- **Time, weather and calendar tiles fit their boxes.** The Clock keeps its greeting, holidays and birthdays when the date is off, and the Night clock follows 24-hour mode and the theme's big-number color. World clocks, Weather now, Next hours, 10-day forecast, Hourly strip, Day timeline, Week ahead and Month no longer crowd, clip or overlap in small, narrow or tall boxes.
+
 ## v0.7.0 (2026-11-24)
 
 ### New

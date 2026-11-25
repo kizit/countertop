@@ -1,1 +1,0 @@
-- **Lists, food and home tiles fit their boxes.** Note, List, Meal ideas, In season, Home, Sensor and Tempo keep their main content in small, narrow and tall boxes and follow the theme's colors. Meal ideas' "Recipe" pill no longer covers the title, Tempo's cycle line wraps instead of clipping, and Home and Sensor examples no longer use French or UK spellings.

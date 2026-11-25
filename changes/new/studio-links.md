@@ -1,1 +1,0 @@
-- **Theme Studio and Tile Studio in the Library's Make section.** Theme Studio now sits beside Tile Studio (formerly "New tile") in the Library sidebar.

@@ -1,1 +1,0 @@
-- **Time, weather and calendar tiles fit their boxes.** The Clock keeps its greeting, holidays and birthdays when the date is off, and the Night clock follows 24-hour mode and the theme's big-number color. World clocks, Weather now, Next hours, 10-day forecast, Hourly strip, Day timeline, Week ahead and Month no longer crowd, clip or overlap in small, narrow or tall boxes.

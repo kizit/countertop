@@ -154,6 +154,8 @@ async function main() {
     for (const k of ["scriptOut", "scriptHere", "scriptTileFetch"]) assert.match(out[k], /blocked|no answer/, k + ": " + out[k]);
     assert.ok(!outside.some(u => u.includes("leak.example.com")), "a script from elsewhere is never even requested");
     assert.equal(out.open, "blocked");
+    assert.equal(out.fontSelf, "sent");
+    assert.deepEqual(await frameOf("hostile").evaluate(() => [...document.fonts].map(f => f.family)), [], "the fonts message the tile sent to itself was ignored: no font exists in its frame");
     for (const k of ["fontUrl", "fontSame"]) assert.match(out[k], /blocked|refused|no answer/, k + ": a tile can't load a font by address (" + out[k] + ")");
     assert.equal(out.events, "[]", "it didn't declare events");
     assert.equal(out.weather, "null", "it didn't declare the weather");

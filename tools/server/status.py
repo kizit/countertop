@@ -119,8 +119,10 @@ def status_view():
     cals = []
     for c in src.get("calendars") or []:
         st = CAL_STATUS.get(c.get("id")) or {}
-        cals.append({"name": c.get("name") or "Calendar", "at": st.get("at") or 0, "ok": st.get("ok"), "error": st.get("error") or "", "count": st.get("count")})
-        if st.get("ok") is False:
+        down = st.get("ok") is False and st.get("fails", 2) >= 2     # one failed fetch is usually a blip; the next try is minutes away
+        cals.append({"name": c.get("name") or "Calendar", "at": st.get("at") or 0, "ok": False if down else (None if st.get("ok") is False else st.get("ok")),
+                     "error": st.get("error") or "" if down else "", "count": st.get("count")})
+        if down:
             probs.append(["bad", "Calendar \u201c%s\u201d didn't load: %s" % (c.get("name") or "Calendar", st.get("error"))])
 
     homes = []

@@ -111,14 +111,21 @@ function lookColors(v){        // the same numbers the dashboard uses (THEMELIB.
 }
 function lookPic(v, cls){
   const ts = (v.textScale || 100) / 100, {bg, card, fg, big, dim, bd, acc} = lookColors(v);
-  const box = (x, y, w, h, inner) => '<i style="left:' + x + '%;top:' + y + '%;width:' + w + '%;height:' + h + '%;background:' + card + ';border-color:' + bd + '">' +
+  const T = THEMELIB.tokens(v), sf = THEMELIB.SURFACES[v.surface] || THEMELIB.SURFACES.Classic;
+  const grow = {Compact:1.2, Normal:0, Roomy:-1.6}[v.density] || 0;        // closer tiles are a little bigger, roomier ones smaller
+  const rad = (THEMELIB.SHAPES[v.shape] || 18) / 18 * .6, bw = sf.border ? Math.max(1, sf.border) : 0;
+  const shadow = T["--shadow"] && T["--shadow"] !== "none" ? ";box-shadow:" + T["--shadow"] : "";
+  const edge = T["--surface-line"] && !(v.tiles === "Clear") ? T["--surface-line"] : bd;
+  const font = T["--font"] ? ";font-family:" + T["--font"] : "", dfont = T["--font-display"] ? ";font-family:" + T["--font-display"] : "";
+  const box = (x, y, w, h, inner) => '<i style="left:' + (x - grow / 2) + '%;top:' + (y - grow / 2) + '%;width:' + (w + grow) + '%;height:' + (h + grow) + '%;background:' + card + ';border:' + bw + 'px solid ' + (bw ? edge : "transparent") + ';border-radius:' + rad + 'em' + shadow + '">' +
     (v.titles !== false ? '<s style="background:' + dim + '"></s>' : "") + inner + '</i>';
   const lines = (n, w) => [...Array(n)].map((_, i) => '<u style="background:' + (i ? dim : fg) + ';width:' + (w - i * 9) + '%;height:' + (.55 * ts) + 'em"></u>').join("");
-  return '<div class="lpic ' + (cls || "") + '" style="background:' + bg + '">' +
-    box(3, 5, 41, 31, '<em style="color:' + big + ';font-size:' + (2.6 * ts) + 'em">9:41</em>') +
-    box(46, 5, 51, 31, '<em style="color:' + acc + ';font-size:' + (2 * ts) + 'em">72°</em>') +
+  const tint = HEX6.test(v.tint || "") && v.tintAmt > 0 ? '<i class="dm" style="background:' + esc(v.tint) + ';opacity:' + Math.min(60, v.tintAmt) / 100 + '"></i>' : "";
+  return '<div class="lpic ' + (cls || "") + '" style="background:' + bg + font + '">' +
+    box(3, 5, 41, 31, '<em style="color:' + big + ';font-size:' + (2.6 * ts) + 'em' + dfont + '">9:41</em>') +
+    box(46, 5, 51, 31, '<em style="color:' + acc + ';font-size:' + (2 * ts) + 'em' + dfont + '">72°</em>') +
     box(3, 40, 60, 55, '<b style="background:' + acc + '"></b>' + lines(3, 80)) +
-    box(65, 40, 32, 55, lines(4, 85)) +
+    box(65, 40, 32, 55, lines(4, 85)) + tint +
     (v.dim ? '<i class="dm" style="background:rgba(0,0,0,' + (v.dim / 100) + ')"></i>' : "") + '</div>';
 }
 
@@ -205,27 +212,7 @@ function lookScreen(id){
       '</optgroup><optgroup label="Built in">' + THEMELIB.L.map(x => o(x.id)).join("") + '</optgroup></select></div>', "Picking another one starts the colors and settings over from it.");
   }
   if (t || isNew) h += sec("Name", '<div class="row col"><input type="text" ' + A + ' data-lk="__name" value="' + esc(DRAFT.name) + '"></div>');
-  const bgPic = b => '<span class="sample" style="background:' + (b === "Sky" ? "linear-gradient(180deg,#2f6aa3,#0d1a2b)" : b === "Color" ? esc(v.bgColor) : "linear-gradient(165deg,#88a6c2,#d7b08a 52%,#4d5e43 53%)") + '"></span>';
-  h += sec("Background", '<div class="opts">' + opt(id, "bg", "Sky", "Sky", "Follows the sun", v.bg, bgPic("Sky")) + opt(id, "bg", "Color", "Solid color", "", v.bg, bgPic("Color")) + opt(id, "bg", "Photos", "Photos", "From your album", v.bg, bgPic("Photos")) + '</div>' +
-    (v.bg === "Color" ? row({t:"Background color", post:'<input type="color" ' + A + ' data-lk="bgColor" value="' + esc(v.bgColor) + '">'}) : ""),
-    v.bg === "Sky" ? "The sky changes through the day: dawn, day, golden hour, dusk and night, from your real sunrise and sunset." : v.bg === "Photos" ? "Uses the first album in Setup → Photo albums, a new photo every 5 minutes." : "");
-  h += sec("Colors", row({t:"Light or dark", post:'<span class="seg">' + ["Dark", "Light"].map(m => '<button ' + A + ' data-lk="mode" data-lv="' + m + '"' + (v.mode === m ? ' class="on"' : "") + '>' + m + '</button>').join("") + '</span>'}) +
-    '<div class="row col"><div class="t"><b>Accent color</b><small>Highlights, today\'s date, buttons</small></div><div class="sws">' +
-      SWATCHES.map(c => '<button class="swc' + (String(v.accent).toLowerCase() === c ? " on" : "") + '" style="background:' + c + '" ' + A + ' data-lk="accent" data-lv="' + c + '"></button>').join("") +
-      '<input type="color" ' + A + ' data-lk="accent" value="' + esc(v.accent) + '" title="Any color"></div></div>' +
-    row({t:"Holiday colors", sub:"The accent changes by itself in season: orange in fall, red and green at Christmas, pink for Valentine's", post: sw(v.holiday, A + ' data-lk="holiday" data-lb="1"')}) +
-    textColorRows(v, A));
-  const tilePic = k => '<span class="sample tl ' + k + '"><i></i><i></i></span>';
-  h += sec("Tiles", '<div class="opts">' + opt(id, "tiles", "Solid", "Solid", "", v.tiles, tilePic("solid")) + opt(id, "tiles", "See-through", "See-through", "", v.tiles, tilePic("see")) + opt(id, "tiles", "Clear", "Clear", "No boxes", v.tiles, tilePic("clear")) + '</div>' +
-    (v.tiles === "See-through" ? row({t:"How solid", sub:"10% is almost clear", post:'<input type="range" min="10" max="100" step="5" ' + A + ' data-lk="opacity" value="' + (v.opacity || 60) + '"><span class="v">' + (v.opacity || 60) + '%</span>'}) : ""));
-  const sz = SIZES.find(s => s[1] === +v.textScale);
-  h += sec("Text size", '<div class="row"><span class="seg wide">' + SIZES.map(([l, n]) => '<button ' + A + ' data-lk="textScale" data-lv="' + n + '"' + (+v.textScale === n ? ' class="on"' : "") + '>' + l + '</button>').join("") + '</span></div>',
-    sz ? "" : "Now " + v.textScale + "%.");
-  h += '<details class="sec more"' + (store.more ? " open" : "") + '><summary>More</summary><div class="grp">' +
-    row({t:"Dim the screen", sub:"Darker without changing the colors", post:'<input type="range" min="0" max="80" step="5" ' + A + ' data-lk="dim" value="' + (v.dim || 0) + '"><span class="v">' + (v.dim || 0) + '%</span>'}) +
-    row({t:"Tile titles", sub:"The small heading on each tile", post: sw(v.titles !== false, A + ' data-lk="titles" data-lb="1"')}) +
-    row({t:"Effects", sub:"Off pauses every effect while this theme shows", post: sw(v.fx !== "Off", A + ' data-lk="fx" data-lb="OnOff"')}) +
-    '</div></details>';
+  h += lookTabs(id, v, A);
   h += isNew ? '<div class="draftbar"><span>Not saved yet</span><button data-lact="cancel">Cancel</button><button data-lact="save">Save</button><button class="pri" data-lact="saveuse">Save &amp; use</button></div>'
     : '<div class="draftbar"><span>' + (draftDirty() ? "Unsaved changes" : "No changes yet") + '</span><button data-lact="cancel">Cancel</button><button class="pri" data-lact="save"' + (draftDirty() ? "" : " disabled") + '>Save</button></div>';
   return h;
@@ -539,6 +526,12 @@ function fxRead(j){
 
 /* ----- actions ----- */
 function lookAction(act, id){
+  if (act === "tab"){ LTAB = id; show(); return; }
+  if (act === "reset"){ lookResetTab(id); return; }
+  if (act === "pal"){ lookPalette(+id); return; }
+  if (act === "fxpick"){ lookFxPick(id); return; }
+  if (act === "fxmode"){ if (DRAFT){ DRAFT.values.fxPick = id === "pick" ? (lookVals(DRAFT.id).fxPick || []).length ? lookVals(DRAFT.id).fxPick : ["snow"] : []; draftPreview(); show(); } return; }
+  if (act === "wallrm"){ wallRemove(DRAFT ? DRAFT.id : id); return; }
   if (act === "new"){ draftNew(id); go("look:new"); return; }
   if (act === "dup"){
     const nid = "t" + Date.now().toString(36), base = lookName(id) + " copy";
@@ -588,7 +581,7 @@ function lookClick(t){
   if (d.fxon){ const v = !fxC(d.fxon).on; fxSet(d.fxon, "on", v); show(); return true; }
   if (d.fxk && d.fxv !== undefined){ const v = d.fxk === "every" ? +d.fxv : d.fxv; fxSet(d.fxid, d.fxk, v); show(); return true; }
   if (d.fxplay){ try{ (libSub() ? $("libpv").contentWindow : pvWin()).FUN.show(d.fxplay); toast("Playing on the preview", "ok"); }catch(e){ toast("The preview isn't ready yet", "bad"); } return true; }
-  if (d.lk && d.lv !== undefined){ const v = d.lk === "textScale" ? +d.lv : d.lv; lookSet(d.lid, d.lk, v); show(); return true; }
+  if (d.lk && d.lv !== undefined){ const v = d.lk === "textScale" || d.lk === "photoEvery" ? +d.lv : d.lv; lookSet(d.lid, d.lk, v); show(); return true; }
   if (d.lk && d.lb){ const cur = lookVals(d.lid)[d.lk], on = d.lb === "OnOff" ? cur !== "Off" : d.lk === "holiday" || d.lk === "themeWins" ? !!cur : cur !== false;
     lookSet(d.lid, d.lk, d.lb === "OnOff" ? (on ? "Off" : "On") : !on); show(); return true; }
   if (d.nk && d.nv !== undefined){ mods.night.settings[d.nk] = +d.nv; save(); show(); return true; }
@@ -596,6 +589,7 @@ function lookClick(t){
 }
 function lookChange(t){
   const d = t.dataset;
+  if (d.lwall){ wallUpload(t.files && t.files[0], d.lid); t.value = ""; return true; }
   if (d.fxd){ if (d.fxd !== "from" && d.fxd !== "to"){ fxDraftSet(d.fxd, t.value); return true; }
     const r = t.closest(".row"), m = r.querySelector('[data-t="md-m"]').value, dd = parseInt(r.querySelector('[data-t="md-d"]').value, 10);
     fxDraftSet(d.fxd, m ? m + "-" + (dd ? Math.max(1, Math.min(31, dd)) : 1) : ""); return true; }      // a month on its own starts on the 1st

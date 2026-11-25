@@ -30,6 +30,12 @@ A theme carries these settings besides its colors (all in `THEMELIB.BASE`; `THEM
 
 An old theme has none of these keys and gets the defaults, which draw exactly what it drew before (`tests/theme-compat-check.js`).
 
+## The editor
+
+Themes → a theme → Customize (or New theme) opens a draft with six tabs: Colors (palette presets, accent, text colors), Type, Surfaces, Spacing, Background and Effects. Each choice is a picture, the preview beside it follows the draft, and **Reset this section** puts one tab back to how the theme was. Nothing is saved until Save. In a Clock design or the tile designer, a **Theme** swatch makes a color follow the theme (Theme colors win still decides who wins). `tools/control/look-editor.js` holds the tabs; a new theme setting needs a place in `LTAB_KEYS` there.
+
+![The Colors tab](screenshots/theme-editor-colors.png)
+
 ## What may leave this Countertop
 
 A **wallpaper** is a picture uploaded to this Countertop's own data folder (PNG, JPEG or WebP, up to 8 MB, checked by its first bytes; `tools/server/wallpaper.py`). A theme only names its id, and a **photo album** is only named by its id too. Neither may travel. Everything that leaves goes through `THEMELIB.portable(values)`: a shared theme, a shared layout, a gallery submission and a Theme Studio prompt all call it, so a setting can't leak by being forgotten in one place. It drops the settings listed in `THEMELIB.LOCAL`, turns a theme on a wallpaper into a gradient one, and keeps only effects everyone has. Files and codes coming in are read with the same list: a wallpaper or album named in a shared file is ignored.

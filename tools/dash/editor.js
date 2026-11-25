@@ -330,7 +330,12 @@ function field(m, k, d){
     case "bool": return '<label class="kv">' + lab() + '<input type="checkbox" class="sw" ' + a + (v ? " checked" : "") + '></label>';
     case "int": case "number": return '<label class="kv">' + lab() + '<input type="number" ' + a + (d.min != null ? ' min="' + d.min + '"' : "") + (d.max != null ? ' max="' + d.max + '"' : "") +
       (d.type === "number" ? ' step="any"' : "") + ' value="' + esc(v == null ? "" : v) + '"></label>';
-    case "color": return '<label class="kv">' + lab() + '<input type="color" ' + a + ' value="' + esc(v || "#ffffff") + '"></label>';
+    case "color":
+      if (d.theme){      // a color that can follow the theme: "Theme" puts back the default, which the tile treats as "use the theme's"
+        const on = !v || String(v).toLowerCase() === String(d.default || "#ffffff").toLowerCase();
+        return '<div class="kv">' + lab() + '<span class="clrs"><button type="button" class="themeclr' + (on ? " on" : "") + '" data-act="themeclr" data-k="' + k + '">Theme</button><input type="color" ' + a + ' value="' + esc(v || "#ffffff") + '"></span></div>';
+      }
+      return '<label class="kv">' + lab() + '<input type="color" ' + a + ' value="' + esc(v || "#ffffff") + '"></label>';
     case "choice": return '<label class="kv">' + lab() + '<select ' + a + '>' + (d.choices || []).map(c => '<option' + (String(c).toLowerCase() === String(v).toLowerCase() ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select></label>';
     case "text": return '<label class="kv col">' + lab() + '<input type="text" ' + a + ' placeholder="' + esc(d.placeholder || "") + '" value="' + esc(v || "") + '"></label>';
     case "list": return '<label class="kv col">' + lab() + '<textarea rows="4" ' + a + ' placeholder="' + esc(d.placeholder || "One per line") + '">' + esc((v || []).join("\n")) + '</textarea></label>';
@@ -595,6 +600,7 @@ function boxAct(a, el){
   else if (a === "add"){ EDIT.panel = "add"; EDIT.addTo = s ? s.id : null; edPaint(true); }
   else if (a === "setup") openSetup(el.dataset.kind);
   else if (a.startsWith("ent")) entAct(a, el);
+  else if (a === "themeclr"){ const m = MODULES[EDIT.tile]; if (m){ remember(); m.s[el.dataset.k] = (tileDefs(m)[el.dataset.k] || {}).default || ""; relayout(); } }
   else if (a === "tksave" || a === "tkrm") sbxKeyAct(a, el);
   else if (a === "minetrust"){ const m = MODULES[EDIT.tile]; if (m && m.mine && m.mine.review){ sbxTrust(m).then(() => edPaint(true)); } }
   else if (a === "minerun"){ const m = MODULES[EDIT.tile]; if (m && m.it.review){ remember(); delete m.it.review; render(m.id); edPaint(true); } }

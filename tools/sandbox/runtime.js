@@ -323,10 +323,21 @@
     Intl.DateTimeFormat = Object.assign(function (l, o) { return new DTF(loc(l), o); }, { supportedLocalesOf: DTF.supportedLocalesOf });
     Intl.DateTimeFormat.prototype = DTF.prototype;
   }
+  var THEME_VARS = { fg: "fg", dim: "dim", accent: "accent", line: "line", font: "font", text: "text", textDim: "text-dim", faint: "text-faint",
+    surface: "surface", surfaceLine: "surface-line", ok: "ok", info: "info", warn: "warn", bad: "bad", radius: "radius", fontDisplay: "font-display" };
   function theme(t) {
     if (!t) return;
     var st = D.documentElement.style;
-    ["fg", "dim", "accent", "line", "font"].forEach(function (k) { if (typeof t[k] === "string") st.setProperty("--" + k, t[k]); });
+    Object.keys(THEME_VARS).forEach(function (k) { if (typeof t[k] === "string" && t[k].length < 400) st.setProperty("--" + THEME_VARS[k], t[k]); });
+  }
+  // Bundled theme fonts arrive as bytes from the dashboard (this frame's policy still has font-src 'none'): only these names, only a small file
+  var FONT_OK = { "Bebas Neue": 1, "DM Serif Display": 1, "Fraunces": 1, "JetBrains Mono": 1, "Nunito": 1, "Outfit": 1, "Space Grotesk": 1 }, FONTS = {};
+  function font(d) {
+    if (typeof d.family !== "string" || !FONT_OK[d.family] || FONTS[d.family] || !(d.data instanceof ArrayBuffer) || d.data.byteLength > 120000) return;
+    if (typeof d.weight !== "string" || !/^\d{3}( \d{3})?$/.test(d.weight)) return;
+    FONTS[d.family] = 1;
+    try { var ff = new FontFace(d.family, d.data, { weight: d.weight, display: "swap" }); ff.load().then(function () { D.fonts.add(ff); }, function () { delete FONTS[d.family]; }); }
+    catch (x) { delete FONTS[d.family]; }
   }
   function update(d) {
     if (d.s && typeof d.s === "object") S = d.s;
@@ -447,6 +458,8 @@
       if (DEF.css) { var st = D.createElement("style"); st.textContent = String(DEF.css); D.head.appendChild(st); }
       if (DEF.cls) ROOT.className = String(DEF.cls);
       draw();
+    } else if (d.ct === "fonts") {
+      font(d);
     } else if (d.ct === "update" && ME) {
       update(d);
       if (d.draw) draw(); else { report(); }

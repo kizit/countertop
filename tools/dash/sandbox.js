@@ -238,7 +238,38 @@ function sbxPost(rec, msg){ try{ rec.f.contentWindow.postMessage(msg, "*"); }cat
 const sbxPlain = v => v === undefined ? null : JSON.parse(JSON.stringify(v));
 function sbxTheme(el){
   const cs = getComputedStyle(el), v = k => cs.getPropertyValue(k).trim();
-  return {fg:v("--fg"), dim:v("--dim"), accent:v("--accent"), line:v("--line"), font:cs.fontFamily};
+  const font = v("--font") || cs.fontFamily;
+  // the old names (fg, dim, accent, line, font) stay; the rest are the semantic tokens from docs/theming.md
+  return {fg:v("--fg"), dim:v("--dim"), accent:v("--accent"), line:v("--line"), font,
+    text:v("--text"), textDim:v("--text-dim"), faint:v("--text-faint"), surface:v("--surface"), surfaceLine:v("--surface-line"),
+    ok:v("--ok"), info:v("--info"), warn:v("--warn"), bad:v("--bad"), radius:v("--radius"), fontDisplay:v("--font-display") || font};
+}
+/* Theme fonts. A frame can't load a font by address (its policy says font-src 'none', and stays that way). Instead this page
+   sends the bytes of the bundled fonts the theme names, as plain data in a message; the frame turns them into a FontFace.
+   Only the fixed list below can be sent, so a tile can't ask for anything else, and nothing about the tile goes the other way. */
+const SBX_FONTS = {"Bebas Neue":["BebasNeue-400", "400"], "DM Serif Display":["DMSerifDisplay-400", "400"], "Fraunces":["Fraunces-300", "300 700"],
+  "JetBrains Mono":["JetBrainsMono-300", "300 600"], "Nunito":["Nunito-300", "300 800"], "Outfit":["Outfit-200", "200 600"], "Space Grotesk":["SpaceGrotesk-300", "300 600"]};
+// the theme changed: every running frame gets the new tokens (and any font it hasn't been sent yet)
+function sbxThemeChanged(){ if (typeof SBX !== "undefined") for (const rec of SBX.frames.values()) if (rec.ready) sbxUpdate(rec, false); }
+const sbxFontCache = new Map();
+function sbxFontData(family){
+  if (!sbxFontCache.has(family)) sbxFontCache.set(family, fetch("/fonts/" + SBX_FONTS[family][0] + ".woff2").then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error("font " + r.status))).catch(() => { sbxFontCache.delete(family); return null; }));
+  return sbxFontCache.get(family);
+}
+function sbxFontsFor(t){
+  const names = new Set();
+  for (const f of [t.font, t.fontDisplay]) for (const m of String(f || "").matchAll(/["']?([A-Za-z][A-Za-z0-9 ]*)["']?\s*(?:,|$)/g)) if (SBX_FONTS[m[1].trim()]) names.add(m[1].trim());
+  return [...names];
+}
+async function sbxSendFonts(rec, t){
+  rec.fonts = rec.fonts || new Set();
+  const want = sbxFontsFor(t).filter(f => !rec.fonts.has(f));
+  want.forEach(f => rec.fonts.add(f));
+  for (const family of want){
+    const data = await sbxFontData(family);
+    if (!data){ rec.fonts.delete(family); continue; }
+    if (SBX.frames.get(rec.id) === rec) sbxPost(rec, {ct:"fonts", family, weight:SBX_FONTS[family][1], data});
+  }
 }
 // what the tile may know, worked out here from what it declared
 function sbxAnswer(m, what, arg){
@@ -258,6 +289,7 @@ function sbxAnswer(m, what, arg){
 function sbxUpdate(rec, draw){
   if (!rec.ready) return;
   const m = rec.m, msg = {ct:"update", draw:!!draw}, put = (k, v) => { const j = JSON.stringify(v); if (rec.sent[k] !== j){ rec.sent[k] = j; msg[k] = v; } };
+  const th = sbxTheme(rec.el); put("theme", th); sbxSendFonts(rec, th);
   put("s", sbxS(m)); put("name", m.name); put("quiet", tileQuiet()); put("taps", !!m.taps && !tileQuiet());
   if (tileUsesStore(m)) put("store", {data:m.store.get(), ready:m.store.ready});
   const answers = {};
@@ -275,8 +307,9 @@ function sbxInit(rec){
   const store = tileUsesStore(m) ? {data:m.store.get(), ready:m.store.ready} : {data:{}, ready:true};
   rec.sent.store = JSON.stringify(store);
   rec.f.style.pointerEvents = m.taps && !tileQuiet() ? "auto" : "none";
+  const th0 = sbxTheme(rec.el); rec.sent.theme = JSON.stringify(th0); sbxSendFonts(rec, th0);
   sbxPost(rec, {ct:"init", id:m.id, s:sbxS(m), name:m.name, quiet:tileQuiet(), taps:!!m.taps && !tileQuiet(), store, fetched,
-    lang:I18N.lang, words:I18N.lang === "en" ? {} : I18N.words, locale:I18N.locale || null, theme:sbxTheme(rec.el)});
+    lang:I18N.lang, words:I18N.lang === "en" ? {} : I18N.words, locale:I18N.locale || null, theme:th0});
   if (SOLO && (SBX_PICK.on || SBX_PICK.pins.length)) sbxPickSend(rec);
 }
 // a web address, read by the server (GET /tile-fetch) for a site the tile declared; kept per tile, so a new frame starts with it

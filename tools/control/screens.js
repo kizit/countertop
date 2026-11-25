@@ -235,13 +235,15 @@ function displayScreen(){
       (ECHO ? '<button class="btnrow blue" data-act="screenmatch">Use this screen: ' + thisScreen().replace("x", "×") + '</button>' : ""),
       ECHO ? "Echo Shows list their panel size. Press the button to use what this screen really reports." : "Echo Show sizes are the panel resolution. If Controls is open on the Echo itself, a button there uses its real size.") +
     (ECHO ? "" : '<p class="intro">By default /dash on this computer fills the browser window, so it changes shape when you resize it. To test a particular screen, pick a size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller.</p>' +
-      sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>',
-        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window."));
+      sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>' +
+        '<div class="row col"><label class="t" for="display-fs">Full screen when you tap /dash</label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>',
+        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window. /dash?fullscreen=0 turns full screen off in this browser and ?fullscreen=1 turns it back on. Off only stops the browser going full screen; a tap still arms keep-alive."));
 }
 function screenOptions(){
   const list = SCREEN_SIZES.some(x => x[0] === screenSz) ? SCREEN_SIZES : [[screenSz, "Custom · " + screenSz.replace("x", "×")]].concat(SCREEN_SIZES);
   return list.map(([v, l]) => '<option value="' + v + '"' + (v === screenSz ? " selected" : "") + '>' + l + '</option>').join("");
 }
+function fsCur(){ try{ return localStorage.getItem("countertop.fullscreen") !== "0"; }catch(e){ return true; } }
 function sizeCur(){ try{ return localStorage.getItem("countertop.screenSize") || ""; }catch(e){ return ""; } }
 function sizeOptions(){
   const cur = sizeCur(), known = cur === "" || cur === "dash" || SCREEN_SIZES.some(x => x[0] === cur);

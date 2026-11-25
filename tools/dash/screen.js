@@ -345,11 +345,19 @@ function tick(){
 }
 
 /* ---------- touch or "Alexa, select": fullscreen + keep-alive live in the shell page ---------- */
+// per browser: Controls > Screen or /dash?fullscreen=0 turns off going full screen on a tap
+function fullscreenOff(){ try{ return localStorage.getItem("countertop.fullscreen") === "0"; }catch(e){ return false; } }
+(function(){
+  const q = new URLSearchParams(location.search).get("fullscreen");
+  if (q === null || FRAMED) return;
+  try{ if (q === "0") localStorage.setItem("countertop.fullscreen", "0"); else localStorage.removeItem("countertop.fullscreen"); }catch(e){}
+  const u = new URL(location.href); u.searchParams.delete("fullscreen"); history.replaceState(history.state, "", u);
+})();
 function armScreen(){
   if (PREVIEW) return;
   if (EDIT.on) return;          // asking for fullscreen mid-gesture cancels the touch, which breaks drags and scrolling in the editor
   if (FRAMED){ try{ window.top.shellTap(); }catch(e){} }
-  else { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+  else { const el = document.documentElement; if (!fullscreenOff() && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
   $("hint").classList.add("gone");
 }
 document.addEventListener("pointerdown", armScreen);

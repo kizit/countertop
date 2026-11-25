@@ -53,6 +53,10 @@ document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
   if (t.id === "display-orientation"){ displaySet(t); return; }
   if (t.id === "display-screen"){ screenSave(t.value, t); return; }
+  if (t.id === "display-fs"){         // this browser only; the shell and the dashboard read it on each tap
+    try{ if (t.value === "0") localStorage.setItem("countertop.fullscreen", "0"); else localStorage.removeItem("countertop.fullscreen"); }catch(e){}
+    toast(t.value === "0" ? "/dash in this browser no longer goes full screen on a tap" : "/dash in this browser goes full screen on a tap", "ok"); return;
+  }
   if (t.id === "display-size"){       // this browser only: the dashboard in another tab follows through the storage event
     try{ if (t.value) localStorage.setItem("countertop.screenSize", t.value); else localStorage.removeItem("countertop.screenSize"); }catch(e){}
     toast(t.value ? "/dash in this browser now keeps that size" : "Dashboard in this browser fills the window", "ok"); return;

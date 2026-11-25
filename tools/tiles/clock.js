@@ -56,16 +56,19 @@ Tile("clock", {
     const key = [st, s.font, s.size, s.align, s.color, s.date].join("|");
     if (!el.querySelector(":scope > .m-clock") || el._k !== key){
       el._k = key; el._c = false;
-      el.innerHTML = '<div class="m-clock cs-' + st + '"><div class="t" data-part="time"></div><div class="d"></div><div class="c" data-part="count"></div></div>';
+      el.innerHTML = '<div class="m-clock cs-' + st + '"><div class="t" data-part="time" data-keep></div><div class="d"></div><div class="c" data-part="count"></div></div>';
       styleBox(el.firstChild, s, st, "Left");
       el.querySelector(".t").style.color = s.color && s.color.toLowerCase() !== "#ffffff" && !THEMEV.themeWins ? s.color : "";      // the theme can win over this
     }
     const th = this.timeHtml(d);
     const te = el.querySelector(".t"); if (te.innerHTML !== th) te.innerHTML = th;
     const sea = season(d);
-    const bday = STATE.bday.length ? '  ·  <b data-part="bday">🎂 ' + STATE.bday.map(e => esc(e.summary)).join(", ") + '</b>' : "";
-    const html = s.date === false ? "" : '<span data-part="date">' + esc(fmtLongDate(d)) + '</span>' + (s.greeting ? '  ·  <span data-part="greet">' + esc(hello(d)) + '</span>' : "") +
-      (sea.greet ? '  <b data-part="holiday">' + esc(sea.greet) + '</b>' : "") + bday;
+    const bits = [];
+    if (s.date !== false) bits.push('<span data-part="date">' + esc(fmtLongDate(d)) + '</span>');
+    if (s.greeting) bits.push('<span data-part="greet">' + esc(hello(d)) + '</span>');
+    if (sea.greet) bits.push('<b data-part="holiday">' + esc(sea.greet) + '</b>');
+    if (STATE.bday.length) bits.push('<b data-part="bday">🎂 ' + STATE.bday.map(e => esc(e.summary)).join(", ") + '</b>');
+    const html = bits.join("  ·  ");      // the date, greeting, holiday and birthdays each have their own switch (or none)
     const de = el.querySelector(".d"); if (de.innerHTML !== html) de.innerHTML = html;
     if (d.getSeconds() === 0 || !el._c){ el._c = true; el.querySelector(".c").textContent = this.countdowns(d); }
   }

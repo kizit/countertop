@@ -48,7 +48,7 @@ Tile("weather", {
     }
     const line = st === "compact" || st === "minimal";
     el.innerHTML = '<div class="m-weather ws-' + st + '"><div class="row">' + (s.icon !== false ? '<div class="g" data-part="icon">' + w.g + '</div>' : "") +
-      '<div class="tt" data-part="temp">' + Math.round(cur.temperature_2m) + '°</div>' + (parts.length ? '<div class="m">' + parts.join(line ? "  ·  " : "<br>") + '</div>' : "") + '</div>' +
+      '<div class="tt" data-part="temp" data-keep>' + Math.round(cur.temperature_2m) + '°</div>' + (parts.length ? '<div class="m">' + parts.join(line ? "  ·  " : "<br>") + '</div>' : "") + '</div>' +
       (sub ? '<div class="s">' + sub + '</div>' : "") + (s.rain && STATE.rain ? '<div class="rn" data-part="rain">' + STATE.rain + '</div>' : "") + '</div>';
     styleBox(el.firstChild, s, st, "Right");
   }

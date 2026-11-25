@@ -1,0 +1,1 @@
+- **New options on the calendar tiles.** Week ahead and Month can hide the weather (Month can also hide holidays), Next hours and the Night clock can choose which calendars they show, Next hours can hide events, and a tall Week ahead shows more events per day. Matches show the icon for their sport.

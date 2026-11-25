@@ -10,6 +10,11 @@ function teamShort(n){
   const caps = n.split(/\s+/).find(w => w.length >= 3 && w === w.toUpperCase() && /[A-Z]/.test(w));
   return caps || n.split(/\s+/).map(w => w[0]).join("").slice(0, 4).toUpperCase();
 }
+// the icon for a team's matches: the sport its league is for (a soccer league unless the source says otherwise)
+function sportIcon(league){
+  const l = String(league || "").toLowerCase();
+  return /nfl|football\./.test(l) ? "🏈" : /nba|basketball/.test(l) ? "🏀" : /mlb|baseball/.test(l) ? "⚾" : /nhl|hockey/.test(l) ? "🏒" : "⚽";
+}
 function holidayOn(d){ const k = dayKey(d); const h = holidaysIn(d.getFullYear()).find(x => dayKey(x.d) === k); return h ? h.t : ""; }
 // collapse repeats (weekly shows) into their next showing, tagged
 function collapseRepeats(list){
@@ -41,7 +46,7 @@ function teamMatchesOn(day, teams){
   const k = dayKey(day), out = [];
   for (const id of (teams && teams.length ? teams : Object.keys(STATE.teams))){
     const t = STATE.teams[id]; if (!t) continue;
-    for (const g of [t.next, t.last].concat(t.upcoming || [])) if (g && g.date && dayKey(new Date(g.date)) === k){ out.push({g, team:t.team}); break; }
+    for (const g of [t.next, t.last].concat(t.upcoming || [])) if (g && g.date && dayKey(new Date(g.date)) === k){ out.push({g, team:t.team, league:t.league}); break; }
   }
   return out;
 }

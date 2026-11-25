@@ -5,17 +5,19 @@ Tile("week", {
   desc:"The next few days side by side: each day's weather, your events, holidays and your teams' matches. Today gets the most room.",
   settings:{
     days:{type:"int", label:"Days to show", default:7, min:3, max:7},
-    perDay:{type:"int", label:"Events per day", default:2, min:0, max:4},
+    perDay:{type:"int", label:"Events per day (more in a tall box)", default:2, min:0, max:4},
     cals:{type:"source", kind:"calendars", multi:true, label:"Calendars", default:[]},
     teams:{type:"source", kind:"teams", multi:true, label:"Teams' matches", default:[]},
-    holidays:{type:"bool", label:"Holidays", default:true}
+    holidays:{type:"bool", label:"Holidays", default:true},
+    weather:{type:"bool", label:"Show weather", default:true}
   },
 
   render(el){
-    const s = this.s, j = STATE.wx, n = Math.max(3, Math.min(7, s.days || 7)), per = s.perDay == null ? 2 : s.perDay;
+    const s = this.s, j = s.weather === false ? null : STATE.wx, n = Math.max(3, Math.min(7, s.days || 7)), set = s.perDay == null ? 2 : s.perDay;
     const today = startOfDay(new Date());
     el.className = "m-week";
     const wrap = !EDIT.on && matchMedia("(orientation:portrait)").matches;
+    const dayH = (el.clientHeight || 0) / (wrap ? 2 : 1), per = set > 0 && dayH > 380 ? Math.max(set, Math.floor((dayH - 150) / 36)) : set;      // a tall box shows more events; weekFit drops what doesn't fit
     const columns = Math.ceil((n + 1) / 2);
     el.style.gridTemplateColumns = wrap ? "repeat(" + columns + ",minmax(0,1fr))" : "2.1fr repeat(" + (n - 1) + ",1fr)";
     el.style.gridTemplateRows = wrap ? "repeat(2,minmax(0,1fr))" : "";
@@ -37,21 +39,21 @@ Tile("week", {
       if (i === 0) evs = evs.filter(e => e.allDay || evDate(e).getTime() > Date.now() - 1800e3);
       const chips = [];
       if (hol) chips.push('<div class="ev hol">' + esc(hol) + '</div>');
-      for (const {g:match, team} of matches) chips.push('<div class="ev team">' + (match.done ? "" : shortTime(new Date(match.date)) + " ") + '⚽ ' + esc(teamShort(team)) + (match.home ? " vs " : " @ ") + esc(match.opp) + '</div>');
+      for (const {g:match, team, league} of matches) chips.push('<div class="ev team">' + (match.done ? "" : shortTime(new Date(match.date)) + " ") + sportIcon(league) + ' ' + esc(teamShort(team)) + (match.home ? " vs " : " @ ") + esc(match.opp) + '</div>');
       if (i === 0){
         evs.slice(0, 3).forEach(e => chips.push('<div class="ev"><em>' + (e.allDay ? tr("All day") : esc(fmtTime(evDate(e)))) + '</em>' + esc(e.summary) + '</div>'));
         if (!evs.length && !hol && !matches.length){
           const tm = eventsOn(new Date(today.getTime() + 86400e3 + 7200e3), this.s.cals)[0];
           chips.push('<div class="ev">' + tr("Nothing else today") + ' 🎉</div>');
-          if (tm) chips.push('<div class="ev"><em>Tmrw</em>' + esc(tm.summary) + (tm.allDay ? "" : " · " + esc(fmtTime(evDate(tm)))) + '</div>');
+          if (tm) chips.push('<div class="ev"><em>' + tr("Tomorrow") + '</em>' + esc(tm.summary) + (tm.allDay ? "" : " · " + esc(fmtTime(evDate(tm)))) + '</div>');
         }
       } else {
         evs.slice(0, per).forEach(e => chips.push('<div class="ev">' + (e.allDay ? "" : esc(shortTime(evDate(e))) + " ") + esc(e.summary) + '</div>'));
         if (evs.length > per) chips.push('<div class="more">+' + (evs.length - per) + ' more</div>');
       }
-      html += '<div class="day' + (i === 0 ? " today" : "") + '"><div class="dn"><b>' + dn + '</b><span>' +
+      html += '<div class="day' + (i === 0 ? " today" : "") + '"><div class="dn"><b' + (i === 0 ? " data-keep" : "") + '>' + dn + '</b><span>' +
         (i === 0 ? day.toLocaleDateString([], {weekday:"short", day:"numeric"}) : day.getDate()) + '</span></div>' +
-        '<div class="w">' + w + '</div>' + (i ? '<div class="pp">' + (pp || "&nbsp;") + '</div>' : "") + chips.join("") + '</div>';
+        (j ? '<div class="w">' + w + '</div>' : "") + (i && j ? '<div class="pp">' + (pp || "&nbsp;") + '</div>' : "") + chips.join("") + '</div>';
     }
     el.innerHTML = html;
     if (wrap){
@@ -77,5 +79,6 @@ function weekFit(el){
       if (!m){ m = document.createElement("div"); m.className = "more"; d.appendChild(m); }
       m.textContent = "+" + (base + hid) + " more";
     }
+    for (const x of [".more", ".pp"]) if (d.scrollHeight > d.clientHeight + 1 && d.querySelector(x)) d.querySelector(x).remove();      // a very small box: no room even for the count
   }
 }

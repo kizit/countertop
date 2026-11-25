@@ -270,7 +270,7 @@ function field(mid, key, s, val){
   const a = 'data-m="' + mid + '" data-k="' + key + '" data-t="' + s.type + '"';
   if (s.type === "bool") return row({t:s.label, post: sw(val, a)});
   if (s.type === "color") return row({t:s.label, post:'<input type="color" ' + a + ' value="' + esc(val || "#000000") + '">'});
-  if (s.type === "choice") return row({t:s.label, post:'<select ' + a + '>' + s.choices.map(c => '<option' + (c === val ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select>'});
+  if (s.type === "choice") return row({t:s.label, post:'<select ' + a + '>' + s.choices.map(c => '<option' + (String(c).toLowerCase() === String(val).toLowerCase() ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select>'});
   if (s.type === "int" || s.type === "number")
     return row({t:s.label, sub:(s.min != null && s.max != null ? s.min + "–" + s.max : ""), post:'<input type="number" ' + a + (s.min != null ? ' min="' + s.min + '"' : "") +
       (s.max != null ? ' max="' + s.max + '"' : "") + ' step="' + (s.type === "int" ? 1 : "any") + '" value="' + esc(val) + '" inputmode="decimal">'});

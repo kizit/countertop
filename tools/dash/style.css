@@ -235,8 +235,8 @@
   .m-dinner{display:flex;flex-direction:column;gap:12px}
   .m-dinner h3{margin-bottom:0}
   .m-dinner .ph{flex:1 1 auto;min-height:110px;border-radius:14px;background:#2a2f38 center/cover;position:relative;overflow:hidden}
-  .m-dinner .ph div{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.78))}
-  .m-dinner .ph b{display:block;font-size:24px;font-weight:600;line-height:1.2;color:#fff}
+  .m-dinner .ph div{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 12px;background:linear-gradient(transparent 0,rgba(0,0,0,.78) 55%)}
+  .m-dinner .ph b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:24px;font-weight:600;line-height:1.2;color:#fff}
   .m-dinner .ph span{color:#d6dbe2;font-size:16px}
   .m-dinner small{font-size:13px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint)}
   .m-dinner .chips{display:flex;flex-wrap:wrap;gap:7px}

@@ -1,0 +1,1 @@
+- **Dessert ideas fit the smallest Dinner box.** A two-line recipe title is no longer cut off.

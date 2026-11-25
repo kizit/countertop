@@ -1,0 +1,1 @@
+Theme Studio: describe a look to an AI you already use (Countertop writes the prompt and checks the answer), or start from a wallpaper's colors, and edit the result like any new theme. Shared themes can now be filed under a category for the community gallery.

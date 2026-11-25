@@ -172,6 +172,7 @@ function screenFor(cur){
   else if (cur.startsWith("emo:")){ h = emoScreen(cur); title = "Swap emoji"; }
   else if (cur.startsWith("fxedit:")){ h = fxEditScreen(cur.slice(7)); title = FXDRAFT && FXDRAFT.isNew ? "New effect" : "Edit effect"; }
   else if (cur.startsWith("share:")){ h = shareScreen(cur.slice(6)); title = "Share"; }
+  else if (cur === "tstudio"){ h = thsScreen(); title = "Theme Studio"; }
   else if (cur === "timp"){ h = themeImpScreen(); title = "Open a theme"; }
   else if (cur === "fximp"){ h = fxImpScreen(); title = "Open an effect"; }
   else if (cur.startsWith("fx:")){ h = fxScreen(cur.slice(3)); title = (FXLIB.BY[cur.slice(3)] || {}).name || "Effect"; }
@@ -179,7 +180,7 @@ function screenFor(cur){
   return {h, title};
 }
 function backLabel(prev){
-  const LBL = {"mod:general":"Location & units", root:"Dashboard", looks:"Themes", sched:"Schedule", effects:"Effects", night:"Night page"};
+  const LBL = {"mod:general":"Location & units", root:"Dashboard", looks:"Themes", tstudio:"Theme Studio", sched:"Schedule", effects:"Effects", night:"Night page"};
   return !prev ? "" : LBL[prev] ? LBL[prev] : prev === "look:new" ? "New theme" : prev.startsWith("look:") ? "Customize" : prev.startsWith("theme:") ? lookName(prev.slice(6)) : prev.startsWith("src:") ? KINDS[prev.slice(4)].title :
     prev === "page:main" ? "Main" : prev.startsWith("page:") ? ((cpById(prev.slice(5)) || {}).name || "Page") : prev === "saved" ? "Saved layouts" : prev.startsWith("fx:") ? (FXLIB.BY[prev.slice(3)] || {}).name || "Effect" : "Back";
 }

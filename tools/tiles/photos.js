@@ -14,12 +14,12 @@ Tile("photos", {
     if (!P || !P.photos || !P.photos.length){
       const none = !(SOURCES.albums || []).length;
       const why = none ? "Add a photo album in Setup → Photo albums" : P && P.error ? "Couldn't load the album: " + P.error : "Loading photos…";
-      el.innerHTML = '<div class="ph"><b>📷</b><div>' + esc(this.name) + '</div><small>' + esc(why) + '</small></div>';
+      el.innerHTML = '<div class="ph" data-keep><b>📷</b><div>' + esc(this.name) + '</div><small>' + esc(why) + '</small></div>';
       el._layers = null; el._shown = null;
       return;
     }
     if (!el._layers){
-      el.innerHTML = '<div class="blur" data-deco></div><div class="img"></div><div class="blur" data-deco style="opacity:0"></div><div class="img" style="opacity:0"></div><div class="cap"></div>';
+      el.innerHTML = '<div class="blur" data-deco></div><div class="img" data-keep></div><div class="blur" data-deco style="opacity:0"></div><div class="img" data-keep style="opacity:0"></div><div class="cap"></div>';
       el._layers = true; el._flip = 0; el._order = []; el._i = -1; el._errs = 0;
     }
     if (el._shown && Date.now() - el._shownAt < (s.every || 60) * 1000 - 500) return;
@@ -35,7 +35,10 @@ Tile("photos", {
       el._errs = 0;
       const blurs = el.querySelectorAll(".blur"), imgs = el.querySelectorAll(".img"), f = el._flip;
       if (imgs.length < 2) return;
-      const portrait = (img.naturalHeight && img.naturalWidth) ? img.naturalHeight > img.naturalWidth : ph.h > ph.w;
+      // show the whole photo on blurred bars when filling the box would crop away more than a quarter of it
+      const pw = img.naturalWidth || ph.w, pht = img.naturalHeight || ph.h, bw = el.clientWidth, bh = el.clientHeight;
+      const pa = pw && pht ? pw / pht : 0, ba = bw && bh ? bw / bh : 0;
+      const portrait = pa && ba ? Math.min(pa, ba) / Math.max(pa, ba) < 0.75 : pht > pw;
       blurs[1 - f].style.backgroundImage = imgs[1 - f].style.backgroundImage = 'url("' + ph.url + '")';
       imgs[1 - f].classList.toggle("fit", portrait);
       blurs[1 - f].style.opacity = portrait ? "1" : "0"; imgs[1 - f].style.opacity = "1";

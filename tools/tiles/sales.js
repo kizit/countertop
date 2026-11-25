@@ -22,7 +22,7 @@ Tile("sales", {
         (st.watching ? "Watching " + st.watching + " things you buy" + (upd ? " · checked " + upd.toLocaleDateString([], {weekday:"short"}) + " " + shortTime(upd) : "") : "") + '</div></div>';
       if (!D.length){ el.innerHTML = h + '<div class="empty big">' + empty + '</div>'; return; }
       const until = d => { const t = d.until ? new Date(d.until) : null; return t && !isNaN(t) ? "through " + new Date(t - 1000).toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}) : ""; };
-      el.innerHTML = h + '<div class="sgrid">' + D.slice(0, n).map(d => {
+      el.innerHTML = h + '<div class="sgrid" data-keep>' + D.slice(0, n).map(d => {
         const price = !d.price || /^\s*sale\s*$/i.test(d.price) ? "On sale" : d.price;
         const save = d.usual && d.now && d.usual > d.now + 0.05 ? "You usually pay $" + d.usual.toFixed(2) : (d.story && !/^\s*(on )?sale\s*$/i.test(d.story) ? d.story : "");
         return '<div class="sc' + (d.why === "onlist" ? " onlist" : "") + '">' +
@@ -34,7 +34,7 @@ Tile("sales", {
       return;
     }
     let h = '<h3><span>' + esc(this.name) + '</span><small>' + (D.length ? "things you usually buy" : "") + '</small></h3>';
-    h += D.length ? '<div class="dl">' + D.slice(0, n).map(dealRow).join("") + '</div>' : '<div class="empty">' + empty + '</div>';
+    h += D.length ? '<div class="dl" data-keep>' + D.slice(0, n).map(dealRow).join("") + '</div>' : '<div class="empty">' + empty + '</div>';
     el.innerHTML = h;
   }
 });

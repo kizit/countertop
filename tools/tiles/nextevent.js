@@ -25,7 +25,7 @@ Tile("nextevent", {
     const d = evDate(e), mins = Math.round((d - Date.now()) / 60e3), days = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400e3);
     const rel = mins <= 0 ? tr("Now") : mins < 60 ? tr("In {min} min", {min:mins}) : days === 0 ? (mins % 60 ? tr("In {h} h {min} min", {h:Math.floor(mins / 60), min:mins % 60}) : tr("In {h} h", {h:mins / 60})) :
       days === 1 ? tr("Tomorrow") : d.toLocaleDateString([], {weekday:"long"});
-    el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="when">' + esc(rel) + '</div><div class="what"' + (e.color ? ' style="border-left:6px solid ' + esc(e.color) + ';padding-left:12px"' : "") + '>' + esc(e.summary || "") + '</div>' +
+    el.innerHTML = '<h3>' + esc(this.name) + '</h3><div class="when">' + esc(rel) + '</div><div class="what" data-keep' + (e.color ? ' style="border-left:6px solid ' + esc(e.color) + ';padding-left:12px"' : "") + '>' + esc(e.summary || "") + '</div>' +
       '<div class="sub">' + (e.allDay ? tr("All day") : fmtTime(d)) + (days > 1 ? " · " + d.toLocaleDateString([], {month:"short", day:"numeric"}) : "") + (e.location ? " · " + esc(e.location) : "") + '</div>';
   }
 });

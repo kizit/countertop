@@ -7,7 +7,7 @@ viewTile("cam", {
     every:{type:"int", label:"Switch cams every (seconds)", default:600, min:60, max:7200}
   }
 }, {
-  build(box){ box.innerHTML = '<div class="cam"></div><div class="ovl tl cm"><b></b><span></span></div>'; this.box = box; this.i = -1; this.at = 0; },
+  build(box){ box.innerHTML = '<div class="cam" data-keep></div><div class="ovl tl cm"><b></b><span></span></div>'; this.box = box; this.i = -1; this.at = 0; },
   async show(){
     if (!this.data || Date.now() - this.at > 20 * 60e3){
       try{ this.data = await getJSON("/cams" + ((this.s.cams || []).length ? "?ids=" + encodeURIComponent(this.s.cams.join(",")) : "")); this.at = Date.now(); }catch(e){ this.data = {cams:[], errors:[String(e)]}; }

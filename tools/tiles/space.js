@@ -3,7 +3,12 @@ viewTile("space", {
   title:"Space photo", cat:"Photos & video", size:[26, 18, 12, 8],
   desc:"NASA's Astronomy Picture of the Day, with its title and a short explanation."
 }, {
-  build(box){ box.innerHTML = '<div class="img"></div><div class="ovl bl ap"></div>'; this.box = box; this.at = 0; },
+  build(box){
+    box.innerHTML = '<div class="img" data-keep></div><div class="ovl bl ap"></div>'; this.box = box; this.at = 0;
+    // a short box keeps the picture: the explanation is left out so the text never covers it
+    const size = () => box.classList.toggle("short", box.clientHeight < 300);
+    size(); if (window.ResizeObserver) new ResizeObserver(size).observe(box);
+  },
   async show(){
     if (Date.now() - this.at < 30 * 60e3 && this.data) return;
     try{ this.data = await getJSON("/space"); this.at = Date.now(); }catch(e){ this.data = null; }

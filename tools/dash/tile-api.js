@@ -98,7 +98,7 @@ function dealFor(text){   // a list item that is on sale this week
 
 /* text tiles (on this day, dad joke, kitchen tip): fade to a new item; a punchline shows a few seconds later */
 function funShow(el, item, punchAfter){
-  if (!el.querySelector(".tx")) el.innerHTML = '<h3 class="hd"></h3><div class="tx"></div>';
+  if (!el.querySelector(".tx")) el.innerHTML = '<h3 class="hd"></h3><div class="tx" data-keep></div>';
   const tx = el.querySelector(".tx"), first = !tx.textContent;
   tx.classList.toggle("fade", !first);
   setTimeout(() => {

@@ -189,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(bench.results())
         elif p == "/version":
             # the shell polls this and reloads the iframe when the dashboard page, a tile file, the settings or Setup change
-            self._json({"v": dash_version(), "orientation": dashboard_orientation()})
+            self._json({"v": dash_version(), "orientation": dashboard_orientation(), "screen": dashboard_screen()})
         elif p == "/status":
             if parse_qs(urlparse(self.path).query).get("check"):
                 update_check(force=True)
@@ -512,7 +512,7 @@ def main():
 
 # names used only inside functions: imported last, so these modules can use each other
 from server.actions import tile_act  # noqa: E402
-from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, live_tiles, tile_convert, tile_restore, tile_trust  # noqa: E402
+from server.config import CONFIG_FILE, SCHEMA, SERVER_START, config_load, config_save, dashboard_orientation, dashboard_screen, live_tiles, tile_convert, tile_restore, tile_trust  # noqa: E402
 from server.core import CAL_STATUS, HERE, ICS_CACHE, LOG, OLD_LOG, SCREEN, WORK, _Tee, lan_ip, log_entry  # noqa: E402
 from server.feeds.calendar import SAMPLE_ICS, parse_ics  # noqa: E402
 from server.feeds.cams import live_cams  # noqa: E402

@@ -109,9 +109,9 @@ function libTileShot(t, d, big){
   if (ECHO && !big) return '<span class="tp"><span class="tpname">' + esc(d.title || t) + '</span></span>';
   return '<span class="tp' + (big ? " big" : "") + '"><iframe tabindex="-1" aria-hidden="true" data-w="' + w + '" data-h="' + h + '" data-src="/dash/content?preview=1&solo=' + t + (big ? "" : "&still=1") + '"></iframe></span>';
 }
-// where a w x h tile really sits in the 1920x1080 preview page: inside its 36/22px margins, on a 48 x 32 grid with 16px gaps
+// where a w x h tile really sits in the (landscape) preview page: inside its 36/22px margins, on a 48 x 32 grid with 16px gaps
 function libTileRect(w, h){
-  const cw = (1920 - 72 - 47 * 16) / 48, ch = (1080 - 22 - 26 - 31 * 16) / 32;
+  const [sw, sh] = screenSz.split("x").map(Number), cw = (sw - 72 - 47 * 16) / 48, ch = (sh - 22 - 26 - 31 * 16) / 32;
   w = Math.max(1, Math.min(48, w)); h = Math.max(1, Math.min(32, h));
   return {x:36, y:22, w:w * cw + (w - 1) * 16, h:h * ch + (h - 1) * 16};
 }
@@ -158,7 +158,7 @@ function libTrialBody(key){
 async function libPreview(key){
   const box = libEl().querySelector(".lbig"); if (!box || ECHO) return;
   const want = key + "|" + LIB.look + "|" + JSON.stringify(LIB.slots);
-  const f = box.querySelector("iframe"), fit = () => { const W = displayMode === "auto" ? 1920 : 1080; f.style.width = W + "px"; f.style.height = (displayMode === "auto" ? 1080 : 1920) + "px"; f.style.transform = "scale(" + box.clientWidth / W + ")"; };
+  const f = box.querySelector("iframe"), fit = () => scrFit(f, box.clientWidth);
   fit();
   if (want === LIB.pvKey && LIB.pvId){ f.src = "/dash/content?preview=1&trial=" + LIB.pvId; return; }
   LIB.pvKey = want;
@@ -477,8 +477,7 @@ async function themeImpTrial(){
 }
 function libPvFit(){
   const f = document.getElementById("libpv"); if (!f) return;
-  const W = displayMode === "auto" ? 1920 : 1080;
-  f.style.width = W + "px"; f.style.height = (displayMode === "auto" ? 1080 : 1920) + "px"; f.style.transform = "scale(" + f.parentNode.clientWidth / W + ")";
+  scrFit(f, f.parentNode.clientWidth);
 }
 function libDirty(){
   if (!(DRAFT && draftDirty()) && !fxDirty()) return false;

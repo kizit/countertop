@@ -16,7 +16,7 @@ function rootScreen(){
     row({t:"Location", sub: g.place || (g.lat ? g.lat + ", " + g.lon : "Not set: needed for weather"), chev:true, attrs:'data-go="gen:place"'}) +
     row({t:"Language and formats", sub:langSummary(), chev:true, attrs:'data-go="gen:lang"'}) +
     row({t:"Icons and emoji", sub:({"Simple symbols":"Simple symbols", "No emoji":"Words only"})[g.emoji] || "Color emoji", chev:true, attrs:'data-go="gen:icons"'}) +
-    row({t:"Screen orientation", sub:MOUNTS[displayMode], chev:true, attrs:'data-go="display"'}) +
+    row({t:"Screen", sub:MOUNTS[displayMode] + " · " + screenSz.replace("x", "×"), chev:true, attrs:'data-go="display"'}) +
     row({t:"Settings button on the screen", post: sw(g.gear !== false, 'data-m="general" data-k="gear" data-t="bool"')}));
   const all = gpAll(), main = all.find(p => p.id === "main"), night = all.find(p => p.id === "night"), CP = cpList(), SV = savedList();
   h += sec("Pages", row({t:"Main", sub:pageShort(main), v:"Start page", chev:true, attrs:'data-go="page:main"', pre:(CP.length > 1 && !ECHO ? '<span class="grip none" aria-hidden="true">⋮⋮</span>' : "") + pagePic(main, null, "pthumb")}) +
@@ -230,15 +230,22 @@ function displayScreen(){
   return '<p class="intro">Automatic follows the shape of each screen. Pick Landscape or Portrait to keep every page in that orientation. If the dashboard appears sideways on a turned screen, choose which edge of the landscape screen is now at the top.</p>' +
     sec("", '<div class="row col"><label class="t" for="display-orientation">Orientation</label><select id="display-orientation">' + options + '</select></div>',
       "Applies to every display using this dashboard.") +
-    (ECHO ? "" : '<p class="intro">By default the dashboard fills the browser window, so it changes shape when you resize it. To test how it looks on a particular screen, pick that screen\'s size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller. Other displays are not affected.</p>' +
-      sec("This browser only", '<div class="row col"><label class="t" for="display-size">Screen size on this browser</label><select id="display-size">' + sizeOptions() + '</select></div>',
-        "For any other size, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window."));
+    '<p class="intro">Screen size is what the previews and the layout editor in Controls are drawn at, so what you arrange here matches your screen. Pick your device, or the nearest size.</p>' +
+    sec("Screen size", '<div class="row col"><label class="t" for="display-screen">Size of the dashboard screen</label><select id="display-screen">' + screenOptions() + '</select></div>' +
+      (ECHO ? '<button class="btnrow blue" data-act="screenmatch">Use this screen: ' + thisScreen().replace("x", "×") + '</button>' : ""),
+      ECHO ? "Echo Shows list their panel size. Press the button to use what this screen really reports." : "Echo Show sizes are the panel resolution. If Controls is open on the Echo itself, a button there uses its real size.") +
+    (ECHO ? "" : '<p class="intro">By default /dash on this computer fills the browser window, so it changes shape when you resize it. To test a particular screen, pick a size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller.</p>' +
+      sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>',
+        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window."));
 }
-const SCREEN_SIZES = [["", "Fill the window"], ["1920x1080", "Echo Show 15 · 1920×1080"], ["1080x1920", "Echo Show 15, upright · 1080×1920"],
-  ["1280x800", "Echo Show 8 or 10 · 1280×800"], ["800x1280", "Echo Show 8 or 10, upright · 800×1280"], ["960x480", "Echo Show 5 · 960×480"]];
+function screenOptions(){
+  const list = SCREEN_SIZES.some(x => x[0] === screenSz) ? SCREEN_SIZES : [[screenSz, "Custom · " + screenSz.replace("x", "×")]].concat(SCREEN_SIZES);
+  return list.map(([v, l]) => '<option value="' + v + '"' + (v === screenSz ? " selected" : "") + '>' + l + '</option>').join("");
+}
 function sizeCur(){ try{ return localStorage.getItem("countertop.screenSize") || ""; }catch(e){ return ""; } }
 function sizeOptions(){
-  const cur = sizeCur(), list = SCREEN_SIZES.some(x => x[0] === cur) ? SCREEN_SIZES : SCREEN_SIZES.concat([[cur, "Custom · " + cur.replace("x", "×")]]);
+  const cur = sizeCur(), known = cur === "" || cur === "dash" || SCREEN_SIZES.some(x => x[0] === cur);
+  const list = [["", "Fill the window"], ["dash", "Same as the dashboard's screen · " + sizeLabel(screenSz).replace(/^.*· /, "")]].concat(known ? [] : [[cur, "Custom · " + cur.replace("x", "×")]], SCREEN_SIZES);
   return list.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? " selected" : "") + '>' + l + '</option>').join("");
 }
 function pageSummary(p){

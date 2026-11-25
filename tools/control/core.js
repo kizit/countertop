@@ -7,6 +7,28 @@ const ECHO = /[?&]echo=1/.test(location.search);
 const MOUNTS = {auto:"Automatic", landscape:"Landscape", left:"Portrait · left edge up", right:"Portrait · right edge up"};
 const SHELL = ECHO && window.parent !== window;
 let displayMode = "auto";
+let screenSz = "1920x1080";        // the dashboard's screen, landscape "WxH" (Controls > Screen orientation); every preview here uses it
+// Echo Show panel resolutions, then a few common screens for anything else
+const SCREEN_SIZES = [["1920x1080", "Echo Show 15 or 21 · 1920×1080"], ["1920x1200", "Echo Show 11 · 1920×1200"], ["1340x800", "Echo Show 8 (4th gen) · 1340×800"],
+  ["1280x800", "Echo Show 8 or 10, Echo Show (2nd gen) · 1280×800"], ["1024x600", "Echo Show (1st gen) · 1024×600"], ["960x480", "Echo Show 5 · 960×480"],
+  ["1280x720", "720p · 1280×720"], ["1366x768", "Laptop · 1366×768"], ["1024x768", "Tablet · 1024×768"], ["2560x1440", "1440p · 2560×1440"], ["3840x2160", "4K · 3840×2160"]];
+const sizeLabel = v => (SCREEN_SIZES.find(x => x[0] === v) || [v, v.replace("x", "×")])[1];
+// the screen as the dashboard sees it now: turned on its side when the orientation setting is a portrait one
+function scr(){
+  const [w, h] = screenSz.split("x").map(Number);
+  return displayMode === "left" || displayMode === "right" ? [h, w] : [w, h];
+}
+// fit a preview iframe (laid out at the screen's real size) into its box
+function scrFit(f, boxWidth){
+  const [w, h] = scr(); f.style.width = w + "px"; f.style.height = h + "px"; f.style.transform = "scale(" + boxWidth / w + ")";
+}
+// the main preview's size buttons: the screen, with a browser bar's worth less, and turned the other way up
+function pvButtons(){
+  const [w, h] = scr(), b = $("pvsize").children;
+  const set = (x, W, H, label) => { x.dataset.w = W; x.dataset.h = H; if (label) x.textContent = label; };
+  set(b[0], w, h); set(b[1], w, Math.max(240, h - 100)); set(b[2], h, w, w >= h ? "Portrait" : "Landscape");
+  pvSize(b[0]);
+}
 let everyday, schema = {}, mods = {}, SRC = {}, KINDS = {}, saveTimer = null, stack = ["root"];
 let SBXC = {tiles:{}};          // community tiles installed on the server (/config → sandbox), for the Library
 const KIND_ORDER = ["calendars", "lists", "teams", "albums", "cams", "homeassistant", "recipes"];
@@ -39,10 +61,13 @@ function displayHref(edit){
 function applyDisplayMode(mode){
   const changed = displayMode !== mode;
   displayMode = mode;
-  if (changed && !ECHO){
-    const height = mode === "left" || mode === "right" ? 1920 : 1080;
-    pvSize($("pvsize").querySelector('[data-h="' + height + '"]'));
-  }
+  if (changed && !ECHO) pvButtons();
+}
+function applyScreen(v){
+  if (!/^\d+x\d+$/.test(v || "")) v = "1920x1080";
+  const changed = screenSz !== v;
+  screenSz = v;
+  if (changed && !ECHO) pvButtons();
 }
 async function displaySet(select){
   const mode = select.value;
@@ -57,6 +82,21 @@ async function displaySet(select){
   finally{ select.disabled = false; }
 }
 
+// the dashboard's screen size, saved on the server: previews and the editor in every browser follow it
+async function screenSave(size, select){
+  if (select) select.disabled = true;
+  try{
+    const r = await fetch("/config", {method:"POST", keepalive:true, headers:{"Content-Type":"application/json"}, body:JSON.stringify({screen:size})});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    applyScreen((await r.json()).screen);
+    toast("Screen size saved", "ok");
+    if (cur0() === "display") show();
+  }catch(e){ toast("Couldn't save the screen size: " + e.message, "bad"); if (select) select.value = screenSz; }
+  finally{ if (select) select.disabled = false; }
+}
+// the screen this page is on, as landscape "WxH" (a turned dashboard swaps what the page sees)
+const thisScreen = () => (displayMode === "left" || displayMode === "right" ? innerHeight + "x" + innerWidth : innerWidth + "x" + innerHeight);
+const cur0 = () => stack[stack.length - 1];
 function toast(msg, cls){
   const t = $("toast"); t.textContent = msg; t.className = cls || ""; t.style.opacity = 1;      // (also clears an Undo button)
   clearTimeout(toast.h); toast.h = setTimeout(() => { t.style.opacity = 0; }, cls === "bad" ? 8000 : 2200);
@@ -70,7 +110,7 @@ function undoToast(msg, undo){
 async function load(){
   try{
     const [j, s] = await Promise.all([fetch("/config?starters=1", {cache:"no-store"}).then(r => r.json()), fetch("/sources", {cache:"no-store"}).then(r => r.json())]);
-    applyDisplayMode(j.orientation || "auto");
+    applyDisplayMode(j.orientation || "auto"); applyScreen(j.screen);
     everyday = j.everyday; schema = j.schema; mods = j.modules; SRC = s.sources || {}; KINDS = s.kinds || {};
     SBXC = j.sandbox || {tiles:{}}; LEGACYC = j.legacy || {}; commDefs(); stuFiles();
     FXLIB.setMine(mods.effects && mods.effects.settings.mine);

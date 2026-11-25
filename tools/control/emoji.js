@@ -41,7 +41,7 @@ function swapRows(){
 }
 function emoScreen(cur){
   const [, i, side] = cur.split(":"), L = swapList(), pair = i === "new" ? [EMO_NEW, ""] : swapParse(L[+i] || "");
-  const btn = e => '<button class="emp' + (emoKey(e) === emoKey(pair[side === "old" ? 0 : 1]) ? " on" : "") + '" data-emopick="' + esc(e) + '">' + esc(e) + '</button>';
+  const btn = e => '<button class="emp' + (emoKey(e) === emoKey(pair[side === "old" ? 0 : 1]) ? " on" : "") + '" data-emopick="' + esc(e) + '" title="' + esc(e) + '">' + esc(e) + '</button>';
   let h = '<div class="big">' + (side === "old" ? "Which emoji?" : "Show instead") + '</div>';
   if (side === "old"){
     h += '<p class="intro">Every emoji the dashboard can show. Tap the one to change.</p>';

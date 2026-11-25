@@ -4,6 +4,41 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const ECHO = /[?&]echo=1/.test(location.search);
+const INPUT_KEY = "countertop.input";
+// Echo / Silk browsers always stay in touch mode; otherwise matchMedia decides once at load, with /control?input= and Controls > Screen overrides
+function inputIsEchoUA(){
+  return /Silk\b|\bEcho\b|\bKF[A-Z]{2,5}\b|\bAFT[A-Z]{1,4}\b/i.test(navigator.userAgent || "");
+}
+function inputAuto(){
+  if (ECHO || inputIsEchoUA()) return "touch";
+  try{ if (window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches) return "desktop"; }catch(e){}
+  return "touch";
+}
+function inputStored(){
+  try{ const v = localStorage.getItem(INPUT_KEY); return v === "desktop" || v === "touch" ? v : ""; }catch(e){ return ""; }
+}
+function inputDetect(){
+  const q = new URLSearchParams(location.search).get("input");
+  if (q !== null){
+    const v = q.trim().toLowerCase();
+    try{ if (v === "desktop" || v === "touch") localStorage.setItem(INPUT_KEY, v); else localStorage.removeItem(INPUT_KEY); }catch(e){}
+    const u = new URL(location.href); u.searchParams.delete("input"); history.replaceState(history.state, "", u);
+  }
+  if (ECHO || inputIsEchoUA()) return "touch";
+  return inputStored() || inputAuto();
+}
+const CT = window.CT = {input: inputDetect()};
+function applyInputMode(mode){
+  CT.input = ECHO || inputIsEchoUA() ? "touch" : (mode === "desktop" || mode === "touch" ? mode : inputAuto());
+  document.documentElement.dataset.input = CT.input;
+}
+applyInputMode(CT.input);
+addEventListener("storage", e => {
+  if (e.key !== INPUT_KEY || ECHO || inputIsEchoUA()) return;
+  applyInputMode(inputStored() || inputAuto());
+  if (typeof pvDesktopSync === "function") pvDesktopSync();
+  if (typeof cur0 === "function" && cur0() === "display" && typeof show === "function") show();
+});
 const MOUNTS = {auto:"Automatic", landscape:"Landscape", left:"Portrait · left edge up", right:"Portrait · right edge up"};
 const SHELL = ECHO && window.parent !== window;
 let displayMode = "auto";
@@ -37,7 +72,7 @@ window.shellBusy = () => true;       // on the Echo, the shell must not reload t
 if (ECHO){
   document.documentElement.classList.add("echo");
   $("done").textContent = "Done"; $("done").removeAttribute("target");
-  document.addEventListener("pointerdown", () => { try{ window.top.shellTap && window.top.shellTap(); }catch(e){} });
+  if (CT.input === "touch") document.addEventListener("pointerdown", () => { try{ window.top.shellTap && window.top.shellTap(); }catch(e){} });
   setInterval(() => { try{ window.top.contentTick && window.top.contentTick(); }catch(e){} }, 20e3);
 }
 $("done").href = displayHref();

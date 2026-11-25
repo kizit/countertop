@@ -19,10 +19,12 @@ function rootScreen(){
     row({t:"Screen", sub:MOUNTS[displayMode] + " · " + screenSz.replace("x", "×"), chev:true, attrs:'data-go="display"'}) +
     row({t:"Settings button on the screen", post: sw(g.gear !== false, 'data-m="general" data-k="gear" data-t="bool"')}));
   const all = gpAll(), main = all.find(p => p.id === "main"), night = all.find(p => p.id === "night"), CP = cpList(), SV = savedList();
-  h += sec("Pages", row({t:"Main", sub:pageShort(main), v:"Start page", chev:true, attrs:'data-go="page:main"', pre:(CP.length > 1 && !ECHO ? '<span class="grip none" aria-hidden="true">⋮⋮</span>' : "") + pagePic(main, null, "pthumb")}) +
-    CP.map(p => row({t:p.name, sub:pageShort(p), chev:true, attrs:'data-go="page:' + p.id + '" data-pid="' + p.id + '"', cls: p.on === false ? "off" : "", v: p.on === false ? "Off" : "",
-      pre:(CP.length > 1 && !ECHO ? '<span class="grip" data-grip="' + p.id + '" title="Drag to change the order" aria-hidden="true">⋮⋮</span>' : "") + pagePic(p, null, "pthumb")})).join("") +
-    row({t:"Night page", sub:nightText() + " · " + pageShort(night), chev:true, attrs:'data-go="night"', pre:pagePic(night, NIGHT_LOOK, "pthumb")}) +
+  const moreBtn = spec => '<button type="button" class="morebtn" data-ctxbtn="' + esc(spec) + '" title="More actions" aria-label="More actions">⋯</button>';
+  h += sec("Pages", row({t:"Main", sub:pageShort(main), v:"Start page", chev:true, attrs:'data-go="page:main" data-ctx="page:main"', post:moreBtn("page:main"), pre:(CP.length > 1 && !ECHO ? '<span class="grip none" aria-hidden="true">⋮⋮</span>' : "") + pagePic(main, null, "pthumb")}) +
+    CP.map(p => row({t:p.name, sub:pageShort(p), chev:true, attrs:'data-go="page:' + p.id + '" data-pid="' + p.id + '" data-ctx="page:' + p.id + '"', cls: p.on === false ? "off" : "", v: p.on === false ? "Off" : "",
+      pre:(CP.length > 1 && !ECHO ? '<span class="grip" data-grip="' + p.id + '" title="Drag to change the order" aria-hidden="true">⋮⋮</span>' : "") + pagePic(p, null, "pthumb"),
+      post:moreBtn("page:" + p.id)})).join("") +
+    row({t:"Night page", sub:nightText() + " · " + pageShort(night), chev:true, attrs:'data-go="night" data-ctx="night"', pre:pagePic(night, NIGHT_LOOK, "pthumb"), post:moreBtn("night")}) +
     row({t:"Add page", sub:"A premade dashboard, a full-screen page or an empty grid", chev:true, cls:"add", attrs:'data-act="libpick" data-id="page"'}),
     "Swipe left and right on the screen to move between pages. The night page takes over the screen overnight." + (CP.length > 1 && !ECHO ? " Drag ⋮⋮ to change their order." : ""));
   h += sec("Style", row({t:"Theme", sub:"Showing now: " + lookName(curLook()) + (rules().some(r => r.on !== false && lookById(r.look)) ? " · changes on a schedule" : ""), chev:true, attrs:'data-act="lib" data-id="themes"',
@@ -236,14 +238,20 @@ function displayScreen(){
       ECHO ? "Echo Shows list their panel size. Press the button to use what this screen really reports." : "Echo Show sizes are the panel resolution. If Controls is open on the Echo itself, a button there uses its real size.") +
     (ECHO ? "" : '<p class="intro">By default /dash on this computer fills the browser window, so it changes shape when you resize it. To test a particular screen, pick a size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller.</p>' +
       sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>' +
-        '<div class="row col"><label class="t" for="display-fs">Full screen when you tap /dash</label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>',
-        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window. /dash?fullscreen=0 turns full screen off in this browser and ?fullscreen=1 turns it back on. Off only stops the browser going full screen; a tap still arms keep-alive."));
+        '<div class="row col"><label class="t" for="display-fs">Full screen when you tap /dash</label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>' +
+        '<div class="row col"><label class="t" for="display-input">Controls input mode</label><select id="display-input">' + inputOptions() + '</select></div>',
+        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window. /dash?fullscreen=0 turns full screen off in this browser and ?fullscreen=1 turns it back on. Open /control?input=desktop, ?input=touch or ?input=auto to switch Controls input mode from the address bar."));
 }
 function screenOptions(){
   const list = SCREEN_SIZES.some(x => x[0] === screenSz) ? SCREEN_SIZES : [[screenSz, "Custom · " + screenSz.replace("x", "×")]].concat(SCREEN_SIZES);
   return list.map(([v, l]) => '<option value="' + v + '"' + (v === screenSz ? " selected" : "") + '>' + l + '</option>').join("");
 }
 function fsCur(){ try{ return localStorage.getItem("countertop.fullscreen") !== "0"; }catch(e){ return true; } }
+function inputOptions(){
+  const cur = inputStored(), auto = inputAuto();
+  const list = [["", "Automatic (" + (auto === "desktop" ? "desktop" : "touch") + ")"], ["desktop", "Desktop (mouse and keyboard)"], ["touch", "Touch (bigger tap targets)"]];
+  return list.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? " selected" : "") + '>' + l + '</option>').join("");
+}
 function sizeCur(){ try{ return localStorage.getItem("countertop.screenSize") || ""; }catch(e){ return ""; } }
 function sizeOptions(){
   const cur = sizeCur(), known = cur === "" || cur === "dash" || SCREEN_SIZES.some(x => x[0] === cur);
@@ -326,9 +334,10 @@ function emojiPicker(cur, swap){
 function srcScreen(k){
   const K = KINDS[k], L = SRC[k] || [];
   let h = '<div class="big">' + esc(K.title) + '</div><p class="intro">' + esc(K.desc || "") + '</p>';
-  h += sec("", (L.length ? L.map(x => { const u = usedBy(k, x.id);
-      return row({t:x.name || "(no name)", sub: u.length ? "Used by " + u.join(", ") : "", chev:true, attrs:'data-go="srci:' + k + ':' + x.id + '"',
-        pre: x.color ? '<span class="dot" style="background:' + esc(x.color) + '"></span>' : ""}); }).join("") : '<div class="row"><div class="t"><small>None yet</small></div></div>') +
+  h += sec("", (L.length ? L.map(x => { const u = usedBy(k, x.id), spec = "src:" + k + ":" + x.id;
+      return row({t:x.name || "(no name)", sub: u.length ? "Used by " + u.join(", ") : "", chev:true, attrs:'data-go="srci:' + k + ':' + x.id + '" data-ctx="' + esc(spec) + '"',
+        pre: x.color ? '<span class="dot" style="background:' + esc(x.color) + '"></span>' : "",
+        post:'<button type="button" class="morebtn" data-ctxbtn="' + esc(spec) + '" title="More actions" aria-label="More actions">⋯</button>'}); }).join("") : '<div class="row"><div class="t"><small>None yet</small></div></div>') +
     row({t:"Add a " + K.one, chev:true, cls:"add", attrs:'data-go="srci:' + k + ':new"'}),
     "Then pick it in a tile's settings: Edit dashboard on screen, tap the tile.");
   return h;

@@ -62,7 +62,7 @@ function lookTabs(id, v, A){
       "A palette sets Light or dark, the accent and a solid background together. Change anything after it.");
     h += sec("Colors", row({t:"Light or dark", post:'<span class="seg">' + ["Dark", "Light"].map(m => '<button ' + A + ' data-lk="mode" data-lv="' + m + '"' + (v.mode === m ? ' class="on"' : "") + '>' + m + '</button>').join("") + '</span>'}) +
       '<div class="row col"><div class="t"><b>Accent color</b><small>Highlights, today\'s date, buttons</small></div><div class="sws">' +
-        SWATCHES.map(c => '<button class="swc' + (String(v.accent).toLowerCase() === c ? " on" : "") + '" style="background:' + c + '" ' + A + ' data-lk="accent" data-lv="' + c + '"></button>').join("") +
+        SWATCHES.map(c => '<button class="swc' + (String(v.accent).toLowerCase() === c ? " on" : "") + '" style="background:' + c + '" ' + A + ' data-lk="accent" data-lv="' + c + '" title="Accent color ' + c + '" aria-label="Accent color ' + c + '"></button>').join("") +
         '<input type="color" ' + A + ' data-lk="accent" value="' + esc(v.accent) + '" title="Any color"></div></div>' +
       row({t:"Holiday colors", sub:"The accent changes by itself in season: orange in fall, red and green at Christmas, pink for Valentine's", post: sw(v.holiday, A + ' data-lk="holiday" data-lb="1"')}) +
       textColorRows(v, A));

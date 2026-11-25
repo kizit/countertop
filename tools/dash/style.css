@@ -83,11 +83,11 @@
   .m-weather .row{display:flex;align-items:center;gap:20px;justify-content:var(--jc,flex-end)}
   .m-weather .g{font-size:86px;line-height:1;animation:bob 6s ease-in-out infinite}
   @keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(-4deg)}}
-  .m-weather .tt{color:var(--big,var(--fg));font-size:100px;font-weight:200;line-height:1}
+  .m-weather .tt{color:var(--big,var(--fg));font-size:100px;font-weight:200;line-height:1;flex:none;white-space:nowrap;padding-right:.08em}
   .m-weather .m{font-size:23px;color:var(--fg2);text-align:left;line-height:1.4}
   .m-weather .s{font-size:20px;color:var(--fg2);margin-top:6px}
   .ws-big-temperature .row{display:grid;grid-template-columns:auto auto;grid-template-areas:"tt g" "tt m";column-gap:22px;row-gap:4px;align-items:center}
-  .ws-big-temperature .tt{grid-area:tt;font-size:196px;letter-spacing:-8px;line-height:.82}
+  .ws-big-temperature .tt{grid-area:tt;padding-right:.04em;font-size:196px;letter-spacing:-8px;line-height:.82}
   .ws-big-temperature .g{grid-area:g;font-size:66px;align-self:end}
   .ws-big-temperature .m{grid-area:m;align-self:start;font-size:21px}
   .ws-compact .row{gap:14px}

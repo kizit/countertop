@@ -56,6 +56,7 @@ struct Health {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    var lastIconColor: NSColor?
     let menu = NSMenu()
     var health = Health()
     var child: Process?
@@ -132,6 +133,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func setIcon(_ color: NSColor) {
         guard let b = item.button else { return }
+        // Only touch the button when the colour changes; the status poll calls this every 15 seconds.
+        if color == lastIconColor { return }
+        lastIconColor = color
         let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular).applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         if let img = NSImage(systemSymbolName: "fork.knife.circle.fill", accessibilityDescription: "Countertop")?.withSymbolConfiguration(cfg) {
             img.isTemplate = false
@@ -139,7 +143,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             b.title = "Countertop"
         }
-        b.toolTip = "Countertop"
     }
 
     // MARK: server

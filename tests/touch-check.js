@@ -2,7 +2,7 @@
 // through the DevTools input API, which the page can't tell from a finger) inside the shell the Echo runs. Covers:
 //   - holding a tile to edit (normal, community frame, slight jitter vs drag cancel)
 //   - swiping between pages (also across a framed tile, and under rotated display orientation)
-//   - on-screen editor touch drag-to-move, drag-to-resize, Undo/Redo, touchCancel recovery, and Save persistence
+//   - on-screen editor touch drag-to-move, drag-to-swap/stack, drag-to-resize, Undo/Redo, touchCancel recovery, and Save persistence
 //   - tile Designer touch drag of clock parts
 //   - Controls touch drag-to-reorder pages without triggering row navigation
 //   - Save, Cancel, Done and Settings → Edit the screen returning to the right page
@@ -373,6 +373,99 @@ async function main() {
     await ready();
     await onPage("c:two");
     console.log("✓ swipe + hold-to-edit + Cancel succeed under 4× CPU throttling");
+
+    // --- Dragging a tile onto another tile offers Swap and Stack; release picks the hovered option ---
+    await T.swipe(900, 600, 400);
+    await onPage("main");
+    await T.hold(...await T.centre(tileLoc("note_a")));
+    await until(() => D(() => EDIT.on && EDIT.page === "main"), "editor on Main for swap/stack");
+    const boxA1 = frameLoc().locator('.eslot[data-slot="a1"]');
+    const boxA2 = frameLoc().locator('.eslot[data-slot="a2"]');
+    await boxA1.waitFor();
+    await boxA2.waitFor();
+    const a1Box = await boxA1.boundingBox(), a2Box = await boxA2.boundingBox();
+    const dragHold = async (x1, y1, x2, y2, steps = 10) => {
+      await T.touch("touchStart", x1, y1);
+      await sleep(30);
+      for (let i = 1; i <= steps; i++) {
+        await T.touch("touchMove", x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps);
+        await sleep(16);
+      }
+      await sleep(80);
+    };
+
+    // Hovering left half picks Swap; releasing swaps both boxes' positions and sizes
+    await dragHold(a1Box.x + a1Box.width / 2, a1Box.y + a1Box.height / 2, a2Box.x + a2Box.width * 0.25, a2Box.y + a2Box.height / 2);
+    const swapPh = await D(() => { const p = $("edph"); return { hidden: p.hidden, cls: p.className }; });
+    assert.equal(swapPh.hidden, false, "drop placeholder should show on hover");
+    assert.match(swapPh.cls, /\bchoose\b/, "should show Swap/Stack choice overlay");
+    assert.match(swapPh.cls, /\bpick-swap\b/, "left half should highlight Swap");
+    await T.touch("touchEnd");
+    await until(() => D(() => {
+      const s1 = curPg().slots.find(v => v.id === "a1"), s2 = curPg().slots.find(v => v.id === "a2");
+      return s1 && s2 && s1.x === 24 && s1.w === 20 && s2.x === 0 && s2.w === 16;
+    }), "Swap release to trade positions and sizes");
+    await T.tap(...await T.centre(frameLoc().locator("#edundo")));
+    await until(() => D(() => {
+      const s1 = curPg().slots.find(v => v.id === "a1"), s2 = curPg().slots.find(v => v.id === "a2");
+      return s1 && s2 && s1.x === 0 && s1.w === 16 && s2.x === 24 && s2.w === 20;
+    }), "Undo to restore pre-swap positions");
+    await sleep(150);
+
+    // Dragging onto an empty box only offers Swap (not Stack)
+    await T.tap(...await T.centre(frameLoc().locator('[data-act="desel"]')));
+    await T.tap(...await T.centre(frameLoc().locator('[data-act="box"]')));
+    const emptyId = await until(() => D(() => {
+      const s = curPg().slots.find(v => !live(v).length);
+      return s ? s.id : false;
+    }), "empty box added");
+    const emptyBox = await frameLoc().locator('.eslot[data-slot="' + emptyId + '"]').boundingBox();
+    const a1Now = await boxA1.boundingBox();
+    await dragHold(a1Now.x + a1Now.width / 2, a1Now.y + a1Now.height / 2, emptyBox.x + emptyBox.width * 0.75, emptyBox.y + emptyBox.height / 2);
+    const emptyPh = await D(() => ({ cls: $("edph").className, txt: $("edph").querySelector(".ph-lbl").textContent }));
+    assert.equal(emptyPh.cls, "swap", "empty target box should offer Swap only, not Stack");
+    assert.equal(emptyPh.txt, "Swap");
+    await T.touch("touchEnd");
+    await sleep(150);
+    // Undo swap with empty box, then Undo adding the empty box
+    await T.tap(...await T.centre(frameLoc().locator("#edundo")));
+    await sleep(150);
+    await T.tap(...await T.centre(frameLoc().locator("#edundo")));
+    await until(() => D(() => !curPg().slots.some(v => !live(v).length)), "empty box undone");
+    await sleep(150);
+
+    // Hovering right half picks Stack; releasing combines both tiles into one stacked box
+    const a1Pre = await boxA1.boundingBox(), a2Pre = await boxA2.boundingBox();
+    await dragHold(a1Pre.x + a1Pre.width / 2, a1Pre.y + a1Pre.height / 2, a2Pre.x + a2Pre.width * 0.75, a2Pre.y + a2Pre.height / 2);
+    const stackPh = await D(() => { const p = $("edph"); return { hidden: p.hidden, cls: p.className }; });
+    assert.equal(stackPh.hidden, false);
+    assert.match(stackPh.cls, /\bchoose\b/, "should show Swap/Stack choice overlay");
+    assert.match(stackPh.cls, /\bpick-stack\b/, "right half should highlight Stack");
+    await T.touch("touchEnd");
+    await until(() => D(() => {
+      const pg = curPg(), s2 = pg.slots.find(v => v.id === "a2");
+      return !pg.slots.some(v => v.id === "a1") && s2 && smods(s2).join(",") === "porch_a,note_a" && EDIT.sel === "a2" && EDIT.tile === "note_a";
+    }), "Stack release to combine tiles into a2");
+    assert.match(await frameLoc().locator("#edpanel").textContent(), /Box with 2 tiles/);
+
+    // Undo restores both separate boxes; Redo stacks them again; Save persists the stack
+    await T.tap(...await T.centre(frameLoc().locator("#edundo")));
+    await until(() => D(() => curPg().slots.some(v => v.id === "a1") && smods(curPg().slots.find(v => v.id === "a2")).join(",") === "porch_a"), "Undo to unstack");
+    await sleep(150);
+    await T.tap(...await T.centre(frameLoc().locator("#edredo")));
+    await until(() => D(() => !curPg().slots.some(v => v.id === "a1") && smods(curPg().slots.find(v => v.id === "a2")).join(",") === "porch_a,note_a"), "Redo to restack");
+    await sleep(150);
+    await T.tap(...await T.centre(frameLoc().locator("#edsave")));
+    await ready();
+    await onPage("main");
+    const savedMain = JSON.parse(fs.readFileSync(path.join(data, "dashboard.json"), "utf8"))
+      .modules.pages.settings.items.find(p => p.id === "main");
+    assert.equal(savedMain.slots.some(s => s.id === "a1"), false, "stacked source box should be removed on Save");
+    const savedA2 = savedMain.slots.find(s => s.id === "a2");
+    assert.equal(savedA2.mod, "porch_a");
+    assert.deepEqual(savedA2.more, ["note_a"]);
+    assert.equal(await frameLoc().locator('.slot.stack[data-slot="a2"] .stkdots').count(), 1, "stacked box renders with turn dots");
+    console.log("✓ dragging a tile onto another offers Swap and Stack, picks on release, supports Undo/Redo and persists on Save");
 
     assert.deepEqual(errors, []);
     console.log("✓ no page errors");

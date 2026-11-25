@@ -1,0 +1,1 @@
+- **Drag to swap or stack tiles.** Dragging one tile onto another in the layout editor now offers both **Swap** and **Stack**—release on **Swap** to trade places, or on **Stack** to combine them so they take turns in the same box.

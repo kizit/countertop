@@ -49,7 +49,10 @@ function refeed(id){ const m = MODULES[id]; (m && m.feeds || []).forEach(f => { 
 function editUI(){
   if ($("edl")) return;
   const d = document.createElement("div"); d.id = "edl"; d.tabIndex = -1;
-  d.innerHTML = '<div id="edcanvas"></div><div id="edgrid"></div><div id="edboxes"></div><div id="edph" hidden><span></span></div>' +
+  d.innerHTML = '<div id="edcanvas"></div><div id="edgrid"></div><div id="edboxes"></div>' +
+    '<div id="edph" hidden><span class="ph-lbl"></span>' +
+    '<div class="ph-opt ph-swap" data-opt="swap"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5h10m-3-3 3 3-3 3M14 11H4m3-3-3 3 3 3"/></svg>Swap</b></div>' +
+    '<div class="ph-opt ph-stack" data-opt="stack"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2 2 5.5 8 9l6-3.5Z"/><path d="M2 8.5 8 12l6-3.5M2 11.5 8 15l6-3.5"/></svg>Stack</b></div></div>' +
     '<div id="edbar"><span id="edtabs"></span><span id="edhint"></span>' +
     '<button id="edundo" title="Undo (Ctrl+Z)">↶</button><button id="edredo" title="Redo (Shift+Ctrl+Z)">↷</button>' +
     '<button id="edcancel">Cancel</button><button id="edsave" class="pri">Save</button>' +
@@ -250,7 +253,7 @@ function panelPage(pg){
     : '<p class="pd">Nothing here yet. Add a tile, or an empty box to fill later.</p>';
   h += '<div class="btns"><button data-act="box">Add an empty box</button></div>';
   if (!isMain) h += '<button class="wide red" data-act="delpage">Delete this page</button>';
-  h += '<p class="pd">Tap a box to change what it shows. Drag a box to move it (drop it on another box to swap), and drag its edges to resize. Nothing changes on the screen until you Save.</p>';
+  h += '<p class="pd">Tap a box to change what it shows. Drag a box to move it (drop it on another box to swap or stack), and drag its edges to resize. Nothing changes on the screen until you Save.</p>';
   return h;
 }
 function panelAdd(){
@@ -287,7 +290,7 @@ function panelBox(s){
   h += '<div class="grp"><div class="kv"><span>Size' + (EDIT.ori === "p" ? " in portrait" : "") + '</span><b>' + (RG(s) ? RG(s).w + ' × ' + RG(s).h + ' squares' : "Not on this screen") + '</b></div>' + (L.length ? '<div class="kv"><span>Smallest it can be</span><b>' + mw + ' × ' + mh + '</b></div>' : "") + '</div>';
   h += '<div class="btns">' + (L.length ? '<button data-act="fit">Usual size</button>' : "") + '<button data-act="grow">Fill free space</button></div>';
   h += '<button class="wide red" data-act="del">Remove this box</button>';
-  h += '<p class="pd">Drag the box to move it; drop it on another box to swap them. Drag an edge or corner to resize. Keys: arrows move, Shift+arrows resize, Delete removes, Esc goes back.</p>';
+  h += '<p class="pd">Drag the box to move it; drop it on another box to swap or stack them. Drag an edge or corner to resize. Keys: arrows move, Shift+arrows resize, Delete removes, Esc goes back.</p>';
   return h;
 }
 // a tile's settings: its name, its type's own settings, and "take over" if its type can
@@ -640,10 +643,24 @@ function edMove(e){
     const g = $("edghost"); g.textContent = boxName(s); g.hidden = false;
     g.style.left = (x + 14) + "px"; g.style.top = (y + 10) + "px";
     const under = (pg.slots || []).find(v => v !== s && at(RG(v, pg), c, r));
-    if (!blocked(pg, R, s)) D.to = {k:"move", R};
-    else if (under) D.to = {k:"swap", R:RG(under, pg), with:under};
-    else D.to = null;
-    showPh(D.to ? D.to.R : R, D.to ? D.to.k : "bad", D.to && D.to.k === "swap" ? "Swap" : D.to ? "" : "No room");
+    if (!blocked(pg, R, s)){
+      D.to = {k:"move", R};
+      showPh(R, "move", "");
+    } else if (under){
+      const ug = RG(under, pg), canStack = live(s).length > 0 && live(under).length > 0;
+      if (canStack){
+        const rect = cellRect(ug), vert = rect.height > rect.width * 1.2 || (rect.width < 170 && rect.height >= 64);
+        const pick = (vert ? (y - rect.top) < rect.height / 2 : (x - rect.left) < rect.width / 2) ? "swap" : "stack";
+        D.to = {k:pick, R:ug, with:under};
+        showPhChoice(rect, pick, vert);
+      } else {
+        D.to = {k:"swap", R:ug, with:under};
+        showPh(ug, "swap", "Swap");
+      }
+    } else {
+      D.to = null;
+      showPh(R, "bad", "No room");
+    }
   } else if (D.k === "rs"){
     const [c, r] = cellAt(x, y), s = D.s, o = D.orig, d = D.dir, [minW, minH] = bmin(s);
     let x0 = o.x, x1 = o.x + o.w, y0 = o.y, y1 = o.y + o.h;
@@ -678,7 +695,13 @@ function edMove(e){
 }
 function showPh(R, kind, txt){
   const ph = $("edph"); Object.assign(ph.style, px(cellRect(R))); ph.className = kind; ph.hidden = false;
-  ph.firstChild.textContent = txt || "";
+  ph.querySelector(".ph-lbl").textContent = txt || "";
+}
+function showPhChoice(rect, pick, vert){
+  const ph = $("edph"), compact = vert ? rect.height < 120 || rect.width < 110 : rect.width < 185 || rect.height < 56;
+  Object.assign(ph.style, px(rect));
+  ph.className = "choose pick-" + pick + (vert ? " vert" : "") + (compact ? " compact" : "");
+  ph.hidden = false;
 }
 function edUp(){
   const D = EDIT.drag; EDIT.drag = null;
@@ -690,6 +713,21 @@ function edUp(){
     if (D.to && D.to.k === "swap"){       // the two boxes trade places (and sizes)
       remember(); touch(pg); const A = RG(s, pg), B = RG(D.to.with, pg), a = {x:A.x, y:A.y, w:A.w, h:A.h};
       Object.assign(A, {x:B.x, y:B.y, w:B.w, h:B.h}); Object.assign(B, a); relayout(); return;
+    }
+    if (D.to && D.to.k === "stack"){      // combine the dragged box's tiles into the target box
+      const tgt = D.to.with, add = live(s);
+      if (add.length){
+        remember();
+        const cur = live(tgt), L = cur.concat(add.filter(id => !cur.includes(id)));
+        setSmods(tgt, L);
+        if (!tgt.every && s.every) tgt.every = s.every;
+        if (tgt.loff && !s.loff){ Object.assign(tgt, {x:s.x, y:s.y, w:s.w, h:s.h}); delete tgt.loff; }
+        if (tgt.p && tgt.p.off && s.p && !s.p.off) tgt.p = Object.assign({}, s.p);
+        delete STKPICK[tgt.id];
+        pg.slots = pg.slots.filter(v => v !== s);
+        EDIT.sel = tgt.id; EDIT.tile = add[0];
+        relayout(); return;
+      }
     }
     edPaint(true); return;
   }

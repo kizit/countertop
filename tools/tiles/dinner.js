@@ -8,16 +8,16 @@ Tile("dinner", {
   settings:{
     meals:{type:"choice", label:"Which meals", choices:["Follow the time of day", "Breakfast", "Lunch", "Dinner", "Dessert"], default:"Follow the time of day",
       help:"Following the time of day: breakfast until 10:30, lunch until 2, dinner until 7:30, then dessert"},
-    breakfast:{type:"bool", label:"Breakfast in the morning", default:true},
-    lunch:{type:"bool", label:"Lunch at midday", default:true},
-    dessert:{type:"bool", label:"Dessert in the evening", default:true, help:"Turned off, dinner ideas stay up instead"},
+    breakfast:{type:"bool", when:{meals:"Follow the time of day"}, label:"Breakfast in the morning", default:true},
+    lunch:{type:"bool", when:{meals:"Follow the time of day"}, label:"Lunch at midday", default:true},
+    dessert:{type:"bool", when:{meals:"Follow the time of day"}, label:"Dessert in the evening", default:true, help:"Turned off, dinner ideas stay up instead"},
     diet:{type:"choice", label:"Diet", choices:["Anything", "Vegetarian", "Vegan", "No pork", "No seafood", "No pork or seafood"], default:"Anything"},
     src:{type:"source", kind:"recipes", label:"Recipes from", default:"", none:"TheMealDB, with its free key"},
     why:{type:"bool", label:"Say when it uses something on your list or on sale", default:true},
     every:{type:"int", label:"Minutes per idea", default:30, min:5, max:1440}
   },
   css:`.m-dinner .ph{cursor:pointer;position:relative}
-    .m-dinner .tapme{position:absolute;right:10px;top:10px;font-size:15px;padding:4px 10px;border-radius:12px;background:rgba(0,0,0,.45);color:#fff}
+    .m-dinner .tapme{display:inline-block;margin-left:8px;font-size:14px;padding:2px 9px;border-radius:12px;background:rgba(0,0,0,.45);color:#fff;white-space:nowrap}      /* sits beside the cuisine line, never over the title */
     .m-dinner .why{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--dim);line-height:1.25}
     .m-dinner .why i{font-style:normal;flex:none}
     .m-dinner .why b{font-weight:500;color:var(--fg,#e9ecf1)}
@@ -79,8 +79,8 @@ Tile("dinner", {
     if (D){
       const i = D[k];
       h += '<div class="ph" data-recipe="' + k + '"' + (i.thumb ? ' style="background-image:url(&quot;' + esc(i.thumb) + '&quot;)"' : "") + '>' +
-        ((i.steps || []).length ? '<span class="tapme">Recipe ›</span>' : "") + '<div><b>' + esc(i.title) + '</b><span>' +
-        esc([i.area, i.cat].filter(Boolean).join(" · ")) + '</span></div></div>';
+        '<div><b data-keep>' + esc(i.title) + '</b><span>' +
+        esc([i.area, i.cat].filter(Boolean).join(" · ")) + '</span>' + ((i.steps || []).length ? '<span class="tapme">Recipe ›</span>' : "") + '</div></div>';
       if (s.why !== false && i.why) h += '<div class="why"><i>' + (/on sale/.test(i.why) ? "🏷" : "📝") + '</i><span>' + esc(i.why) + '</span></div>';
     } else h += '<div class="empty">' + esc(d ? d.error || "No ideas right now" : "Finding ideas…") + '</div>';
     el.innerHTML = h;

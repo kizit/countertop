@@ -6,7 +6,7 @@ Tile("note", {
   settings:{
     text:{type:"list", share:false, label:"Text", help:"Each line shows on its own line", placeholder:"Welcome home!", default:["Have a great day! 🌞"]},
     big:{type:"int", label:"Text size", default:44, min:20, max:120},
-    align:{type:"choice", label:"Align", choices:["Left", "Center"], default:"Center"},
+    align:{type:"choice", label:"Align", choices:["Left", "Center", "Right"], default:"Center"},
     color:{type:"color", label:"Text color", default:"#ffffff"},
     title:{type:"bool", label:"Show its name as a title", default:false}
   },
@@ -15,7 +15,9 @@ Tile("note", {
   cls:"m-note",
   render(el){
     const s = this.s, esc = x => this.esc(x);
-    el.innerHTML = (s.title ? '<h3>' + esc(this.name) + '</h3>' : "") + '<div class="tx" style="font-size:' + (+s.big || 44) + 'px;text-align:' + (s.align === "Left" ? "left" : "center") + ';color:' + esc(s.color || "#fff") + '">' +
-      ((s.text || []).map(esc).join("<br>") || "&nbsp;") + '</div>';
+    const lines = Array.isArray(s.text) ? s.text : s.text ? [String(s.text)] : [];
+    const col = !s.color || String(s.color).toLowerCase() === "#ffffff" ? "var(--text)" : s.color;      // the default white follows the theme's text color
+    el.innerHTML = (s.title ? '<h3>' + esc(this.name) + '</h3>' : "") + '<div class="tx" data-keep style="font-size:' + (+s.big || 44) + 'px;text-align:' + (s.align === "Left" ? "left" : s.align === "Right" ? "right" : "center") + ';color:' + esc(col) + '">' +
+      (lines.map(esc).join("<br>") || "&nbsp;") + '</div>';
   }
 });

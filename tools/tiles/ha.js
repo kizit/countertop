@@ -299,7 +299,7 @@ Tile("ha", {
     taps:{type:"bool", label:"Let the screen control these things", default:true},
     secure:HA.SECURE.secure, confirm:HA.SECURE.confirm,
     changed:{type:"bool", label:"Show how long ago doors and sensors changed", default:true},
-    names:{type:"text", share:false, label:"Rename things", help:"entity_id = Display name, separated by ; — e.g. sensor.cap_energie_power = Linky power", default:""}
+    names:{type:"text", share:false, label:"Rename things", help:"entity_id = Display name, separated by ; — e.g. sensor.living_room_power = Living room power", default:""}
   },
   css:`.m-ha .hl{display:grid;grid-template-columns:1fr;gap:0 28px;align-content:start}
     .slot:not(.narrow) > .m-ha.wide .hl{grid-template-columns:1fr 1fr}
@@ -309,7 +309,7 @@ Tile("ha", {
     .m-ha .nm small{display:block;font-size:16px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .m-ha .nm small .chip{margin:2px 4px 0 0}
     .m-ha .st{font-size:24px;color:var(--dim);white-space:nowrap;text-align:right}
-    .m-ha .hr.alert .st,.m-ha .hr.alert .nm{color:#ffb74d}
+    .m-ha .hr.alert .st,.m-ha .hr.alert .nm{color:var(--warn)}
     .m-ha .hr.off .ic{opacity:.45} .m-ha .hr.gone{opacity:.45}
     .m-ha .tg{width:72px;height:40px;border-radius:20px;background:rgba(255,255,255,.16);position:relative;transition:background .2s;flex:none}
     .m-ha .tg::after{content:"";position:absolute;top:5px;left:5px;width:30px;height:30px;border-radius:50%;background:#fff;transition:transform .2s}
@@ -326,7 +326,7 @@ Tile("ha", {
     .m-ha .cbtn{font-size:18px;padding:7px 15px;border-radius:999px;background:rgba(255,255,255,.14);border:0;color:#fff;cursor:pointer;white-space:nowrap;transition:background .15s}
     .m-ha .cbtn.on{background:var(--accent);box-shadow:0 3px 14px rgba(0,0,0,.35)}
     .m-ha [data-ha]{cursor:pointer}
-    .m-ha .msg{font-size:17px;color:#ffb74d;margin-top:6px}
+    .m-ha .msg{font-size:17px;color:var(--warn);margin-top:6px}
     .m-ha .msg.ask{font-size:22px;color:#fff;background:var(--accent);border-radius:12px;padding:8px 14px}`,
   cls:"m-ha",
   has(){ return true; },

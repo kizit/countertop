@@ -1,4 +1,4 @@
-"""Countertop server: serves the kitchen dashboard and its data feeds.
+"""Countertop server: serves the home dashboard and its data feeds.
 
 Start:
     python3 tools/countertop.py --port 8090

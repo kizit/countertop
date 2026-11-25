@@ -49,7 +49,7 @@ function wizScreen(){
       (WIZ.starter || sameEverydayLayout() ? '<button class="pri" data-act="wiznext">Next</button>' : '') + '</div>';
   } else {
     h += '<div class="big">You\'re all set</div><p class="intro">Open these addresses on your devices. Bookmark them, since they don\'t change.</p>';
-    h += sec("", row({t:"On the Echo Show or the kitchen screen", sub:"Open Silk and go to this address, then tap the screen once so it stays full screen.", v:host + "/dash"}) +
+    h += sec("", row({t:"On the Echo Show or your display", sub:"Open Silk and go to this address, then tap the screen once so it stays full screen.", v:host + "/dash"}) +
       row({t:"On your phone", sub:"Add to the grocery list from anywhere in the house.", v:host + "/list"}) +
       row({t:"Controls (this page)", sub:"Change tiles, themes, effects and pages.", v:host + "/control"}));
     h += sec("", '<div class="row"><div class="t"><small>Keep Countertop on your home network. Anyone who can reach it can change its settings, so don\'t forward its port to the internet.</small></div></div>');

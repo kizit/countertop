@@ -1,6 +1,6 @@
 <h1 align="center">Countertop</h1>
 
-<p align="center"><strong>Make your kitchen screen your own.</strong></p>
+<p align="center"><strong>Make your home screen your own.</strong></p>
 
 <p align="center">
   Put the family calendar, weather, and shared grocery list on your Echo Show 15 or another screen with a browser.
@@ -63,8 +63,8 @@ Want something the built-in tiles don't do? Open **Tile Studio** (**Library → 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/phone-to-kitchen.gif" alt="On a phone, someone types Maple syrup into the kitchen list and taps Add. A moment later it appears on the grocery tile of the kitchen screen." width="100%" />
-      <strong>Share the grocery list.</strong> Add something from your phone’s browser and it shows up on the kitchen screen within half a minute. No app to install.
+      <img src="docs/screenshots/phone-to-kitchen.gif" alt="On a phone, someone types Maple syrup into the shared grocery list and taps Add. A moment later it appears on the grocery tile of the dashboard." width="100%" />
+      <strong>Share the grocery list.</strong> Add something from your phone’s browser and it shows up on your dashboard within half a minute. No app to install.
     </td>
     <td width="50%" valign="top">
       <a href="docs/screenshots/month.png"><img src="docs/screenshots/month.png" alt="A full month calendar with family and school events in two colors" width="100%" /></a>

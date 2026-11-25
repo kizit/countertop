@@ -28,7 +28,7 @@ A temperature driven by a thermostat (the tile's **Controlled by** setting, e.g.
 
 ## Locks, garage doors and alarms
 
-Locks, alarm panels, and garage doors, gates and doors (covers) are shown on every tile, but a tile can only change them when **Allow locks, garage doors and alarms** is on in its settings. It's off by default, because a kitchen screen is within reach of guests and kids.
+Locks, alarm panels, and garage doors, gates and doors (covers) are shown on every tile, but a tile can only change them when **Allow locks, garage doors and alarms** is on in its settings. It's off by default, because a shared home screen is within reach of guests and kids.
 
 With it on, **Locks, garage doors and alarms need** picks **Two taps** (the default: the first tap shows "Tap again to unlock Front door", and the second within six seconds does it) or **One tap**. The server checks both settings, so a tile can't skip them.
 

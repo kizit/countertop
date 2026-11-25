@@ -156,7 +156,7 @@ Releases are published by a maintainer from **Actions → Release**. The workflo
 
 Countertop is meant to run on a home network for one household.
 
-- **Anyone on the home network can open Controls and change settings, without a password.** This is intentional: the people in the house are the users, and a kitchen screen shouldn't need a login. Don't expose Countertop to the internet, and don't add features that assume it is.
+- **Anyone on the home network can open Controls and change settings, without a password.** This is intentional: the people in the house are the users, and a shared home screen shouldn't need a login. Don't expose Countertop to the internet, and don't add features that assume it is.
 - **Requests from other websites are a separate concern.** Open access on the LAN doesn't mean a web page someone visits in a browser at home should be able to change settings or trigger actions. This is a known area to think about: it's welcome as a [private vulnerability report](../SECURITY.md) or, for a design discussion, an issue. A change here needs discussion first because it touches every route.
 - **Secrets stay on the server.** Tokens and keys live in `sources.json`, and community tiles' API keys in `tile-keys.json`. Secret fields are write-only: the server never sends them back to a page, and diagnostics remove them. New code must keep them out of logs and error messages too.
 - **Actions in the home need care.** Turning on a light is fine with one tap. Locks, garage doors and alarms are opt-in per tile and can require two taps, and the server, not the page, enforces both.

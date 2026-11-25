@@ -11,7 +11,7 @@ You can work on Countertop on the same computer that runs your real dashboard. K
 | Settings and lists | The app's own data folder | The clone's `work/` folder |
 | Changes when | You install a release | You edit files or switch branches |
 
-The two copies never share settings, so trying something out can't break the screen in your kitchen.
+The two copies never share settings, so trying something out can't break your live home screen.
 
 ## Run the development copy
 

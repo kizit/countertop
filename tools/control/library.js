@@ -20,6 +20,7 @@ function libOpen(view){
   defsLoad.then(libShow); libShow();
 }
 function libClose(){
+  if (typeof ctxClose === "function") ctxClose();
   LIB.pick = ""; LIB.impRaw = null; DRAFT = null; if (FXDRAFT || LIB.fimp){ FXDRAFT = null; LIB.fimp = null; fxRegister(); } LIB.timp = null; LIB.trial = ""; LIB.pvq = ""; LIB.sub = [];
   libEl().hidden = true; document.body.classList.remove("libopen");
   LIB.item = ""; LIB.pvKey = ""; const f = libEl().querySelector(".lbig iframe"); if (f){ f.src = "about:blank"; f.classList.remove("on"); }
@@ -39,7 +40,9 @@ function libPic(key){
   return starterPicture(key);
 }
 function libCard(key, c, badge){
-  return '<button class="lc" data-l="open" data-id="' + esc(key) + '">' + libPic(key) + (badge ? '<span class="lbadge">' + esc(badge) + '</span>' : "") +
+  const saved = key.startsWith("saved:");
+  return '<button class="lc" data-l="open" data-id="' + esc(key) + '"' + (saved ? ' data-ctx="' + esc(key) + '"' : "") + '>' + libPic(key) + (badge ? '<span class="lbadge">' + esc(badge) + '</span>' : "") +
+    (saved ? '<span class="morebtn cardmore" role="button" tabindex="0" data-ctxbtn="' + esc(key) + '" title="More actions" aria-label="More actions">⋯</span>' : "") +
     '<span class="tx"><b>' + esc(c.name) + '</b><small>' + esc(c.sub || "") + '</small></span></button>';
 }
 function libRail(){
@@ -415,6 +418,7 @@ function libLoadImport(text){
 
 /* ----- drawing and taps ----- */
 function libShow(){
+  if (typeof ctxClose === "function") ctxClose();
   if (libEl().hidden) return;
   if (LIB_SUB[LIB.view]){ libSubShow(); return; }
   const it = LIB.item;
@@ -601,7 +605,10 @@ function libInit(){
     const s = e.target.closest("button.sw[data-s]");
     if (s && LIB.view === "studio"){ s.classList.toggle("on"); s.setAttribute("aria-checked", s.classList.contains("on")); stuSet(s.dataset.s, "", s); return; }
   });
-  el.addEventListener("click", e => { const t = e.target.closest("[data-l]"); if (t && t.tagName !== "INPUT" && t.tagName !== "SELECT" && t.tagName !== "TEXTAREA") libTap(t); });
+  el.addEventListener("click", e => {
+    if (e.target.closest("[data-ctxbtn],#ctxmenu") || (typeof ctxHeld === "number" && ctxHeld && performance.now() - ctxHeld < 400)) return;
+    const t = e.target.closest("[data-l]"); if (t && t.tagName !== "INPUT" && t.tagName !== "SELECT" && t.tagName !== "TEXTAREA") libTap(t);
+  });
   el.addEventListener("input", e => {
     const t = e.target, a = t.dataset.l;
     if (t.dataset.s && LIB.view === "studio" && (t.tagName === "TEXTAREA" || t.type === "text") && !/\.(key|slot)$/.test(t.dataset.s)){ stuSet(t.dataset.s, t.value, t); return; }
@@ -623,6 +630,7 @@ function libInit(){
     if (d.l === "file" && t.files && t.files[0]){ t.files[0].text().then(libLoadImport, () => { LIB.impErr = "Couldn't read that file."; libShow(); }); }
   });
   addEventListener("keydown", e => {
+    if (e.defaultPrevented) return;
     if (e.key === "Escape" && !el.hidden){
       if (LIB.view === "studio"){
         if (stuDirty() && !confirm("Leave Tile Studio without saving your changes?")) return;

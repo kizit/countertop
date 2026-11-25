@@ -463,6 +463,273 @@ async function main() {
     assert.deepEqual(nightErrs, []);
     await nightCtx.close();
     console.log("✓ Night page takes over at night, wakes on touch-to-peek, and returns after 60 s");
+
+    // 6. Desktop mode (Playwright without hasTouch): detection, overrides, tighter CSS, wheel scrolling, right-click/⋯ menus, keyboard shortcuts & editor
+    // 6a. Silk / Echo user agent always stays in touch mode, even without hasTouch or with ?input=desktop
+    const silkCtx = await openContext({
+      base: srv.base, viewport: { width: 1280, height: 800 }, hasTouch: false, useFixtures: true,
+      userAgent: "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Silk/120.0.1 Chrome/120.0.0.0 Safari/537.36",
+      label: "silk-ua",
+    });
+    const silkErrs = [];
+    const sp = await silkCtx.newPage();
+    watchErrors(sp, silkErrs, { prefix: "silk" });
+    await sp.goto(srv.base + "/control?input=desktop", { waitUntil: "load" });
+    await until(() => sp.evaluate(() => typeof CT === "object" && typeof mods === "object" && !!mods.look), "Silk Controls loaded");
+    assert.equal(await sp.evaluate(() => CT.input), "touch", "Silk UA must always resolve to touch");
+    assert.equal(await sp.evaluate(() => document.documentElement.dataset.input), "touch");
+    assert.deepEqual(silkErrs, []);
+    await silkCtx.close();
+    console.log("✓ Echo / Silk user agent always stays in touch mode");
+
+    // 6b. Desktop detection, URL/localStorage override, Controls > Screen dropdown, tighter CSS & tooltips
+    const deskCtx = await openContext({ base: srv.base, viewport: { width: 1280, height: 800 }, hasTouch: false, useFixtures: true, realSaves: true, interceptReports: true, label: "controls-desktop" });
+    const deskErrs = [];
+    const dp = await deskCtx.newPage();
+    watchErrors(dp, deskErrs, {
+      prefix: "desk",
+      ignoreConsole: t => /reported: config: TypeError: Failed to fetch/.test(t),
+    });
+    await dp.goto(srv.base + "/control", { waitUntil: "load" });
+    await until(() => dp.evaluate(() => typeof CT === "object" && typeof mods === "object" && !!mods.look), "Desktop Controls loaded");
+    assert.equal(await dp.evaluate(() => CT.input), "desktop");
+    assert.equal(await dp.evaluate(() => document.documentElement.dataset.input), "desktop");
+    const deskMetrics = await dp.evaluate(() => {
+      const row = document.querySelector(".row[data-go]");
+      const grip = document.querySelector("[data-grip]");
+      const more = document.querySelector(".morebtn");
+      return {
+        rowH: row.getBoundingClientRect().height,
+        gripTouch: grip ? getComputedStyle(grip).touchAction : "",
+        moreVis: more ? getComputedStyle(more).display !== "none" : false,
+        moreTitle: more ? more.getAttribute("title") : "",
+        pveditTitle: document.getElementById("pvedit").getAttribute("title"),
+      };
+    });
+    assert.equal(deskMetrics.moreVis, true, "⋯ menu button should be visible in desktop mode");
+    assert.equal(deskMetrics.gripTouch, "auto", "grip should not override touch-action in desktop mode");
+    assert.ok(deskMetrics.moreTitle && deskMetrics.pveditTitle, "desktop icon/action buttons should have tooltips");
+
+    // Override to touch via URL: saved in localStorage, tidied from URL, persists across reload, restores touch sizes
+    await dp.goto(srv.base + "/control?input=touch", { waitUntil: "load" });
+    await until(() => dp.evaluate(() => typeof CT === "object" && typeof mods === "object" && !!mods.look), "Touch override loaded");
+    assert.ok(!/[?&]input=/.test(dp.url()), "input query parameter should be tidied from URL");
+    assert.equal(await dp.evaluate(() => localStorage.getItem("countertop.input")), "touch");
+    assert.equal(await dp.evaluate(() => CT.input), "touch");
+    assert.equal(await dp.evaluate(() => document.documentElement.dataset.input), "touch");
+    const touchMetrics = await dp.evaluate(() => ({
+      rowH: document.querySelector(".row[data-go]").getBoundingClientRect().height,
+      gripTouch: getComputedStyle(document.querySelector("[data-grip]")).touchAction,
+      moreVis: getComputedStyle(document.querySelector(".morebtn")).display !== "none",
+    }));
+    assert.ok(deskMetrics.rowH < touchMetrics.rowH, `desktop rows (${deskMetrics.rowH}) should be tighter than touch rows (${touchMetrics.rowH})`);
+    assert.equal(touchMetrics.gripTouch, "none", "touch mode grip should keep touch-action:none");
+    assert.equal(touchMetrics.moreVis, false, "⋯ menu button stays hidden in touch mode");
+
+    await dp.goto(srv.base + "/control", { waitUntil: "load" });
+    await until(() => dp.evaluate(() => typeof CT === "object" && typeof mods === "object" && !!mods.look), "Reloaded with saved override");
+    assert.equal(await dp.evaluate(() => CT.input), "touch", "touch override should persist across reload");
+
+    // Controls > Screen > "This browser only" dropdown switches input mode and clears override on Automatic
+    await dp.evaluate(() => go("display"));
+    await dp.locator("#display-input").waitFor();
+    assert.equal(await dp.inputValue("#display-input"), "touch");
+    await dp.selectOption("#display-input", "desktop");
+    assert.equal(await dp.evaluate(() => CT.input), "desktop");
+    assert.equal(await dp.evaluate(() => document.documentElement.dataset.input), "desktop");
+    assert.equal(await dp.evaluate(() => localStorage.getItem("countertop.input")), "desktop");
+    await dp.selectOption("#display-input", "");
+    assert.equal(await dp.evaluate(() => localStorage.getItem("countertop.input")), null);
+    assert.equal(await dp.evaluate(() => CT.input), "desktop");
+
+    // /control?input=auto also clears a saved override
+    await dp.goto(srv.base + "/control?input=touch", { waitUntil: "load" });
+    await dp.goto(srv.base + "/control?input=auto", { waitUntil: "load" });
+    await until(() => dp.evaluate(() => typeof CT === "object" && typeof mods === "object" && !!mods.look), "Auto override loaded");
+    assert.equal(await dp.evaluate(() => localStorage.getItem("countertop.input")), null);
+    assert.equal(await dp.evaluate(() => CT.input), "desktop");
+    console.log("✓ desktop/touch detection, ?input= URL override, Controls > Screen setting and tighter desktop CSS");
+
+    // 6c. Native wheel scrolling in long lists (Controls root + Library Tiles)
+    const navBox = await dp.locator(".nav").boundingBox();
+    await dp.mouse.move(navBox.x + navBox.width / 2, 200);
+    await dp.mouse.wheel(0, 600);
+    await until(() => dp.evaluate(() => window.scrollY > 50), "native wheel scroll on Controls root");
+    await dp.evaluate(() => window.scrollTo(0, 0));
+
+    await dp.evaluate(() => libOpen("tiles"));
+    await until(() => dp.locator('#lib [data-l="addtile"]').count().then(c => c > 10), "Library tiles loaded for wheel scroll");
+    const lmainBox = await dp.locator("#lib .lmain").boundingBox();
+    await dp.mouse.move(lmainBox.x + lmainBox.width / 2, lmainBox.y + 200);
+    await dp.mouse.wheel(0, 800);
+    await until(() => dp.evaluate(() => document.querySelector("#lib .lmain").scrollTop > 50), "native wheel scroll in Library tiles");
+    await dp.keyboard.press("Escape");
+    await until(() => dp.evaluate(() => document.getElementById("lib").hidden), "Esc closes Library");
+    console.log("✓ native wheel scrolling works in Controls and Library lists, and Esc closes Library");
+
+    // 6d. Right-click menu and visible ⋯ button on pages & themes
+    await dp.locator('[data-pid="roomy"]').click({ button: "right" });
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    await dp.locator('#ctxmenu button', { hasText: "Hide page" }).click();
+    await until(() => dp.evaluate(() => cpById("roomy").on === false), "right-click Hide page toggled roomy off");
+    await dp.locator('[data-pid="roomy"] .morebtn').click();
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    assert.equal(await dp.evaluate(() => stack[stack.length - 1]), "root", "clicking ⋯ must not navigate into row");
+    await dp.locator('#ctxmenu button', { hasText: "Show page" }).click();
+    await until(() => dp.evaluate(() => cpById("roomy").on !== false), "⋯ menu Show page toggled roomy back on");
+    await dp.locator('[data-pid="roomy"]').click({ button: "right" });
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    await dp.keyboard.press("Escape");
+    await until(() => dp.evaluate(() => document.getElementById("ctxmenu").hidden), "Esc closes context menu");
+
+    await dp.evaluate(() => go("looks"));
+    await dp.locator('.lcard[data-ctx="theme:default"]').click({ button: "right" });
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    assert.ok(await dp.locator('#ctxmenu button', { hasText: "Customize" }).isVisible());
+    await dp.keyboard.press("Escape");
+    await until(() => dp.evaluate(() => document.getElementById("ctxmenu").hidden), "Esc closes theme context menu");
+    console.log("✓ right-click and visible ⋯ menus work on pages and themes, and Esc closes them");
+
+    // 6e. Keyboard shortcuts on drafts: Ctrl+S saves, Esc cancels
+    await dp.locator('.lcard[data-lact="new"]').click();
+    await dp.locator('input[data-lk="__name"]').waitFor();
+    await dp.locator('input[data-lk="__name"]').fill("Desk Saved");
+    await dp.keyboard.press("Control+s");
+    await until(() => dp.evaluate(() => !DRAFT && looks().some(t => t.name === "Desk Saved")), "Ctrl+S saved theme draft");
+    await dp.evaluate(() => { stack = ["root", "looks"]; show(); });
+    await dp.locator('.lcard[data-lact="new"]').click();
+    await dp.locator('input[data-lk="__name"]').waitFor();
+    await dp.locator('input[data-lk="__name"]').fill("Desk Discarded");
+    await dp.keyboard.press("Escape");
+    await until(() => dp.evaluate(() => !DRAFT && stack[stack.length - 1] === "looks"), "Esc closed theme draft");
+    assert.equal(await dp.evaluate(() => looks().some(t => t.name === "Desk Discarded")), false, "Esc should not save discarded theme");
+
+    await dp.evaluate(() => { stack = ["root", "effects"]; show(); });
+    await dp.locator('[data-fxa="new"]').click();
+    await dp.locator('input[data-fxd="name"]').waitFor();
+    await dp.locator('input[data-fxd="name"]').fill("Desk FX");
+    await dp.keyboard.press("Control+s");
+    await until(() => dp.evaluate(() => !FXDRAFT && mineList().some(m => m.name === "Desk FX")), "Ctrl+S saved effect draft");
+    await dp.evaluate(() => { stack = ["root", "effects"]; show(); });
+    await dp.locator('[data-fxa="new"]').click();
+    await dp.locator('input[data-fxd="name"]').waitFor();
+    await dp.locator('input[data-fxd="name"]').fill("Desk FX Cancel");
+    await dp.keyboard.press("Escape");
+    await until(() => dp.evaluate(() => !FXDRAFT && stack[stack.length - 1] === "effects"), "Esc closed effect draft");
+    assert.equal(await dp.evaluate(() => mineList().some(m => m.name === "Desk FX Cancel")), false, "Esc should not save discarded effect");
+    console.log("✓ Ctrl+S saves drafts and Esc closes drafts without saving");
+
+    // 6f. Desktop 3-pane PC layout studio: pulled-out right inspector, unified toolbar, sidebar toggle, Grid toggle,
+    //     Add-a-tile search, wheel scroll, cross-pane tile drag, Duplicate box, right-click menu, mouse drag, Arrow nudge, Ctrl+Z & Ctrl+S
+    await dp.evaluate(() => { stack = ["root"]; show(); });
+    await until(() => dp.evaluate(() => {
+      const f = document.getElementById("pvf");
+      return f && f.contentWindow && typeof f.contentWindow.dashEdit === "function" && f.contentWindow.document.querySelector('[data-mod]');
+    }), "preview iframe ready");
+    await dp.locator("#pvedit").click();
+    await until(() => dp.evaluate(() => pvWin().dashEditing() && document.body.classList.contains("editing-desk") && !document.getElementById("insp").hidden), "3-pane PC studio entered");
+    const pvFrame = dp.frameLocator("#pvf");
+    await pvFrame.locator('.eslot[data-slot="ms3"]').waitFor();
+
+    // Verify pulled-out right inspector, hidden duplicate iframe chrome, and auto-collapsed sidebar at 1280px (< 1400px)
+    const studioState = await dp.evaluate(() => {
+      const d = pvWin().document;
+      return {
+        slotCursor: getComputedStyle(d.querySelector(".eslot")).cursor,
+        iframeBarHidden: getComputedStyle(d.getElementById("edbar")).display === "none",
+        iframePanelHidden: getComputedStyle(d.getElementById("edpanel")).display === "none",
+        inspH: document.getElementById("insp").getBoundingClientRect().height,
+        navCollapsed: document.body.classList.contains("nav-collapsed"),
+        addPgBtn: !!document.querySelector('#pvpage [data-edtab="+"]'),
+      };
+    });
+    assert.equal(studioState.slotCursor, "pointer", "layout editor boxes should use pointer cursor in desktop mode");
+    assert.equal(studioState.iframeBarHidden, true, "iframe #edbar should be hidden in PC host mode");
+    assert.equal(studioState.iframePanelHidden, true, "iframe #edpanel should be hidden in PC host mode");
+    assert.ok(studioState.inspH >= 790, "pulled-out right inspector should span full viewport height, got " + studioState.inspH);
+    assert.equal(studioState.navCollapsed, true, "left sidebar should auto-collapse below 1400px while editing");
+    assert.equal(studioState.addPgBtn, true, "unified toolbar should include + Page tab");
+
+    // Sidebar toggle expands and collapses left nav; wide viewport (>= 1400px) shows all 3 panes automatically
+    await dp.locator("#pvnav").click();
+    assert.equal(await dp.evaluate(() => document.body.classList.contains("nav-collapsed")), false, "clicking #pvnav should show sidebar");
+    await dp.locator("#pvnav").click();
+    assert.equal(await dp.evaluate(() => document.body.classList.contains("nav-collapsed")), true, "clicking #pvnav again should hide sidebar");
+
+    // Grid toggle in unified top toolbar
+    await dp.locator("#pvgrid").click();
+    assert.equal(await dp.evaluate(() => pvWin().document.body.classList.contains("ed-grid") && document.getElementById("pvgrid").classList.contains("on")), true, "Grid toggle should show snap grid");
+    await dp.locator("#pvgrid").click();
+    assert.equal(await dp.evaluate(() => !pvWin().document.body.classList.contains("ed-grid")), true, "Grid toggle should hide snap grid");
+
+    // Pulled-out right inspector: Add a tile search + native wheel scrolling + cross-pane drag onto canvas
+    await dp.locator('#insp-body [data-act="add"]').click();
+    await dp.locator('#insp-body input[data-addq="1"]').waitFor();
+    const allTileCards = await dp.locator("#insp-body .tc").count();
+    await dp.locator('#insp-body input[data-addq="1"]').fill("clock");
+    const filteredCards = await dp.locator("#insp-body .tc").count();
+    assert.ok(filteredCards >= 1 && filteredCards < allTileCards, "search should filter Add a tile list");
+    await dp.locator('#insp-body input[data-addq="1"]').fill("");
+
+    const inspBox = await dp.locator("#insp-body").boundingBox();
+    await dp.mouse.move(inspBox.x + inspBox.width / 2, inspBox.y + 200);
+    await dp.mouse.wheel(0, 700);
+    await until(() => dp.evaluate(() => document.getElementById("insp-body").scrollTop > 40), "native wheel scroll in pulled-out right inspector");
+    await dp.evaluate(() => { document.getElementById("insp-body").scrollTop = 0; });
+
+    // Cross-pane drag a tile from #insp-body onto empty space in the middle canvas (#pvf)
+    const slotsBeforeDrag = await dp.evaluate(() => pvWin().curPg().slots.length);
+    const noteCard = dp.locator('#insp-body .tc[data-type="note"]').first();
+    await noteCard.scrollIntoViewIfNeeded();
+    const ncBox = await noteCard.boundingBox();
+    const pvBox = await dp.locator("#pvf").boundingBox();
+    await dp.mouse.move(ncBox.x + ncBox.width / 2, ncBox.y + ncBox.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(pvBox.x + pvBox.width * 0.85, pvBox.y + pvBox.height * 0.72, { steps: 12 });
+    await dp.mouse.up();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n + 1, slotsBeforeDrag), "cross-pane tile drag added a box");
+    await dp.locator("#pvundo").click();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n, slotsBeforeDrag), "Undo button removed cross-pane dropped box");
+    await dp.locator('#insp-body [data-act="back"]').click();
+
+    // Right-click a box in the middle canvas -> desktop context menu opens with Duplicate box & Remove box
+    await pvFrame.locator('.eslot[data-slot="ms3"]').click({ button: "right" });
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    assert.ok(await dp.locator('#ctxmenu button', { hasText: "Remove box" }).isVisible());
+    await dp.locator('#ctxmenu button', { hasText: "Duplicate box" }).click();
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n + 1, slotsBeforeDrag), "Duplicate box created a copy");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(n => pvWin().curPg().slots.length === n, slotsBeforeDrag), "Ctrl+Z undid Duplicate box");
+
+    // Arrow key nudges selected tile (ms3 is at x=24, y=0, w=12, h=8), Ctrl+Z undoes it
+    await pvFrame.locator('.eslot[data-slot="ms3"]').click();
+    await until(() => dp.evaluate(() => !!pvWin().document.querySelector('.eslot.sel[data-slot="ms3"]')), "ms3 selected");
+    await dp.keyboard.press("ArrowRight");
+    await until(() => dp.evaluate(() => pvWin().curPg().slots.find(s => s.id === "ms3").x === 25), "ArrowRight nudged ms3");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(() => pvWin().curPg().slots.find(s => s.id === "ms3").x === 24), "Ctrl+Z undid ms3 nudge");
+
+    // Mouse drag moves ms3 into empty space to the right, then Ctrl+S saves and exits 3-pane studio cleanly
+    const ms3Box = await until(() => pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox(), "ms3 bounding box");
+    await dp.mouse.move(ms3Box.x + ms3Box.width / 2, ms3Box.y + ms3Box.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(ms3Box.x + ms3Box.width / 2 + 80, ms3Box.y + ms3Box.height / 2 + 60, { steps: 10 });
+    await dp.mouse.up();
+    const draggedPos = await until(() => dp.evaluate(() => {
+      const s = pvWin().curPg().slots.find(v => v.id === "ms3");
+      return s && (s.x > 24 || s.y > 0) ? { x: s.x, y: s.y } : false;
+    }), "mouse drag moved ms3 in layout editor");
+    await dp.keyboard.press("Control+s");
+    await until(() => {
+      const saved = JSON.parse(fs.readFileSync(path.join(data, "dashboard.json"), "utf8"))
+        .modules.pages.settings.items.find(p => p.id === "main").slots.find(s => s.id === "ms3");
+      return saved && saved.x === draggedPos.x && saved.y === draggedPos.y;
+    }, "Ctrl+S saved layout editor changes");
+    await until(() => dp.evaluate(() => !document.body.classList.contains("editing-desk") && document.getElementById("insp").hidden), "Save exited 3-pane studio");
+
+    assert.deepEqual(deskErrs, []);
+    await deskCtx.close();
+    console.log("✓ desktop 3-pane PC studio: pulled-out inspector, unified toolbar, Grid toggle, search, cross-pane drag, Duplicate, Arrow nudge, Ctrl+Z & Ctrl+S");
   });
 }
 

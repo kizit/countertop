@@ -80,7 +80,7 @@ function sbxKeyField(m, k, d, lab){
 }
 async function sbxKeyAct(a, el){
   const m = MODULES[EDIT.tile]; if (!m || !m.community) return;
-  const k = el.dataset.k, inp = $("edpanel").querySelector('input[data-tk="' + k + '"]');
+  const k = el.dataset.k, inp = (typeof edPan === "function" ? edPan() : $("edpanel")).querySelector('input[data-tk="' + k + '"]');
   const value = inp ? inp.value.trim() : "";
   if (a === "tksave" && !value){ flash(tr("Type the key first")); return; }
   let j;

@@ -8,7 +8,7 @@ function llRender(d, sid){
   el.innerHTML = items.length ? items.map(i =>
     '<div class="row"><div class="t"><b' + (i.done ? ' style="text-decoration:line-through;opacity:.5"' : "") + '>' + esc(i.text) + '</b></div>' +
     sw(!!i.done, 'data-litog="' + esc(i.id) + '" data-sid="' + esc(sid) + '"') +
-    '<button class="ll-x" data-lidel="' + esc(i.id) + '" data-sid="' + esc(sid) + '" aria-label="Delete">×</button></div>').join("")
+    '<button class="ll-x" data-lidel="' + esc(i.id) + '" data-sid="' + esc(sid) + '" title="Delete item" aria-label="Delete">×</button></div>').join("")
     : '<div class="row"><div class="t"><small>Nothing on the list yet</small></div></div>';
   const bar = document.getElementById("llbar");
   if (bar){
@@ -194,6 +194,7 @@ function scrollKeep(cur){
   return () => { els.forEach((e, i) => { e.scrollTop = tops[i]; }); if (window.scrollY !== y) window.scrollTo(0, y); };
 }
 function show(){
+  if (typeof ctxClose === "function") ctxClose();
   if (libSub()){ libShow(); return; }          // Themes and Effects are open in the Library
   const cur = stack[stack.length - 1];
   const {h, title} = screenFor(cur);
@@ -216,6 +217,7 @@ function show(){
   if (!ECHO && cur.startsWith("page:")) pvGoPage(cur.slice(5));
 }
 function go(to){
+  if (typeof ctxClose === "function") ctxClose();
   if (libSub()){ LIB.sub.push(to); libShow(); libEl().querySelector(".lmain").scrollTop = 0; return; }
   stack.push(to); show(); scrollTo(0, 0); if (to === "status") statusLoad();
 }

@@ -5,6 +5,32 @@
 const EDIT = {on:false, ori:"l", page:"main", sel:null, tile:null, drag:null, hist:[], fut:[], k:0, ox:0, oy:0, panel:null, addTo:null};
 const PANEL_W = 384;
 const inFrame = () => { try{ return window.parent !== window && !!window.parent.dashSetup; }catch(e){ return false; } };
+// when hosted inside Controls in desktop mode, Controls provides the unified top toolbar and full-height right inspector
+const hostDesk = () => { try{ return PREVIEW && window.parent !== window && window.parent.CT && window.parent.CT.input === "desktop" && typeof window.parent.dashDeskSync === "function"; }catch(e){ return false; } };
+const hostPanel = () => hostDesk() ? window.parent.document.getElementById("insp-body") : null;
+const edPan = () => hostPanel() || $("edpanel");
+function edHostSync(hintOverride, hintCls){
+  if (!hostDesk()) return;
+  try{
+    const names = pageList().filter(n => gridOf(n));
+    const dirty = EDIT.on && JSON.stringify(CFG) !== EDIT.orig;
+    const dzx = EDIT.focus && designOf(MODULES[EDIT.focus.id]);
+    const hint = hintOverride != null ? hintOverride : dzx ? "Designing “" + dzx.name + "” · click Done when finished" : dirty ? "Unsaved changes" : "";
+    window.parent.dashDeskSync({
+      editing: EDIT.on,
+      page: EDIT.page,
+      pages: names.map(n => ({id:n, name:pageName(gridOf(n))})),
+      dirty,
+      canUndo: EDIT.hist.length > 0,
+      canRedo: EDIT.fut.length > 0,
+      hint,
+      hintCls: hintCls || "",
+      focus: !!EDIT.focus,
+      grid: document.body.classList.contains("ed-grid"),
+      sel: EDIT.sel,
+    });
+  }catch(e){}
+}
 function curPg(){ return gridOf(EDIT.page); }
 function pgSec(){ return EDIT.page === "main" ? $("p1") : document.querySelector('.cpage[data-page="' + (EDIT.page === "night" ? "night" : EDIT.page.slice(2)) + '"]'); }
 function pgGrid(){
@@ -80,8 +106,19 @@ function undo(dir){
 // the page is drawn at a screen's size and shrunk into the frame: this screen's own size when it is the shape being
 // edited, otherwise 1920x1080 (or 1080x1920). The panel goes on the right, or below when that leaves the page bigger.
 function edFrame(){
-  const W = innerWidth, H = innerHeight, pad = 24, P = EDIT.ori === "p";
+  const W = innerWidth, H = innerHeight, pad = 24, P = EDIT.ori === "p", host = hostDesk();
+  document.body.classList.toggle("ed-host", host);
   const fixed = P ? [1080, 1920] : [1920, 1080], side = P === PORTQ.matches ? [W, H] : fixed;
+  if (host){
+    document.body.classList.remove("ed-stacked");
+    const [PW, PH] = side, top = 48;
+    document.body.style.setProperty("--page-w", PW + "px"); document.body.style.setProperty("--page-h", PH + "px");
+    EDIT.k = Math.max(.01, Math.min((W - pad * 2) / PW, (H - top - pad) / PH));
+    EDIT.ox = (W - PW * EDIT.k) / 2;
+    EDIT.oy = top + Math.max(0, (H - top - pad - PH * EDIT.k) / 2);
+    pagesXform();
+    return;
+  }
   const kSide = Math.min((W - PANEL_W - pad * 3) / side[0], (H - 68 - pad) / side[1]);
   const kStack = Math.min((W - pad * 2) / fixed[0], (H * .58 - 120 - pad) / fixed[1]);
   const stacked = W < 840 || kStack > kSide;
@@ -119,7 +156,7 @@ function editEnter(sel){
     return;
   }
   const cur = pageList()[PAGE] || "main";
-  EDIT.on = true; EDIT.focus = null; EDIT.orig = JSON.stringify(CFG); EDIT.hist = []; EDIT.fut = []; EDIT.panel = null; EDIT.sel = null; EDIT.tile = null;
+  EDIT.on = true; EDIT.focus = null; EDIT.orig = JSON.stringify(CFG); EDIT.hist = []; EDIT.fut = []; EDIT.panel = null; EDIT.sel = null; EDIT.tile = null; EDIT.addq = "";
   EDIT.page = gridOf(cur) ? cur : "main";
   EDIT.ori = PORTQ.matches ? "p" : "l"; [GC, GR] = dims(EDIT.ori);
   editUI(); document.body.classList.add("editing");
@@ -143,8 +180,9 @@ async function editExit(save){
       const r = await fetch("/config", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({modules: out})});
       if (!r.ok) throw new Error("HTTP " + r.status);
       try{ window.parent.dashSaved && window.parent.dashSaved(); }catch(e){}
-    }catch(e){ $("edhint").textContent = "Didn't save: " + e.message; return; }
+    }catch(e){ $("edhint").textContent = "Didn't save: " + e.message; edHostSync("Didn't save: " + e.message, "warn"); return; }
   }
+  EDIT.on = false; edHostSync();
   // a clean start, on the page that was being edited; also what the screen does when the saved layout changes
   const u = new URL(location.href);
   u.searchParams.delete("edit"); u.searchParams.set("page", EDIT.page || "main");
@@ -152,6 +190,30 @@ async function editExit(save){
 }
 window.dashEdit = (on, tile) => on ? editEnter(tile) : editExit(false);
 window.dashEditing = () => EDIT.on;
+window.dashHostInput = e => { if (EDIT.on) edPanelInput(e); };
+window.dashHostDown = e => { if (EDIT.on) panelDown(e); };
+window.dashHostTab = tab => { if (!EDIT.on) return; if (tab === "+"){ EDIT.sel = null; EDIT.panel = "new"; edPaint(true); return; } EDIT.sel = null; EDIT.panel = null; goEditPage(tab); };
+window.dashHostUndo = dir => { if (EDIT.on) undo(dir); };
+window.dashHostSave = () => { if (EDIT.on) editExit(true); };
+window.dashHostGrid = on => { document.body.classList.toggle("ed-grid", on == null ? !document.body.classList.contains("ed-grid") : !!on); edHostSync(); };
+window.dashAddTile = type => { if (EDIT.on && TYPES[type]) addTileAnywhere(type); };
+window.dashHostRefresh = () => { if (!EDIT.on) return; edFrame(); edPaint(true); };
+window.dashDragTileMove = (type, x, y) => {
+  if (!EDIT.on || !TYPES[type]) return;
+  const pg = curPg(), G = pgGrid(); if (!pg || !G) return;
+  EDIT.drag = {k:"tile", type, started:true, to:null};
+  document.body.classList.add("ed-drag");
+  const inside = x >= G.r.left && x <= G.r.right && y >= G.r.top && y <= G.r.bottom;
+  if (inside){
+    const [c, r] = cellAt(x, y), under = (pg.slots || []).find(v => at(RG(v, pg), c, r));
+    if (under) EDIT.drag.to = {k:"into", s:under, R:RG(under, pg)};
+    else { const R = fitAt(pg, TYPES[type].size, c, r); if (R) EDIT.drag.to = {k:"new", R}; }
+    showPh(EDIT.drag.to ? EDIT.drag.to.R : {x:c, y:r, w:1, h:1}, EDIT.drag.to ? (EDIT.drag.to.k === "into" ? "swap" : "move") : "bad",
+      EDIT.drag.to ? (EDIT.drag.to.k === "into" ? (live(under).length ? "Take turns with " + boxName(under) : "Put here") : "") : "No room");
+  } else $("edph").hidden = true;
+};
+window.dashDragTileDrop = () => { if (EDIT.on) edUp(); };
+window.dashDragTileCancel = () => { EDIT.drag = null; document.body.classList.remove("ed-drag"); if ($("edph")) $("edph").hidden = true; };
 // Controls changed a dashboard-wide setting while the editor is open: use it here too, so Save keeps it
 window.dashApply = mods => {
   for (const id in mods) if (CFG[id] && mods[id].settings && id !== "pages" && id !== "tiles" && !tileItem(id)) CFG[id].settings = JSON.parse(JSON.stringify(mods[id].settings));
@@ -205,6 +267,7 @@ function edPaint(force){
   }
   edPanel(force); stackTick();
   if (EDIT.focus) designPaint();
+  edHostSync();
 }
 const px = r => ({left:r.left + "px", top:r.top + "px", width:r.width + "px", height:r.height + "px"});
 const firstLine = t => { const m = String(t || "").match(/^.*?[.!?](\s|$)/); return m ? m[0].trim() : String(t || ""); };
@@ -213,8 +276,8 @@ const srcLc = t => t === "Home Assistant" ? t : t.toLowerCase();      // a produ
 const SRCK = {calendars:["calendar", "Calendars"], lists:["list", "Lists"], teams:["team", "Sports teams"], albums:["album", "Photo albums"], cams:["camera", "Live cams"], homeassistant:["Home Assistant", "Home Assistant"], recipes:["recipe source", "Recipes"]};
 
 function edPanel(force){
-  const P = $("edpanel"), pg = curPg(), s = EDIT.sel && (pg.slots || []).find(v => v.id === EDIT.sel);
-  const ae = document.activeElement;
+  const P = edPan(), pg = curPg(), s = EDIT.sel && (pg.slots || []).find(v => v.id === EDIT.sel);
+  const ae = P.ownerDocument.activeElement;
   if (!force && ae && P.contains(ae) && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT" && /text|number|search/.test(ae.type))) return;   // typing
   const view = EDIT.focus ? "dz:" + EDIT.focus.id : EDIT.panel || (s ? "box:" + s.id + ":" + EDIT.tile : "page:" + EDIT.page);
   const top = P.scrollTop, same = P.dataset.view === view;
@@ -253,17 +316,24 @@ function panelPage(pg){
   h += '<p class="pd">Tap a box to change what it shows. Drag a box to move it (drop it on another box to swap), and drag its edges to resize. Nothing changes on the screen until you Save.</p>';
   return h;
 }
+function panelAddList(q){
+  const words = String(q || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let h = "";
+  for (const cat of CATS){
+    const L = Object.values(TYPES).filter(T => T.cat === cat && !T.hidden && (!words.length || words.every(w => (T.title + " " + (T.desc || "") + " " + cat + " " + T.type).toLowerCase().includes(w))));
+    if (!L.length) continue;
+    h += '<div class="sh">' + esc(cat) + '</div>' + L.map(T => '<div class="tc" data-type="' + T.type + '"><b>' + esc(T.title) + '</b><small>' + esc(firstLine(T.desc)) +
+      ((T.needs && !(SOURCES[T.needs] || []).length) ? ' <u>Needs ' + esc(srcLc(SRCK[T.needs][1])) + ' in Setup</u>' : "") + '</small></div>').join("");
+  }
+  return h || '<p class="pd">No tiles match.</p>';
+}
 function panelAdd(){
   const tgt = EDIT.addTo && slotById(EDIT.addTo);
   let h = '<div class="ph"><button data-act="back">‹ Back</button><b>' + (tgt ? "Add to this box" : "Add a tile") + '</b></div>';
   h += '<p class="pd">' + (tgt ? "Tap a tile to add it to the selected box. Tiles in the same box take turns." :
     "Drag a tile onto an empty spot to give it its own box, or onto a box to have them take turns. Or tap it to put it in the first free space. Add as many as you like, then tap a tile on the page to change its settings.") + '</p>';
-  for (const cat of CATS){
-    const L = Object.values(TYPES).filter(T => T.cat === cat && !T.hidden);
-    if (!L.length) continue;
-    h += '<div class="sh">' + esc(cat) + '</div>' + L.map(T => '<div class="tc" data-type="' + T.type + '"><b>' + esc(T.title) + '</b><small>' + esc(firstLine(T.desc)) +
-      ((T.needs && !(SOURCES[T.needs] || []).length) ? ' <u>Needs ' + esc(srcLc(SRCK[T.needs][1])) + ' in Setup</u>' : "") + '</small></div>').join("");
-  }
+  if (hostDesk()) h += '<input type="search" data-addq="1" placeholder="Search tiles…" value="' + esc(EDIT.addq || "") + '" autocomplete="off" spellcheck="false">';
+  h += '<div data-addlist="1">' + panelAddList(hostDesk() ? EDIT.addq : "") + '</div>';
   return h;
 }
 function panelBox(s){
@@ -285,7 +355,7 @@ function panelBox(s){
   if (L.length) h += '<div class="kv0">Text size</div><div class="seg2">' + TSZ.map(([n, v]) => '<button data-act="ts" data-v="' + v + '"' + (((+s.ts || 1) === v) ? ' class="on"' : "") + '>' + n + '</button>').join("") + '</div>' +
     '<p class="pd">Text also shrinks a little on its own when the box is too small for it.</p>';
   h += '<div class="grp"><div class="kv"><span>Size' + (EDIT.ori === "p" ? " in portrait" : "") + '</span><b>' + (RG(s) ? RG(s).w + ' × ' + RG(s).h + ' squares' : "Not on this screen") + '</b></div>' + (L.length ? '<div class="kv"><span>Smallest it can be</span><b>' + mw + ' × ' + mh + '</b></div>' : "") + '</div>';
-  h += '<div class="btns">' + (L.length ? '<button data-act="fit">Usual size</button>' : "") + '<button data-act="grow">Fill free space</button></div>';
+  h += '<div class="btns">' + (L.length ? '<button data-act="fit">Usual size</button>' : "") + '<button data-act="grow">Fill free space</button>' + (L.length ? '<button data-act="dup">Duplicate</button>' : "") + '</div>';
   h += '<button class="wide red" data-act="del">Remove this box</button>';
   h += '<p class="pd">Drag the box to move it; drop it on another box to swap them. Drag an edge or corner to resize. Keys: arrows move, Shift+arrows resize, Delete removes, Esc goes back.</p>';
   return h;
@@ -412,11 +482,17 @@ function tplPic(boxes){
 }
 function edPanelInput(e){
   const t = e.target, pg = curPg(); if (!pg) return;
+  if (t.dataset.addq){
+    EDIT.addq = t.value;
+    const box = edPan().querySelector('[data-addlist="1"]');
+    if (box) box.innerHTML = panelAddList(t.value);
+    return;
+  }
   if (t.dataset.entq){                       // entity search: narrow the results as you type
     const m = MODULES[EDIT.tile]; if (!m) return;
     const k = t.dataset.entq, d = tileDefs(m)[k] || {}, v = m.s[k], sel = d.multi ? (Array.isArray(v) ? v : []) : (v ? [v] : []);
     (EDIT.entq = EDIT.entq || {})[m.id + k] = t.value;
-    const box = $("edpanel").querySelector('[data-entres="' + k + '"]');
+    const box = edPan().querySelector('[data-entres="' + k + '"]');
     if (box) box.innerHTML = entResults(m, k, d, sel, entList(m.s[d.src || "src"] || ""), t.value.toLowerCase());
     return;
   }
@@ -443,7 +519,7 @@ function tileInput(t){
       if (isNaN(v)) v = d.default; if (d.min != null) v = Math.max(d.min, v); if (d.max != null) v = Math.min(d.max, v);
     }
     else if (d.type === "list") v = v.split("\n").map(x => x.trim()).filter(Boolean);
-    else if (d.type === "source" && d.multi) v = [...$("edpanel").querySelectorAll('input[data-ts="' + k + '"]:checked')].map(x => x.dataset.src);
+    else if (d.type === "source" && d.multi) v = [...edPan().querySelectorAll('input[data-ts="' + k + '"]:checked')].map(x => x.dataset.src);
     m.s[k] = v;
     if (d.type === "source") refeed(m.id);
   }
@@ -526,7 +602,32 @@ function addEmptyBox(){
   remember(); const s = newBox(pg, R, size, o);
   EDIT.sel = s.id; EDIT.tile = null; relayout();
 }
-function flash(t, ok){ const h = $("edhint"); h.textContent = t; h.classList.toggle("warn", !ok); h.classList.toggle("ok", !!ok); setTimeout(() => { h.classList.remove("warn", "ok"); edPaint(); }, 3000); }
+function duplicateBox(s){
+  const pg = curPg(), g = RG(s, pg); if (!g) return;
+  const [mw, mh] = bmin(s), {o, R} = newSpot(pg, [g.w, g.h, mw, mh]);
+  if (!R){ flash("No room left on this page: make a box smaller first"); return; }
+  remember();
+  const ids = live(s).map(oldId => {
+    const src = tileItem(oldId); if (!src) return null;
+    const tid = src.type + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const copy = JSON.parse(JSON.stringify(src)); copy.id = tid;
+    tileItems().push(copy); tileMount(copy); refeed(tid);
+    return tid;
+  }).filter(Boolean);
+  const b = newBox(pg, R, [g.w, g.h, mw, mh], o);
+  setSmods(b, ids);
+  if (s.every) b.every = s.every;
+  if (s.ts) b.ts = s.ts;
+  EDIT.sel = b.id; EDIT.tile = ids[0] || null; EDIT.panel = null;
+  relayout();
+  flash("Duplicated " + boxName(b), true);
+}
+function flash(t, ok){
+  const h = $("edhint"); h.textContent = t; h.classList.toggle("warn", !ok); h.classList.toggle("ok", !!ok);
+  edHostSync(t, ok ? "ok" : "warn");
+  clearTimeout(flash.t);
+  flash.t = setTimeout(() => { h.classList.remove("warn", "ok"); edPaint(); }, 3000);
+}
 // make a new tile of this type and put it in box s (an existing box, or a new one given as a rectangle)
 function addTile(type, s){
   const pg = curPg(); remember();
@@ -609,6 +710,7 @@ function boxAct(a, el){
     if (blocked(pg, R, s)){ flash("Not enough room here for its usual size"); return; } remember(); touch(pg); Object.assign(RG(s, pg), R); relayout(); }
   else if (a === "portauto"){ const pg = curPg(); remember(); (pg.slots || []).forEach(v => { delete v.p; }); relayout(); }
   else if (a === "grow" && s) growFree(s);
+  else if (a === "dup" && s) duplicateBox(s);
   else if (a === "box") addEmptyBox();
   else if (a === "delpage"){
     const pg = curPg(); if (!pg || pg.id === "main" || pg.id === "night") return;

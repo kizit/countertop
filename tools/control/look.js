@@ -73,10 +73,9 @@ const SIZES = [["Smaller", 90], ["Normal", 100], ["Bigger", 115], ["Biggest", 13
 
 /* ----- text colors: automatic (from Light or dark) or one color for all tile text; the clock's time and the temperature can have their own ----- */
 const HEX6 = /^#[0-9a-f]{6}$/i;
-const autoText = v => v.mode === "Light" ? "#1a1f26" : "#e9ecf1";
-const textOf = v => HEX6.test(v.textColor || "") ? v.textColor : autoText(v);
-const fadeHex = (hex, a) => { const n = parseInt(hex.slice(1), 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; };
-const bigOf = v => HEX6.test(v.bigColor || "") ? v.bigColor : textOf(v);
+const autoText = v => THEMELIB.resolve({mode:v.mode}).fg;
+const textOf = v => THEMELIB.resolve(v).fg;
+const bigOf = v => THEMELIB.resolve(v).big;
 function lum(hex){
   const n = parseInt(hex.slice(1), 16), f = x => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4); };
   return .2126 * f(n >> 16) + .7152 * f((n >> 8) & 255) + .0722 * f(n & 255);
@@ -101,13 +100,11 @@ function textColorRows(v, A){
 }
 
 /* ----- a small drawing of the dashboard in a look ----- */
-function lookColors(v){
-  const light = v.mode === "Light";
+function lookColors(v){        // the same numbers the dashboard uses (THEMELIB.resolve), plus the background drawing
+  const r = THEMELIB.resolve(v);
   const bg = v.bg === "Color" ? esc(v.bgColor || "#0a0c0f") : v.bg === "Photos" ? "linear-gradient(165deg,#88a6c2 0%,#d7b08a 52%,#4d5e43 53%,#2a3624 100%)"
     : "linear-gradient(180deg,#2f6aa3 0%,#1c4370 45%,#0d1a2b 100%)";
-  const op = v.tiles === "Clear" ? 0 : v.tiles === "See-through" ? (v.opacity || 60) / 100 : light ? .92 : .86;
-  return {light, bg, card:(light ? "rgba(250,251,253," : "rgba(18,22,28,") + op + ")", fg:esc(textOf(v)), big:esc(bigOf(v)), dim:HEX6.test(v.textColor || "") ? fadeHex(v.textColor, .55) : light ? "#5a6470" : "#8a939e",
-    bd:v.tiles === "Clear" ? "transparent" : light ? "rgba(0,0,0,.06)" : "rgba(255,255,255,.07)", acc:esc(v.accent || "#7cb7ff")};
+  return {light:r.light, bg, card:r.card, fg:esc(r.fg), big:esc(r.big), dim:r.text.dim, bd:r.clear ? "transparent" : r.line, acc:esc(r.accent)};
 }
 function lookPic(v, cls){
   const ts = (v.textScale || 100) / 100, {bg, card, fg, big, dim, bd, acc} = lookColors(v);

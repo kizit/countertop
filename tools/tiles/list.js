@@ -20,7 +20,7 @@ Tile("list", {
     .m-groc .gi > span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
     .m-groc .gi.done > span{text-decoration:line-through;opacity:.45}
     .m-groc .gi .rm{flex:none;color:var(--dim);font-size:24px;line-height:1;padding:2px 7px;border-radius:8px;cursor:pointer}
-    .m-groc .gi .rm:active{color:#ff8a80}
+    .m-groc .gi .rm:active{color:var(--bad)}
     .m-groc .bar{display:flex;align-items:center;gap:10px;margin-top:8px;color:var(--dim);font-size:15px}
     .m-groc .bar button{font-size:14px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.1);border:0;color:var(--dim);cursor:pointer}
     .m-groc h3 small{float:right}`,
@@ -43,7 +43,7 @@ Tile("list", {
       const items = d.items || [], addBox = s.addBox !== false;
       if (addBox) h += '<form class="add"><input type="text" maxlength="80" placeholder="Add something…" autocomplete="off" autocapitalize="sentences"><button type="button" class="addbtn" title="Add">+</button></form>';
       h += items.length
-        ? '<div class="gl">' + items.slice(0, max).map(i =>
+        ? '<div class="gl" data-keep>' + items.slice(0, max).map(i =>
             '<div class="gi' + (i.done ? " done" : "") + '" data-id="' + esc(i.id) + '"><i class="cb">' + (i.done ? "✓" : "") + '</i><span>' + esc(i.text) + '</span><span class="rm" data-rm="' + esc(i.id) + '" title="Delete">×</span></div>').join("") + '</div>' +
             (items.length > max ? '<div class="empty">+' + (items.length - max) + ' more</div>' : "")
         : '<div class="empty">Nothing on the list yet' + (addBox ? " — add the first item above…" : "") + '</div>';
@@ -51,7 +51,7 @@ Tile("list", {
       if (items.length) h += '<div class="bar"><span>' + done + ' / ' + items.length + ' done' + (daily ? " · resets at 00:00" : "") + '</span><button data-op="reset" title="Untick everything now">Untick all</button></div>';
     } else {
       const open = (d.items || []).filter(i => !i.done);
-      h += open.length ? '<div class="gl">' + open.slice(0, max).map(i => { const dl = s.saleTag !== false && dealFor(i.text);
+      h += open.length ? '<div class="gl" data-keep>' + open.slice(0, max).map(i => { const dl = s.saleTag !== false && dealFor(i.text);
         return '<div class="gi"><i></i><span>' + esc(i.text) + '</span>' + (dl ? '<u>🏷 ' + esc(dl.price) + ' ' + esc(dl.store) + '</u>' : "") + '</div>'; }).join("") + '</div>' +
         (open.length > max ? '<div class="empty">+' + (open.length - max) + ' more</div>' : "")
         : '<div class="empty">' + (d.error ? (d.source === "reminders" ? "Reminders didn't answer yet" : esc(d.error)) : "Nothing on the list 🎉") + '</div>';

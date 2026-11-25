@@ -1,0 +1,1 @@
+- **A few new options for list, food and home tiles.** Note can align right, In season follows a custom tile name and can show the southern hemisphere's seasons, Meal ideas hides its per-meal switches unless it follows the time of day, and List hides its sale options until store deals are set up.

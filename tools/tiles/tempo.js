@@ -26,12 +26,13 @@ Tile("tempo", {
     .m-tempo .tc.bleu{background:#2563eb;color:#fff}
     .m-tempo .tc.blanc{background:#e8ebf2;color:#1c2433}
     .m-tempo .tc.rouge{background:#c0392e;color:#fff}
-    .m-tempo .tc.none{background:rgba(255,255,255,.07);color:var(--dim)}
+    .m-tempo .tc.none{background:var(--inset);color:var(--dim)}
     .m-tempo .tc.none b{font-size:17px;font-weight:400}
     .m-tempo .tpr{display:flex;align-items:center;justify-content:center;gap:7px;font-size:18px;color:var(--dim);padding-top:2px;white-space:nowrap}
-    .m-tempo .tpr b{color:#fff;font-weight:600}
-    .m-tempo .tpr .hc{color:#9be38f}
-    .m-tempo .tcyc{display:flex;align-items:center;justify-content:center;gap:9px;font-size:15px;color:var(--dim);padding-top:3px;white-space:nowrap}
+    .m-tempo .tpr b{color:var(--text);font-weight:600}
+    .m-tempo .tpr .hc{color:var(--ok)}
+    .m-tempo .tcyc{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 9px;font-size:15px;color:var(--dim);padding-top:3px}
+    .m-tempo .tcyc > span{white-space:nowrap}
     .m-tempo .tcyc b{font-weight:600}
     .m-tempo .tcyc .b{color:#9ec5ff}.m-tempo .tcyc .w{color:#f0f3f8}.m-tempo .tcyc .r{color:#ff9f9f}`,
 
@@ -55,7 +56,7 @@ Tile("tempo", {
     };
     const cT = col(st[s.today] && st[s.today].state), cM = col(st[s.tomorrow] && st[s.tomorrow].state);
     const LABEL = {bleu:"Blue", blanc:"White", rouge:"Red"};
-    h += '<div class="trow">' +
+    h += '<div class="trow" data-keep>' +
       '<div class="tc ' + (cT || "none") + '"><small>' + this.t("Today") + '</small><b>' + (cT ? this.t(LABEL[cT]) : "—") + '</b></div>' +
       '<div class="tc ' + (cM || "none") + '"><small>' + this.t("Tomorrow") + '</small><b>' + (cM ? this.t(LABEL[cM]) : (st[s.tomorrow] ? this.t("Due this evening") : "—")) + '</b></div>' +
       '</div>';

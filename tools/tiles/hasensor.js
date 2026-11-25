@@ -8,14 +8,14 @@ Tile("hasensor", {
   settings:{
     src:{type:"source", kind:"homeassistant", label:"Home Assistant", default:""},
     entity:{type:"entity", label:"What to show", default:""},
-    control:{type:"entity", label:"Controlled by (optional)", help:"e.g. climate.salon for a salon temperature sensor — its − / + and modes then appear under the value", default:""},
+    control:{type:"entity", label:"Controlled by (optional)", help:"e.g. climate.living_room for a living room temperature sensor — its − / + and modes then appear under the value", default:""},
     icon:{type:"bool", label:"Show an icon", default:true},
     changed:{type:"bool", label:"Show how long ago it changed", default:true},
     taps:{type:"bool", label:"Let the screen control this thing", default:true},
     secure:{type:"bool", share:false, label:"Allow locks, garage doors and alarms", help:"Off: they're shown but can't be changed from the screen", default:false},
     confirm:{type:"choice", share:false, label:"Locks, garage doors and alarms need", choices:["Two taps", "One tap"], default:"Two taps"},
-    names:{type:"text", share:false, label:"Rename", help:"Just a name to rename what is shown (e.g. Énergie), or entity_id = Display name per ; — e.g. sensor.salon_temperature = Salon", default:""},
-    tcolor:{type:"bool", label:"Colour by the thermostat", default:true, help:"Orange while it heats, green at the setpoint, grey when it is off"}
+    names:{type:"text", share:false, label:"Rename", help:"Just a name to rename what is shown (e.g. Energy), or entity_id = Display name per ; — e.g. sensor.living_room_temperature = Living room", default:""},
+    tcolor:{type:"bool", label:"Color by the thermostat", default:true, help:"Orange while it heats, green at the setpoint, grey when it is off"}
   },
   css:`.m-hasensor{display:flex;flex-direction:column}
     .m-hasensor .bv{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;min-height:0}
@@ -24,16 +24,16 @@ Tile("hasensor", {
     .m-hasensor .v.long{font-size:48px}
     .m-hasensor .n{font-size:24px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
     .m-hasensor .n small{display:block;font-size:17px}
-    .m-hasensor.alert .v{color:#ffb74d}
-    .m-hasensor .bv.heat .v,.m-hasensor .bv.heat .ic{color:#ffb74d}
-    .m-hasensor .bv.ok .v,.m-hasensor .bv.ok .ic{color:#63c98a}
-    .m-hasensor .bv.cool .v,.m-hasensor .bv.cool .ic{color:#6fb6ff}
+    .m-hasensor.alert .v{color:var(--warn)}
+    .m-hasensor .bv.heat .v,.m-hasensor .bv.heat .ic{color:var(--warn)}
+    .m-hasensor .bv.ok .v,.m-hasensor .bv.ok .ic{color:var(--ok)}
+    .m-hasensor .bv.cool .v,.m-hasensor .bv.cool .ic{color:var(--info)}
     .m-hasensor .bv.off .v,.m-hasensor .bv.off .ic{color:var(--dim)}
     html.light .m-hasensor .bv.heat .v,html.light .m-hasensor .bv.heat .ic{color:#c46a00}
     html.light .m-hasensor .bv.ok .v,html.light .m-hasensor .bv.ok .ic{color:#1f8a4c}
     html.light .m-hasensor .bv.cool .v,html.light .m-hasensor .bv.cool .ic{color:#1f6fbf}
     .m-hasensor.gone .v{opacity:.45}
-    .m-hasensor .msg{font-size:16px;color:#ffb74d;text-align:center}
+    .m-hasensor .msg{font-size:16px;color:var(--warn);text-align:center}
     .m-hasensor .msg.ask{font-size:20px;color:#fff;background:var(--accent);border-radius:12px;padding:6px 12px}
     .m-hasensor .modes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:2px 0}
     .m-hasensor .modes .chip,.m-hasensor .ctl .chip{font-size:18px;padding:7px 17px;border-radius:999px;background:rgba(255,255,255,.12);color:var(--dim);cursor:pointer;border:0;transition:background .15s,color .15s}

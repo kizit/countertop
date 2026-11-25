@@ -305,7 +305,10 @@ function tileForm(m, inStack){
   if (m.parts) h += styleChooser(m, dz);
   h += '<div class="grp"><label class="kv"><span>Name</span><input type="text" data-tn="1" placeholder="' + esc(T.title) + '" value="' + esc(m.it.name || "") + '"></label>';
   // with a design in use, its own look and which parts show are set in the designer, so those settings would do nothing here
-  for (const k in D) if (!(m.parts && k === "style") && !(dz && (D[k].look || D[k].part))) h += field(m, k, D[k]);
+  // a setting can wait for another one (when:{meals:"Follow the time of day"}) or for the store deals to be set up (needs:"deals")
+  const shown = d => !(d.when && Object.keys(d.when).some(w => String(m.s[w] == null ? (D[w] || {}).default : m.s[w]).toLowerCase() !== String(d.when[w]).toLowerCase())) &&
+    !(d.needs === "deals" && !(CFG.deals && CFG.deals.settings && CFG.deals.settings.zip));
+  for (const k in D) if (!(m.parts && k === "style") && !(dz && (D[k].look || D[k].part)) && shown(D[k])) h += field(m, k, D[k]);
   h += '</div><button class="wide red" data-act="rmtile">Remove ' + esc(m.name) + (inStack ? " from this box" : "") + '</button>';
   return h;
 }

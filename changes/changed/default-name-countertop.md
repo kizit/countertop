@@ -1,0 +1,1 @@
+- **New installs call the dashboard "Countertop".** The default Dashboard name (browser tab, shopping-list page) is now Countertop instead of Kitchen. A name you already saved keeps working.

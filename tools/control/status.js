@@ -84,9 +84,29 @@ function statusScreen(){
     "Countertop asks GitHub for the newest release twice a day. Nothing about you or your setup is sent.");
   h += sec("Report a problem", (ECHO ? row({t:"Download diagnostics", sub:"Open Controls on a computer or phone to download the file."})
       : '<a class="btnrow blue" href="/diagnostics" download>Download diagnostics</a>') +
-    '<a class="btnrow blue" href="' + ISSUES + '" target="_blank" rel="noopener">Open a bug report on GitHub</a>',
-    "The diagnostics file has your settings, version and recent logs. Calendar and list links, sync keys, your location and network addresses are removed, and list items aren't included. Attach it to the bug report.");
+    '<button class="btnrow blue" data-act="streport">Open a bug report on GitHub</button>',
+    "The bug report button first asks the dashboard screen to measure itself: its browser, size, theme, and where each piece of text sits (never the words on it). That is added to the report form, where you can read and change it before you submit anything. The diagnostics file has your settings, version, recent logs and the same measurements. Calendar and list links, sync keys, your location and network addresses are removed, and list items aren't included. Attach it to the bug report.");
   h += sec("", row({t:"Run the setup guide again", chev:true, attrs:'data-act="wizstart"'}));
   return h;
 }
 
+
+// Report a problem: ask the screen to measure itself, then open the bug form with the result filled in. Nothing is sent
+// anywhere until the person submits the form on GitHub.
+async function statusReport(){
+  const w = window.open("", "_blank");          // opened now, so the browser doesn't block it after the wait
+  toast("Measuring the screen…");
+  let snap = null;
+  try{
+    await fetch("/snapshot/request", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"});
+    for (let i = 0; i < 12 && !(snap && snap.fresh); i++){
+      await new Promise(r => setTimeout(r, 1000));
+      snap = await (await fetch("/snapshot", {cache:"no-store"})).json();
+    }
+  }catch(e){}
+  const fresh = !!(snap && snap.fresh);
+  let url = ISSUES + (STATUS ? "&version=" + encodeURIComponent("v" + STATUS.version) : "");
+  if (snap && snap.summary) url += "&screen=" + encodeURIComponent((fresh ? "" : "(Measured earlier; the screen didn't answer just now)\n") + snap.summary);
+  toast(fresh ? "Screen measured. Check the report before you submit it." : "No screen answered. Open /dash on your display to include its details.", fresh ? "ok" : "bad");
+  if (w) w.location = url; else window.open(url, "_blank");
+}

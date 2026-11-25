@@ -67,6 +67,7 @@ jobs:
               node tests/browser-check.js
               node tests/tiles-check.js
               node tests/tile-data-check.js
+              node tests/snapshot-check.js
           - id: sandbox-and-controls
             label: sandbox, controls, API keys and Tile Studio
             checks: |

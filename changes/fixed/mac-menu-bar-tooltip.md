@@ -1,0 +1,1 @@
+- **Stray "Countertop" tooltip on Mac.** The menu bar app no longer pops up a "Countertop" tooltip away from the menu bar when the pointer rests elsewhere. It also stops redrawing its icon on every status check and only updates it when the status changes.

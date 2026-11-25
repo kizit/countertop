@@ -1,5 +1,5 @@
 /* ---------- preview (on a computer; on the Echo the screen itself is the preview) ---------- */
-const PV = {w:1920, h:1080, page:0, theme:"", editing:false, navManual:null};
+const PV = {w:1920, h:1080, page:0, theme:"", editing:false, navManual:null, flip:false};
 function pvWin(){ try{ return $("pvf").contentWindow; }catch(e){ return null; } }
 function pvFit(){
   const box = $("pvbox"), f = $("pvf"), bar = $("pvbar");
@@ -31,14 +31,6 @@ function pvApplyNav(){
     b.title = collapsed ? "Show Controls sidebar" : "Hide Controls sidebar";
   }
 }
-function pvSize(b){
-  PV.w = +b.dataset.w; PV.h = +b.dataset.h; $("pvres").textContent = PV.w + "×" + PV.h;
-  for (const x of $("pvsize").children){
-    x.classList.toggle("on", x === b);
-    x.setAttribute("aria-pressed", String(x === b));
-  }
-  pvFit();
-}
 function pvCur(){ try{ const w = pvWin(); return Math.max(0, w.pageList().indexOf(w.dashPage())); }catch(e){ return 0; } }      // the page showing, as its place in the tabs
 function pvName(){ try{ return pvWin().dashPage(); }catch(e){ return ""; } }
 // the night page only shows while the preview is forced to night, so it isn't a page to come back to
@@ -69,6 +61,8 @@ window.dashDeskSync = st => {
     if ($("insp-body")) $("insp-body").innerHTML = "";
     if ($("pvnav")) $("pvnav").hidden = true;
     if ($("pvgrid")) $("pvgrid").hidden = true;
+    if ($("pvscr")) $("pvscr").hidden = true;
+    if ($("pvori")) $("pvori").hidden = displayMode !== "auto";
     if ($("pvedact")) $("pvedact").hidden = true;
     if ($("pvedit")) $("pvedit").hidden = false;
     if ($("pvnote")) $("pvnote").hidden = false;
@@ -81,6 +75,8 @@ window.dashDeskSync = st => {
   $("insp").hidden = false;
   $("pvnav").hidden = false;
   $("pvgrid").hidden = !!st.focus;
+  if ($("pvori")) $("pvori").hidden = !!st.focus || displayMode !== "auto";
+  if ($("pvscr")) $("pvscr").hidden = !!st.focus;
   $("pvedact").hidden = false;
   $("pvedit").hidden = true;
   $("pvnote").hidden = true;
@@ -242,15 +238,16 @@ if (!ECHO){
     pvTabs();
   });
   setInterval(() => { if (PV.editing) return; const b = $("pvpage").querySelector("button.on"); if (b && +b.dataset.pg !== pvCur()) pvTabs(); }, 700);   // follow swipes
-  $("pvsize").addEventListener("click", e => {
-    const b = e.target.closest("button"); if (!b) return;
-    pvSize(b);
+  $("pvori").addEventListener("click", () => { if (displayMode !== "auto") return; PV.flip = !PV.flip; pvButtons(); });
+  $("pvscr").addEventListener("click", () => {
+    if (PV.editing){ PV.navManual = true; pvApplyNav(); requestAnimationFrame(pvFit); }
+    stack = ["root", "display"]; show(); scrollTo(0, 0);
   });
   addEventListener("resize", () => { pvApplyNav(); pvFit(); });
   if (typeof ResizeObserver === "function"){
     new ResizeObserver(pvFit).observe($("pvbar"));
     new ResizeObserver(pvFit).observe($("pvstage"));
   }
-  pvFit(); pvLoad();
+  pvButtons(); pvLoad();
 }
 load();

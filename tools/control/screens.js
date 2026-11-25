@@ -229,18 +229,19 @@ function themeFromLayout(key, c){
 function displayScreen(){
   const options = Object.entries(MOUNTS).map(([mode, label]) =>
     '<option value="' + mode + '"' + (mode === displayMode ? " selected" : "") + '>' + label + '</option>').join("");
-  return '<p class="intro">Automatic follows the shape of each screen. Pick Landscape or Portrait to keep every page in that orientation. If the dashboard appears sideways on a turned screen, choose which edge of the landscape screen is now at the top.</p>' +
-    sec("", '<div class="row col"><label class="t" for="display-orientation">Orientation</label><select id="display-orientation">' + options + '</select></div>',
-      "Applies to every display using this dashboard.") +
-    '<p class="intro">Screen size is what the previews and the layout editor in Controls are drawn at, so what you arrange here matches your screen. Pick your device, or the nearest size.</p>' +
-    sec("Screen size", '<div class="row col"><label class="t" for="display-screen">Size of the dashboard screen</label><select id="display-screen">' + screenOptions() + '</select></div>' +
-      (ECHO ? '<button class="btnrow blue" data-act="screenmatch">Use this screen: ' + thisScreen().replace("x", "×") + '</button>' : ""),
-      ECHO ? "Echo Shows list their panel size. Press the button to use what this screen really reports." : "Echo Show sizes are the panel resolution. If Controls is open on the Echo itself, a button there uses its real size.") +
-    (ECHO ? "" : '<p class="intro">By default /dash on this computer fills the browser window, so it changes shape when you resize it. To test a particular screen, pick a size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller.</p>' +
-      sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>' +
-        '<div class="row col"><label class="t" for="display-fs">Full screen when you tap /dash</label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>' +
-        '<div class="row col"><label class="t" for="display-input">Controls input mode</label><select id="display-input">' + inputOptions() + '</select></div>',
-        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window. /dash?fullscreen=0 turns full screen off in this browser and ?fullscreen=1 turns it back on. Open /control?input=desktop, ?input=touch or ?input=auto to switch Controls input mode from the address bar."));
+  return sec("Dashboard display",
+    '<div class="row col"><label class="t" for="display-screen">Screen size<small>Shapes the preview and layout editor to match your display.</small></label><select id="display-screen">' + screenOptions() + '</select></div>' +
+    (ECHO ? '<button class="btnrow blue" data-act="screenmatch">Use this screen: ' + thisScreen().replace("x", "×") + '</button>' : "") +
+    '<div class="row col"><label class="t" for="display-orientation">Orientation<small>Automatic adapts to each screen. Pick Portrait if mounted vertically.</small></label><select id="display-orientation">' + options + '</select></div>',
+    "Applies to every display using this dashboard.") +
+    (ECHO ? "" :
+      sec("This computer only",
+        '<div class="row col"><label class="t" for="display-input">Controls layout<small>Mouse and keyboard spacing, or larger touch targets.</small></label><select id="display-input">' + inputOptions() + '</select></div>',
+        "Only changes Controls in this browser. Never affects your display.") +
+      sec("Testing /dash in this browser",
+        '<div class="row col"><label class="t" for="display-size">Window size<small>Fill this browser window, or simulate your dashboard display.</small></label><select id="display-size">' + sizeOptions() + '</select></div>' +
+        '<div class="row col"><label class="t" for="display-fs">Full screen on tap<small>Turn off to keep /dash inside a normal browser window.</small></label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>',
+        "Only affects /dash in this browser. Address bar shortcuts: /dash?size=, /dash?fullscreen=0, /control?input="));
 }
 function screenOptions(){
   const list = SCREEN_SIZES.some(x => x[0] === screenSz) ? SCREEN_SIZES : [[screenSz, "Custom · " + screenSz.replace("x", "×")]].concat(SCREEN_SIZES);

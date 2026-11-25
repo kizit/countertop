@@ -57,12 +57,23 @@ function scr(){
 function scrFit(f, boxWidth){
   const [w, h] = scr(); f.style.width = w + "px"; f.style.height = h + "px"; f.style.transform = "scale(" + boxWidth / w + ")";
 }
-// the main preview's size buttons: the screen, with a browser bar's worth less, and turned the other way up
+// keep the preview sized to Controls > Screen (size + orientation); when Orientation is Automatic, offer a Portrait flip
 function pvButtons(){
-  const [w, h] = scr(), b = $("pvsize").children;
-  const set = (x, W, H, label) => { x.dataset.w = W; x.dataset.h = H; if (label) x.textContent = label; };
-  set(b[0], w, h); set(b[1], w, Math.max(240, h - 100)); set(b[2], h, w, w >= h ? "Portrait" : "Landscape");
-  pvSize(b[0]);
+  if (displayMode !== "auto") PV.flip = false;
+  let [w, h] = scr();
+  if (displayMode === "auto" && PV.flip) [w, h] = [h, w];
+  PV.w = w; PV.h = h;
+  const res = w + "×" + h, port = h > w;
+  if ($("pvres")) $("pvres").textContent = res;
+  if ($("pvscr")) $("pvscr").textContent = (port ? "Portrait · " : "") + res;
+  const ori = $("pvori");
+  if (ori){
+    ori.hidden = displayMode !== "auto";
+    ori.classList.toggle("on", !!PV.flip);
+    ori.setAttribute("aria-pressed", String(!!PV.flip));
+    ori.title = PV.flip ? "Switch preview back to landscape" : "Preview and edit the portrait layout";
+  }
+  pvFit();
 }
 let everyday, schema = {}, mods = {}, SRC = {}, KINDS = {}, saveTimer = null, stack = ["root"];
 let SBXC = {tiles:{}};          // community tiles installed on the server (/config → sandbox), for the Library

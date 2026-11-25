@@ -162,6 +162,15 @@ async function main() {
     await ctl.evaluate(() => { DRAFT = null; stack = ["root"]; show(); });
     console.log("✓ tapping an option on Controls' theme editor keeps the page position");
 
+    // Opening Theme or Effects from Controls' home renders the live preview, also the second time after closing the Library
+    for (const [row, label] of [["themes", "Theme"], ["effects", "Effects"], ["themes", "Theme (again)"]]) {
+      await ctl.evaluate(() => { stack = ["root"]; show(); });
+      await ctl.locator('[data-act="lib"][data-id="' + row + '"]').click();
+      await until(() => ctl.evaluate(() => { const f = document.getElementById("libpv"); return !!f && /\/dash\/content\?preview=1/.test(f.getAttribute("src") || "") && f.classList.contains("on"); }), label + " preview rendered", 15000);
+      await ctl.evaluate(() => { libClose(); show(); });
+    }
+    console.log("✓ Theme and Effects opened from Controls' home show the live preview, every time");
+
     // New custom effect: change emoji -> preview canvas redraws (ff7b5f3) + immediate tap Save (b732808)
     await ctl.evaluate(() => { stack = ["root", "effects"]; show(); });
     await ctl.locator('[data-fxa="new"]').click();

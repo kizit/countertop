@@ -15,14 +15,14 @@ const libEl = () => $("lib");
 const LIB_SUB = {themes:"looks", effects:"effects"};       // Library views that show Controls' own screens, and the first screen of each
 const libSub = () => !!LIB_SUB[LIB.view] && !libEl().hidden;
 function libOpen(view){
-  LIB.view = view || "layouts"; LIB.item = ""; LIB.q = ""; LIB.chip = "all"; LIB.sub = LIB_SUB[LIB.view] ? [LIB_SUB[LIB.view]] : []; LIB.pvq = "";
+  LIB.view = view || "layouts"; LIB.item = ""; LIB.q = ""; LIB.chip = "all"; LIB.sub = LIB_SUB[LIB.view] ? [LIB_SUB[LIB.view]] : []; LIB.pvq = null;      // null: the preview frame loads again even though closing left it on about:blank
   libEl().hidden = false; document.body.classList.add("libopen");
   defsLoad.then(libShow); libShow();
 }
 function libClose(){
   LIB.pick = ""; LIB.impRaw = null; DRAFT = null; if (FXDRAFT || LIB.fimp){ FXDRAFT = null; LIB.fimp = null; fxRegister(); } LIB.timp = null; LIB.trial = ""; LIB.pvq = ""; LIB.sub = [];
   libEl().hidden = true; document.body.classList.remove("libopen");
-  LIB.item = ""; LIB.pvKey = ""; const f = libEl().querySelector(".lbig iframe"); if (f) f.src = "about:blank";
+  LIB.item = ""; LIB.pvKey = ""; const f = libEl().querySelector(".lbig iframe"); if (f){ f.src = "about:blank"; f.classList.remove("on"); }
 }
 function libGo(view, item){ if (view !== LIB.view || !LIB.sub.length) LIB.sub = LIB_SUB[view] ? [LIB_SUB[view]] : []; LIB.view = view; LIB.item = item || ""; libShow(); libEl().querySelector(".lmain").scrollTop = 0; }
 

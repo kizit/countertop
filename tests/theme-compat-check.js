@@ -44,6 +44,7 @@ async function main() {
         out["html"] = { cls: [...root.classList].sort().join(" "), vars: ["--fg", "--fg2", "--fg3", "--dim", "--faint", "--card", "--line", "--accent", "--big", "--ts"].map(k => getComputedStyle(root).getPropertyValue(k).trim()).join("|") };
         for (const el of document.querySelectorAll("body *")) {
           if (/^(SCRIPT|STYLE|CANVAS|IFRAME|svg|path)$/i.test(el.tagName) || el.closest("#fx,#dimmer")) continue;
+          if (el.parentNode.closest(".m-team")) continue;      // the Team tile is at its limit at its usual size: which parts the fitter keeps depends on the machine's fonts
           const key0 = el.tagName.toLowerCase() + "." + (el.classList[0] || "") + (el.dataset.mod ? "[" + el.dataset.mod + "]" : "");   // not the later classes: the fitter adds those by size
           const n = seen[key0] = (seen[key0] || 0) + 1;
           if (n > 2) continue;

@@ -80,6 +80,12 @@
     }
   }
   (function(){
+    // ?fullscreen=0 stops a tap from going full screen in this browser, ?fullscreen=1 puts it back
+    var fq = new URLSearchParams(location.search).get("fullscreen");
+    if (fq !== null){
+      try{ if (fq === "0") localStorage.setItem("countertop.fullscreen", "0"); else localStorage.removeItem("countertop.fullscreen"); }catch(e){}
+      var fu = new URL(location.href); fu.searchParams.delete("fullscreen"); history.replaceState(history.state, "", fu);
+    }
     var q = new URLSearchParams(location.search).get("size");
     if (q !== null){
       try{ if (sizeParse(q) || q === "dash") localStorage.setItem(SIZE_KEY, q.toLowerCase()); else localStorage.removeItem(SIZE_KEY); }catch(e){}
@@ -104,9 +110,12 @@
   });
 
   /* ---------- fullscreen + keep-alive, triggered by taps here or inside the iframe ---------- */
+  var FS_KEY = "countertop.fullscreen";
+  function fsOff(){ try{ return localStorage.getItem(FS_KEY) === "0"; }catch(e){ return false; } }
   function isFull(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function goFull(){
     if (isFull()) return;
+    if (fsOff()) return;             // this browser is set to stay in its window (Controls > Screen, or ?fullscreen=0)
     var el = document.documentElement;
     var fn = el.requestFullscreen || el.webkitRequestFullscreen;
     if (!fn) return;

@@ -71,6 +71,7 @@ jobs:
               FIT_THEME=tCompact node tests/tile-fit-check.js
               node tests/tile-data-check.js
               node tests/snapshot-check.js
+              node tests/fullscreen-check.js
           - id: sandbox-and-controls
             label: sandbox, controls, API keys and Tile Studio
             checks: |

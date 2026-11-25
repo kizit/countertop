@@ -1,0 +1,1 @@
+- **Full screen on tap, per browser.** Controls > Screen has a "Full screen when you tap /dash" choice under "This browser only", and /dash?fullscreen=0 (or =1) sets it from the address bar. Turning it off keeps /dash in its window, handy when testing on a computer. The default is unchanged.

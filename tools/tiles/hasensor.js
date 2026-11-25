@@ -102,7 +102,7 @@ Tile("hasensor", {
       if (tgt !== o && /^(sensor|binary_sensor)$/.test(o.domain)) ctl = '<span class="ctl"><span class="cbtn" data-ha="' + esc(o.id) + '" data-act="refresh" title="Refresh now">🔄</span></span>' + ctl;
     }
     const tapId = tgt && !HA.held(tgt, s) && HA.TAP[tgt.domain] ? tgt.id : (taps && !HA.held(o, s) && HA.TAP[o.domain] ? o.id : null);
-    el.innerHTML = '<div class="bv' + (tone ? " " + tone : "") + '">' + (s.icon !== false ? '<div class="ic">' + HA.icon(o) + '</div>' : "") + '<div class="v' + (v.length > 9 ? " long" : "") + '">' + esc(v) + '</div>' +
+    el.innerHTML = '<div class="bv' + (tone ? " " + tone : "") + '">' + (s.icon !== false ? '<div class="ic">' + HA.icon(o) + '</div>' : "") + '<div data-keep class="v' + (v.length > 9 ? " long" : "") + '">' + esc(v) + '</div>' +
       '<div class="n">' + esc(nm[o0.id] || this.it.name || o.name) + (ago ? '<small>' + esc(ago) + '</small>' : "") + '</div></div>' +
       (modes ? '<div class="modes">' + modes + '</div>' : "") +
       (ctl ? '<div class="ctl"' + (tapId ? ' data-ha="' + esc(tapId) + '"' : "") + '>' + ctl + '</div>' : "") +

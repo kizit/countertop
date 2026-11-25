@@ -188,7 +188,7 @@ async function main() {
     for (const type of Object.keys(BUILTINS)) {
       const own = await until(async () => { const h = await page.locator('[data-mod="in_' + type + '"]').innerHTML(); return /Loading/.test(h) ? null : h; }, type + " in the page");
       const fr = await inFrame("x-" + type, "#tile", /^(?![\s\S]*Loading)[\s\S]+/);
-      assert.equal(fr, own, type + " draws differently in a frame");
+      assert.equal(fr, own.replace(/ style="zoom: [\d.]+;"/g, ""), type + " draws differently in a frame");
     }
     console.log("✓ Stocks, Agenda, Countdown and Note draw the same in a frame as in the page");
     assert.ok(fetches.some(([t, u]) => t === "stocks" && u.startsWith("https://query1.finance.yahoo.com/")), "built-in Stocks reads Yahoo through /tile-fetch");

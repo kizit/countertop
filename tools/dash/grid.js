@@ -102,6 +102,27 @@ function newPage(tpl){
 // searched for, not worked out from one measurement, because text that wraps at full size unwraps when zoomed out.
 // The answer is kept until the box, the text or the fonts change (the clock redraws every second).
 let FITGEN = 0;
+const FITMIN = 0.55;       // the smallest a tile without a card shrinks to (it was 0.3, too small to read from across a room)
+// A tile marks its main content data-keep (a number, a value, the times): the fitter shrinks and drops everything else
+// first. A tile marks a decoration data-deco (a blurred backdrop that bleeds past the card): it never counts when fitting.
+// A tile's own CSS can use .mini (a box too small for its normal layout) and data-room (see cardFit).
+const KEEP = "[data-keep]";
+const isKeep = c => c.matches(KEEP) || !!c.querySelector(KEEP);
+function decoOff(el){
+  const D = [...el.querySelectorAll("[data-deco]")];
+  D.forEach(d => { d._dd = d.style.display; d.style.display = "none"; });
+  return () => D.forEach(d => { d.style.display = d._dd || ""; });
+}
+// a box inside the tile that hides its own overflow (a sensor's body, a note's text) can hold text that is cut while the
+// tile as a whole looks fitted: the first such box with something cut, or null
+function clippedInside(el){
+  for (const c of el.querySelectorAll("*")){
+    if (c.scrollHeight <= c.clientHeight + 1 || !c.clientHeight || c.dataset.clamp || c.closest("[data-deco]") || c instanceof SVGElement) continue;
+    const o = getComputedStyle(c).overflowY;
+    if (o === "hidden" || o === "clip") return c;
+  }
+  return null;
+}
 if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => { FITGEN++; });
 function slotFit(el, m){
   if (m.card) return;
@@ -109,13 +130,19 @@ function slotFit(el, m){
   const box = el.parentNode, bw = box.clientWidth, bh = box.clientHeight;
   const sig = bw + "x" + bh + "|" + FITGEN + "|" + el.textContent + "|" + el.firstElementChild?.className + "|" + el.firstElementChild?.style.cssText;
   if (el._fit && el._fit.sig === sig){ el.style.zoom = el._fit.z; return; }
+  const back = decoOff(el);
+  el.classList.remove("mini");
   const fits = z => { el.style.zoom = z === 1 ? "" : z.toFixed(3); return el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1; };      // same units, zoomed or not
   let z = 1;
   if (!fits(1)){
-    let lo = 0.3, hi = 1;
-    if (fits(lo)) for (let i = 0; i < 7; i++){ const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+    // shrinking is for a few percent, not a stand-in for a small layout: a box that needs less than FITMIN of the size
+    // gets the tile's own .mini look (its CSS decides what that means) before it shrinks any further
+    let lo = FITMIN, hi = 1;
+    if (!fits(lo)){ el.classList.add("mini"); if (fits(1)) lo = hi = 1; }
+    if (lo < hi && fits(lo)) for (let i = 0; i < 7; i++){ const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
     z = lo;
   }
+  back();
   el.style.zoom = z === 1 ? "" : z.toFixed(3);
   el._fit = {sig, z:el.style.zoom};
 }
@@ -127,50 +154,101 @@ const TSZ = [["Small", 0.85], ["Normal", 1], ["Large", 1.2], ["Huge", 1.45]];
 function cardFit(el){
   el.querySelectorAll(".cut").forEach(e => e.classList.remove("cut"));
   el.querySelectorAll("[data-clamp]").forEach(e => { e.style.webkitLineClamp = ""; e.style.display = ""; e.removeAttribute("data-clamp"); });
+  el.querySelectorAll(KEEP).forEach(e => { e.style.zoom = ""; });
+  const restore = decoOff(el);
+  try{ cardFit1(el); }finally{ restore(); }
+  roomFor(el);
+}
+// what extra space a tile has, for its own CSS: data-room holds "wide" (twice as wide as tall), "tall" and/or "big"
+// (twice its usual area); --room is the area as a multiple of its usual area. A tile with grow:"value" also gets its
+// main value (data-keep) enlarged while everything still fits. Blank space is fine where there is nothing more to show.
+function roomFor(el){
+  const m = MODULES[el.dataset.mod] || {}, d = m.size || [12, 8], W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
+  const r = (W * H) / (innerWidth * innerHeight) / (d[0] * d[1] / (LC * LR)), room = [];
+  if (W / H >= 2) room.push("wide");
+  if (H / W >= 1.2) room.push("tall");
+  if (r >= 2) room.push("big");
+  el.dataset.room = room.join(" ");
+  el.style.setProperty("--room", r.toFixed(2));
+  if (m.grow !== "value" || r < 1.3 || el.querySelector(".cut")) return;
+  const K = el.querySelector(KEEP); if (!K) return;
+  const ok = () => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1 && !clippedInside(el);
+  const back = decoOff(el);
+  let lo = 1, hi = Math.min(2.4, Math.sqrt(r));
+  K.style.zoom = hi.toFixed(3);
+  if (ok()) lo = hi; else for (let i = 0; i < 6; i++){ const mid = (lo + hi) / 2; K.style.zoom = mid.toFixed(3); if (ok()) lo = mid; else hi = mid; }
+  K.style.zoom = lo === 1 ? "" : lo.toFixed(3);
+  back();
+}
+function cardFit1(el){
+  const m = MODULES[el.dataset.mod] || {};
   const sl = el.parentNode && el.parentNode.dataset && slotById(el.parentNode.dataset.slot), base = (sl && +sl.ts) || 1;
-  el.classList.toggle("tight", el.clientWidth / base < 460);
+  el.classList.toggle("tight", el.clientWidth / base < (m.tight || 460));
   const K0 = [...el.children], zoom = z => K0.forEach(c => { c.style.zoom = z === 1 ? "" : z.toFixed(3); });
   const trunc = () => [...el.querySelectorAll(".li .s, .g .o")].some(c => c.scrollWidth > c.clientWidth + 1 && getComputedStyle(c).textOverflow === "ellipsis");
+  const over = () => el.scrollHeight > el.clientHeight + 1 || !!clippedInside(el);
   let z = base; zoom(z);
-  while (z > base * 0.72 && (el.scrollHeight > el.clientHeight + 1 || z > base * 0.86 && el.classList.contains("tight") && trunc())){ z -= base * 0.07; zoom(z); }
-  if (el.scrollHeight <= el.clientHeight + 1) return;
+  while (z > base * 0.72 && (over() || z > base * 0.86 && el.classList.contains("tight") && trunc())){ z -= base * 0.07; zoom(z); }
+  const hasKeep = !!el.querySelector(KEEP);
+  // what may not be dropped: the main content (data-keep) and what holds it; without a marker, the first thing in the tile
+  const prot = (c, i, first) => hasKeep ? isKeep(c) : first && i === 0;
   const R = el.getBoundingClientRect(), k = R.height / el.offsetHeight || 1;
   const limit = R.bottom - parseFloat(getComputedStyle(el).paddingBottom) * k + 1;
   const kids = n => [...n.children].filter(c => { const st = getComputedStyle(c); return st.position !== "absolute" && st.position !== "fixed" && st.display !== "none" && c.getBoundingClientRect().height > 0; });
   const rows = (n, K) => K.length > 1 && K.some(c => c.getBoundingClientRect().top >= K[0].getBoundingClientRect().bottom - 1);
+  const clamp = (c, lines) => { c.dataset.clamp = 1; c.style.display = "-webkit-box"; c.style.webkitBoxOrient = "vertical"; c.style.overflow = "hidden"; c.style.webkitLineClamp = lines; };
   const walk = (n, first) => {
     const K = kids(n);
     K.forEach((c, i) => {
       const r = c.getBoundingClientRect();
       if (r.bottom <= limit) return;
-      if (r.top >= limit - 4 && !(first && i === 0)){ c.classList.add("cut"); return; }
+      if (r.top >= limit - 4 && !prot(c, i, first)){ c.classList.add("cut"); return; }
       const CK = kids(c);
       if (rows(c, CK)){         // a list or section: drop what doesn't fit; a heading left with nothing under it goes too
         walk(c, false);
         const left = CK.filter(x => !x.classList.contains("cut"));
-        if (!(first && i === 0) && (!left.length || left.length === 1 && !left[0].children.length && left[0].textContent.length < 40)) c.classList.add("cut");
+        if (!prot(c, i, first) && (!left.length || left.length === 1 && !left[0].children.length && left[0].textContent.length < 40)) c.classList.add("cut");
         return;
       }
       const st = getComputedStyle(c), lh = parseFloat(st.lineHeight) * k || parseFloat(st.fontSize) * 1.3 * k;
       const lines = Math.floor((limit - r.top) / lh);
       if (!CK.length || c.textContent.length > 60 && lines >= 1){
-        if (lines >= 1){ c.dataset.clamp = 1; c.style.display = "-webkit-box"; c.style.webkitBoxOrient = "vertical"; c.style.overflow = "hidden"; c.style.webkitLineClamp = lines; return; }
+        if (lines >= 1){ clamp(c, lines); return; }
       }
-      if (!(first && i === 0)) c.classList.add("cut");
+      if (!prot(c, i, first)) c.classList.add("cut");
     });
     const vis = K.filter(x => !x.classList.contains("cut")), last = vis[vis.length - 1];      // a label whose content was all dropped
-    if (last && vis.length < K.length && K.indexOf(last) < K.length - 1 && !(first && K.indexOf(last) === 0) && !last.children.length && last.textContent.length < 40) last.classList.add("cut");
+    if (last && vis.length < K.length && K.indexOf(last) < K.length - 1 && !prot(last, K.indexOf(last), first) && !last.children.length && last.textContent.length < 40) last.classList.add("cut");
   };
-  walk(el, true);
+  if (el.scrollHeight > el.clientHeight + 1) walk(el, true);
+  // the main content pushed past the bottom by things above it: they go too, from the top (the title first), whole
+  for (let n = 0; hasKeep && n < 12; n++){
+    const K = [...el.querySelectorAll(KEEP)].filter(x => getComputedStyle(x).display !== "none"), low = K.find(x => x.getBoundingClientRect().bottom > limit + 1);
+    const before = low && kids(el).find(c => !isKeep(c) && !c.classList.contains("cut") && c.compareDocumentPosition(low) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (!before) break;
+    before.classList.add("cut");
+  }
+  // text cut inside a box that hides its own overflow: show whole lines with "…" instead; a box of other things that
+  // doesn't hold the main content goes whole. The main content itself is never taken out.
+  for (let n = 0, c; n < 8 && (c = clippedInside(el)); n++){
+    if (!c.children.length){
+      const st = getComputedStyle(c), lh = parseFloat(st.lineHeight) * k || parseFloat(st.fontSize) * 1.3 * k, lines = Math.floor(c.clientHeight * k / lh);
+      if (lines >= 1) clamp(c, lines); else if (!c.matches(KEEP)) c.classList.add("cut"); else break;
+    } else if (!isKeep(c)) c.classList.add("cut");
+    else break;
+  }
 }
 const FITOBS = typeof ResizeObserver === "function" ? new ResizeObserver(E => E.forEach(e => { for (const el of e.target.children) if (el.classList.contains("card") && !el.hidden && !(MODULES[el.dataset.mod] || {}).noFit) cardFit(el); })) : null;
 const NARROW = 7 * U * 40;    // a box this narrow (in pixels on a 1920x1080 screen, or 1080x1920) or narrower gets the compact look
+// a tile type can say where its own compact look starts (narrow:px in the same units); a box holding several tiles
+// gets the compact look when any of them wants it
+const narrowAt = s => Math.max(...live(s).map(id => (MODULES[id] || {}).narrow || NARROW), live(s).length ? 0 : NARROW);
 function placeSlot(d, s, pg){
   const o = ori(), r = geo(s, o, pg);
   d.classList.toggle("off", !r);
   if (!r) return;
   d.style.setProperty("--slot-col", (r.x + 1) + " / span " + r.w); d.style.setProperty("--slot-row", (r.y + 1) + " / span " + r.h);
-  const n = r.w * (o === "p" ? 1080 / PC : 1920 / LC) <= NARROW;
+  const n = r.w * (o === "p" ? 1080 / PC : 1920 / LC) <= narrowAt(s);
   if (d.classList.contains("narrow") !== n){ d.classList.toggle("narrow", n); if (d.isConnected) live(s).forEach(id => render(id)); } }
 function portraitRows(slots, showing, all){
   const boxes = slots.filter(s => (all || live(s).length) && showing(s)).sort((a, b) => a.y - b.y || a.x - b.x);

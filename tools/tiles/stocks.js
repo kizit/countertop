@@ -1,7 +1,7 @@
 /* Stocks: prices and today's change for the symbols you pick */
 Tile("stocks", {
   api:1, uses:["fetch"], hosts:["query1.finance.yahoo.com", "stooq.com"],
-  title:"Stocks", cat:"Money", every:60, size:[12, 10, 8, 5],
+  title:"Stocks", cat:"Money", every:60, size:[12, 10, 8, 5], narrow:400,
   desc:"Prices for the stocks, funds or indexes you pick, with today's change and a little chart of the day. Prices can be up to 15 minutes old. Not investment advice.",
   settings:{
     syms:{type:"list", share:false, label:"Symbols", help:"One per line, like on Yahoo Finance: AAPL, VOO, ^GSPC (S&P 500), BTC-USD", placeholder:"AAPL", default:["^GSPC", "^DJI", "^IXIC"]},

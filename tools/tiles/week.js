@@ -13,6 +13,8 @@ Tile("week", {
   },
 
   render(el){
+    // the theme's font arrives after the first draw and changes the lines' heights: draw again, so what fits is measured with it
+    if (!this._fonts && document.fonts && document.fonts.addEventListener){ this._fonts = 1; document.fonts.addEventListener("loadingdone", () => this.render(el)); }
     const s = this.s, j = s.weather === false ? null : STATE.wx, n = Math.max(3, Math.min(7, s.days || 7)), set = s.perDay == null ? 2 : s.perDay;
     const today = startOfDay(new Date());
     el.className = "m-week";

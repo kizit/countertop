@@ -217,6 +217,41 @@ def _iso_ts(v):
         return 0
 
 
+TEAM_COLOR_CACHE = {}      # league -> (fetched_at, {team name: [main, alternate]})
+_HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
+
+
+def team_colors(league, team):
+    """The team's own colors, [main, alternate] as "#rrggbb", from ESPN's list of the league's teams (cached a day; an hour
+    after a failure). None when the league or the team isn't there: the Team tile then keeps its usual colors."""
+    now = time.time()
+    hit = TEAM_COLOR_CACHE.get(league)
+    if not hit or now - hit[0] > (86400 if hit[1] else 3600):
+        names = {}
+        try:
+            url = "https://site.api.espn.com/apis/site/v2/sports/soccer/%s/teams" % league
+            for t in (_get_json(url).get("sports", [{}])[0].get("leagues", [{}])[0].get("teams") or []):
+                t = t.get("team") or {}
+                main = str(t.get("color") or "")
+                if not _HEX6.match(main):
+                    continue
+                alt = str(t.get("alternateColor") or "")
+                cols = ["#" + main.lower(), "#" + (alt if _HEX6.match(alt) else main).lower()]
+                for key in (t.get("displayName"), t.get("shortDisplayName"), t.get("abbreviation")):
+                    if key:
+                        names[str(key).lower().replace(".", "").strip()] = cols
+        except Exception:
+            names = {}
+        hit = TEAM_COLOR_CACHE[league] = (now, names)
+    want = team.lower().replace(".", "").strip()
+    if want in hit[1]:
+        return hit[1][want]
+    for name, cols in hit[1].items():
+        if want and len(want) >= 3 and (want in name or name in want):
+            return cols
+    return None
+
+
 def team_matches(sid=""):
     T = sources_load().get("teams") or []
     src = next((t for t in T if t.get("id") == sid), T[0] if T else None)
@@ -272,6 +307,10 @@ def team_matches(sid=""):
         out["upcoming"] = upcoming[:5]
     except Exception as e:
         out["error"] = str(e)[:200]
+    try:
+        out["colors"] = team_colors(league, team)
+    except Exception:
+        out["colors"] = None
     TEAM_CACHE.update(at=time.time(), key=key, data=out)
     return out
 

@@ -214,14 +214,14 @@
   .slot.narrow > .m-fun .tx{font-size:20px;-webkit-line-clamp:6}
   .pair .m-fun .a{font-size:18px}
   .slot.narrow > .m-fun .a{font-size:18px}
-  .m-team{background:linear-gradient(120deg,var(--teamb) 0%,#13305e 55%,#3b1530 100%);border-color:rgba(232,52,78,.5)}
-  .m-team h3{color:#ffd6dc}
+  .m-team{background:linear-gradient(120deg,var(--teamb) 0%,var(--teamm,#13305e) 55%,var(--teame,#3b1530) 100%);border-color:var(--teamline,rgba(232,52,78,.5))}
+  .m-team h3{color:var(--teamh,#ffd6dc)}
   .m-team .row{display:flex;align-items:center;gap:18px}
   .crest{flex:none;width:64px;height:64px;border-radius:14px;background:var(--team);display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:18px;letter-spacing:.5px;color:#fff;box-shadow:inset 0 -6px 0 rgba(0,0,0,.18)}
-  .m-team .vs{font-size:30px}
+    font-weight:800;font-size:18px;letter-spacing:.5px;color:var(--teamt,#fff);box-shadow:inset 0 -6px 0 rgba(0,0,0,.18),var(--teamring,0 0 0 0 transparent)}
+  .m-team .vs{font-size:30px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
   .m-team .when{font-size:22px;color:#d9e2f0;margin-top:2px}
-  .m-team .badge{font-size:14px;background:var(--teamy);color:#2a1d00;border-radius:10px;padding:3px 10px;font-weight:700;letter-spacing:.4px}
+  .m-team .badge{font-size:14px;background:var(--teamy);color:var(--teambt,#2a1d00);border-radius:10px;padding:3px 10px;font-weight:700;letter-spacing:.4px}
   .m-team .badge.live{background:#ff4d4d;color:#fff;animation:pulse 1.4s infinite}
   @keyframes pulse{50%{opacity:.55}}
   .m-team .last{margin-top:10px;font-size:20px;color:#c9d3e3}
@@ -235,8 +235,8 @@
   .m-dinner{display:flex;flex-direction:column;gap:12px}
   .m-dinner h3{margin-bottom:0}
   .m-dinner .ph{flex:1 1 auto;min-height:110px;border-radius:14px;background:#2a2f38 center/cover;position:relative;overflow:hidden}
-  .m-dinner .ph div{position:absolute;left:0;right:0;bottom:0;padding:34px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.78))}
-  .m-dinner .ph b{display:block;font-size:24px;font-weight:600;line-height:1.2;color:#fff}
+  .m-dinner .ph div{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 12px;background:linear-gradient(transparent 0,rgba(0,0,0,.78) 55%)}
+  .m-dinner .ph b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:24px;font-weight:600;line-height:1.2;color:#fff}
   .m-dinner .ph span{color:#d6dbe2;font-size:16px}
   .m-dinner small{font-size:13px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint)}
   .m-dinner .chips{display:flex;flex-wrap:wrap;gap:7px}
@@ -289,7 +289,8 @@
   .gl{display:grid;grid-template-columns:1fr 1fr;column-gap:20px;align-content:start}
   .gi{display:flex;align-items:center;gap:12px;font-size:26px;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gi i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--accent);opacity:.8}
-  .note{font-size:24px;color:#ffe2b8;margin-bottom:8px}
+  .note{font-size:24px;color:#ffe2b8;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+  html.light .note{color:var(--fg2)}
   /* fun */
   .m-fun .tx{font-size:24px;line-height:1.35;transition:opacity .8s;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
   .m-fun .tx.fade{opacity:0}

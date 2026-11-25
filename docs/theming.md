@@ -40,6 +40,34 @@ Themes → a theme → Customize (or New theme) opens a draft with six tabs: Col
 
 A **wallpaper** is a picture uploaded to this Countertop's own data folder (PNG, JPEG or WebP, up to 8 MB, checked by its first bytes; `tools/server/wallpaper.py`). A theme only names its id, and a **photo album** is only named by its id too. Neither may travel. Everything that leaves goes through `THEMELIB.portable(values)`: a shared theme, a shared layout, a gallery submission and a Theme Studio prompt all call it, so a setting can't leak by being forgotten in one place. It drops the settings listed in `THEMELIB.LOCAL`, turns a theme on a wallpaper into a gradient one, and keeps only effects everyone has. Files and codes coming in are read with the same list: a wallpaper or album named in a shared file is ignored.
 
+## The six newer built-in themes
+
+Retro digital, Newspaper, Mid-century, Japandi, Nordic and After hours use the options above to look like different products, not one dashboard in six colors. Each is a plain entry in `THEMELIB.L` with a fixed `builtin-` id.
+
+| Theme | Fonts (text / big numbers) | Edges, corners, spacing | Background |
+| --- | --- | --- | --- |
+| Retro digital | Space Grotesk / JetBrains Mono | Outline, Square, Normal | Grid texture on near-black, amber numbers, stars |
+| Newspaper | Fraunces / DM Serif Display | Outline, Square, Normal | Paper texture, red accent, no effects |
+| Mid-century | Nunito / Fraunces | Soft, Soft corners, Normal | Walnut tan with see-through cream tiles |
+| Japandi | Outfit / Outfit | Flat, Soft corners, Roomy | Linen texture, no tile boxes |
+| Nordic | Nunito / Space Grotesk | Glass, Soft corners, Normal | Mist gradient, snow and clouds |
+| After hours | Outfit / Bebas Neue | Soft, Rounded, Normal | Deep violet, dimmed, stars |
+
+![Retro digital](screenshots/theme-retro-digital.png)
+![Newspaper](screenshots/theme-newspaper.png)
+![Mid-century](screenshots/theme-mid-century.png)
+![Japandi](screenshots/theme-japandi.png)
+![Nordic](screenshots/theme-nordic.png)
+![After hours](screenshots/theme-after-hours.png)
+
+`node tests/theme-contrast-check.js` works out the color a tile really draws (its see-through surface over the theme's background, the worst end of a gradient) and requires the text to reach 7:1, dimmer lines and the accent 4.5:1, for these six. Adding a built-in theme means passing that check. The older ten are left as they were (Light's accent is 3.8:1 on its tiles; it is not changed because people's saved looks and schedules name it).
+
+## Stress matrix
+
+`node tests/stress-matrix-check.js` draws the dashboard on four screens (1920x1080, 1280x800 and two portrait sizes) in the six themes, Dark, Light, a Compact and a Roomy theme, with the demo data, with extremes (long names, nine events a day, a 45-item list with a long note, a team with a long name) and with nothing at all. Every combination must draw without errors, not scroll, keep every tile on the screen and off its neighbors, and keep each tile's main content in view. `SHOTS=<folder>` saves a screenshot of each combination.
+
+A theme's font arrives after the first draw and changes how tall lines are, so tiles fit again when fonts finish loading (`tools/dash/grid.js`); the Month and Week tiles, which fit their own events, draw again too.
+
 ## Keeping it unchanged
 
 `node tests/theme-compat-check.js` loads the dashboard in every built-in theme and a few custom ones and compares the computed colors, borders, radius, padding, gaps and shadows of the elements with `tests/fixtures/theme-compat.json`. If a change should alter the look, regenerate the file with `--write` and say why in the pull request.

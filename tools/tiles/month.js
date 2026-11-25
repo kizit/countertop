@@ -9,6 +9,8 @@ Tile("month", {
     weather:{type:"bool", label:"Show weather", default:true}
   },
   render(el){
+    // the theme's font arrives after the first draw and changes the lines' heights: draw again, so what fits is measured with it
+    if (!this._fonts && document.fonts && document.fonts.addEventListener){ this._fonts = 1; document.fonts.addEventListener("loadingdone", () => this.render(el)); }
     const now = new Date(), y = now.getFullYear(), m = now.getMonth();
       const s = this.s;
     const first = new Date(y, m, 1), startDow = (first.getDay() - (THEMEV.weekStart === "Monday" ? 1 : 0) + 7) % 7, days = new Date(y, m + 1, 0).getDate();

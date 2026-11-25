@@ -419,11 +419,11 @@ function stuPicked(p){
 const stuFits = () => STU.log.filter(x => x.kind === "fit").map(x => x.text);
 const stuSmall = () => { const sz = (STU.t && STU.t.size) || [12, 8, 6, 4], r = libTileRect(sz[2] || sz[0], sz[3] || sz[1]); return Math.round(r.w) + "x" + Math.round(r.h); };
 const STU_SIZES = {usual:"Usual size", small:"Smallest", big:"Large"};
-function stuSizeNote(){ const [w, h] = stuPvSize(), r = libTileRect(w, h); return STU_SIZES[STU.size] + ": " + w + " × " + h + " squares, about " + Math.round(r.w) + " × " + Math.round(r.h) + " pixels on a 1920 × 1080 screen"; }
+function stuSizeNote(){ const [w, h] = stuPvSize(), r = libTileRect(w, h); return STU_SIZES[STU.size] + ": " + w + " × " + h + " squares, about " + Math.round(r.w) + " × " + Math.round(r.h) + " pixels on a " + screenSz.replace("x", " × ") + " screen"; }
 function stuAI(change){
   const t = STU.t, cur = stuTile(), has = change || !!STU.id || stuDirty();
   const want = change ? t.description || t.name || "(a tile)" : STU.ask.trim() || t.description || "(describe it here)";
-  return (change ? "Please change a tile on my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). " : "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about 1920x1080, seen from across the room). ") +
+  return (change ? "Please change a tile on my Countertop home dashboard (a wall-mounted touch screen, about " + screenSz + ", seen from across the room). " : "Please design a tile for my Countertop home dashboard (a wall-mounted touch screen, about " + screenSz + ", seen from across the room). ") +
     "Everything you need is below: don't search the web or look anything up, and don't copy from any repository.\n\n" +
     (change ? "What the tile does:\n" + want + "\n\n" + stuChangesText() + "\n\n" : "What the tile should do:\n" + want + "\n\n") +
     (has && stuFits().length ? "The preview found these problems with the tile as it is now. Fix them too:\n" + stuFits().map(x => "- " + x).join("\n") + "\n\n" : "") +

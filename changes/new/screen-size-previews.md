@@ -1,0 +1,1 @@
+- **Screen size for previews.** Controls > Screen has a Screen size setting with every Echo Show model and some common screens. The preview, the Library and the layout editor in Controls are drawn at that size, and an Echo can use its own. /dash in a browser can match it too.

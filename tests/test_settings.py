@@ -136,6 +136,25 @@ class ScreenOrientation(unittest.TestCase):
             ct.config_save({"orientation": "sideways"}, quiet=True)
 
 
+class ScreenSize(unittest.TestCase):
+    def test_size_is_kept_and_a_layout_save_leaves_it(self):
+        reset()
+        ct.config_load()
+        self.assertEqual(ct.dashboard_screen(), "1920x1080")
+        ct.config_save({"screen": "1280x800"}, quiet=True)
+        self.assertEqual(ct.dashboard_screen(), "1280x800")
+        ct.config_save({"modules": stored()["modules"]}, quiet=True)
+        self.assertEqual(ct.dashboard_screen(), "1280x800")
+        self.assertEqual(ct.config_load()["screen"], "1280x800")
+
+    def test_nonsense_sizes_are_refused(self):
+        reset()
+        ct.config_load()
+        for bad in ("big", "10x10", "1920*1080", "99999x99999", 5):
+            with self.assertRaises(ValueError):
+                ct.config_save({"screen": bad}, quiet=True)
+
+
 class Backups(unittest.TestCase):
     def test_routine_saves_are_spaced_and_capped(self):
         reset()

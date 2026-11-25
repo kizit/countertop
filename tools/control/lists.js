@@ -90,6 +90,7 @@ function pvGoPage(id){
 }
 function act(a, id){
   const p = cpById(id);
+  if (a === "screenmatch"){ screenSave(thisScreen()); return; }
   if (a === "echoedit"){ location.href = displayHref(true); return; }
   if (a === "lib"){ libOpen(id); return; }
   if (a === "libpick"){ libOpen("layouts"); LIB.pick = id; LIB.chip = "all"; libShow(); return; }      // Add page, Change layout: pick in the Library
@@ -153,7 +154,7 @@ async function locate(){
 function screenFor(cur){
   let h, title;
   if (cur === "root"){ h = rootScreen(); title = ""; }
-  else if (cur === "display"){ h = displayScreen(); title = "Screen orientation"; }
+  else if (cur === "display"){ h = displayScreen(); title = "Screen"; }
   else if (cur === "status"){ h = statusScreen(); title = "Status"; }
   else if (cur === "wiz"){ h = wizScreen(); title = "Set up"; }
   else if (cur === "saved"){ h = savedScreen(); title = "Saved layouts"; }

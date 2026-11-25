@@ -48,14 +48,16 @@
   // Rotate the iframe so dashboard layout and input both use the chosen orientation's coordinates.
   var shellMode = "auto";
   window.shellSetOrientation = function(mode){
+    var turned = (mode === "left" || mode === "right") !== (shellMode === "left" || shellMode === "right");
     shellMode = mode;
+    if (turned) try{ if (localStorage.getItem("countertop.screenSize") === "dash") sizeApply(); }catch(e){}
     if (document.documentElement.dataset.size) mode = "auto";     // a fixed size already says which way up it is
     document.documentElement.dataset.orientation = mode === "left" || mode === "right" || mode === "landscape" ? mode : "auto";
   };
 
   // Fixed screen size for this browser (testing on a computer). ?size=1920x1080 sets it, ?size=auto clears it,
   // and Controls can change it too (it is shared through localStorage, so an open dashboard follows).
-  var SIZE_KEY = "countertop.screenSize";
+  var SIZE_KEY = "countertop.screenSize", serverScreen = "";
   function sizeParse(v){ var m = /^(\d{3,5})x(\d{3,5})$/i.exec(String(v || "").trim()); return m ? [+m[1], +m[2]] : null; }
   function sizeFit(){
     var r = document.documentElement, w = +r.style.getPropertyValue("--fw").replace("px", ""), h = +r.style.getPropertyValue("--fh").replace("px", "");
@@ -63,7 +65,13 @@
   }
   function sizeApply(){
     var r = document.documentElement, v = null;
-    try{ v = sizeParse(localStorage.getItem(SIZE_KEY)); }catch(e){}
+    try{
+      var raw = localStorage.getItem(SIZE_KEY);
+      if (raw === "dash"){          // the same size as the dashboard's screen setting in Controls, turned when the screen is
+        v = sizeParse(serverScreen);
+        if (v && (shellMode === "left" || shellMode === "right")) v = [v[1], v[0]];
+      }else v = sizeParse(raw);
+    }catch(e){}
     if (v){
       r.dataset.size = v.join("x"); r.dataset.orientation = "auto";
       r.style.setProperty("--fw", v[0] + "px"); r.style.setProperty("--fh", v[1] + "px"); sizeFit();
@@ -74,7 +82,7 @@
   (function(){
     var q = new URLSearchParams(location.search).get("size");
     if (q !== null){
-      try{ if (sizeParse(q)) localStorage.setItem(SIZE_KEY, q.toLowerCase()); else localStorage.removeItem(SIZE_KEY); }catch(e){}
+      try{ if (sizeParse(q) || q === "dash") localStorage.setItem(SIZE_KEY, q.toLowerCase()); else localStorage.removeItem(SIZE_KEY); }catch(e){}
       var u = new URL(location.href); u.searchParams.delete("size"); history.replaceState(history.state, "", u);
     }
     sizeApply();
@@ -196,6 +204,7 @@
       .then(function(j){
         if (!j || !j.v) return;
         window.shellSetOrientation(j.orientation);
+        if (j.screen !== serverScreen){ serverScreen = j.screen; sizeApply(); }
         if (version === null){ version = j.v; return; }
         if (j.v !== version){ version = j.v; refresh("dashboard.html changed"); }
       }).catch(function(){});

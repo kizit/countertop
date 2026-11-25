@@ -1,6 +1,7 @@
 """Settings: the schema, reading and saving dashboard.json safely, backups, and which tiles are on the saved dashboard."""
 import hashlib
 import json
+import re
 import threading
 import time
 from server import tiledata
@@ -100,6 +101,25 @@ def dashboard_orientation(saved=None):
             return "auto"
     mode = saved.get("orientation")
     return mode if mode in ORIENTATIONS else "auto"
+
+
+SCREEN_DEFAULT = "1920x1080"
+
+
+def screen_ok(v):
+    m = re.fullmatch(r"(\d{3,5})x(\d{3,5})", v) if isinstance(v, str) else None
+    return bool(m) and 240 <= int(m.group(1)) <= 7680 and 240 <= int(m.group(2)) <= 7680
+
+
+def dashboard_screen(saved=None):
+    """The size of the screen this dashboard runs on (landscape, "WxH"): what Controls previews and the editor use."""
+    if saved is None:
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+        except (OSError, ValueError):
+            return SCREEN_DEFAULT
+    v = saved.get("screen")
+    return v if screen_ok(v) else SCREEN_DEFAULT
 
 
 # ---------- keeping settings safe ----------
@@ -219,7 +239,7 @@ def config_load():
         for k, v in (c.get("settings") or {}).items():
             if k in m["settings"]:
                 m["settings"][k] = v
-    return {"modules": merged, "orientation": dashboard_orientation(saved)}
+    return {"modules": merged, "orientation": dashboard_orientation(saved), "screen": dashboard_screen(saved)}
 
 
 # ---------- Your own tiles that kept their network access ----------
@@ -280,13 +300,16 @@ def config_save(body, quiet=False, grant_lan=False):
     orientation_edit = isinstance(body, dict) and "orientation" in body
     if orientation_edit and body["orientation"] not in ORIENTATIONS:
         raise ValueError("unknown screen orientation")
-    if not isinstance(mods, dict) and not (orientation_edit and "modules" not in body):
-        raise ValueError("expected modules or screen orientation")
+    screen_edit = isinstance(body, dict) and "screen" in body
+    if screen_edit and not screen_ok(body["screen"]):
+        raise ValueError("unknown screen size")
+    if not isinstance(mods, dict) and not ((orientation_edit or screen_edit) and "modules" not in body):
+        raise ValueError("expected modules, screen orientation or screen size")
     with CONFIG_LOCK:
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(mods, dict):
             # Layout editors send a snapshot of the modules. Preserve the current mount.
-            saved = {"modules": mods, "orientation": dashboard_orientation()}
+            saved = {"modules": mods, "orientation": dashboard_orientation(), "screen": dashboard_screen()}
             ledger = lan_check(_tile_items(mods), lan_ledger(), grant=grant_lan)
             # Your own tile is retired: ones that will work in the sandbox become Tile Studio tiles (server/mytiles.py),
             # after the line above has checked which of them really had home-network access, for their backup
@@ -301,6 +324,8 @@ def config_save(body, quiet=False, grant_lan=False):
                 saved = {}
         if orientation_edit:
             saved["orientation"] = body["orientation"]
+        if screen_edit:
+            saved["screen"] = body["screen"]
         saved["schema"] = CONFIG_SCHEMA
         saved["saved"] = int(time.time())
         config_backup()

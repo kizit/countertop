@@ -152,8 +152,7 @@ function commAfter(){
 }
 async function commThemeTrial(e){
   const box = libEl().querySelector(".lbig"), f = box && box.querySelector("iframe"); if (!f) return;
-  const W = displayMode === "auto" ? 1920 : 1080;
-  f.style.width = W + "px"; f.style.height = (displayMode === "auto" ? 1080 : 1920) + "px"; f.style.transform = "scale(" + box.clientWidth / W + ")";
+  scrFit(f, box.clientWidth);
   try{
     const r = await fetch("/trial", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({pages:gpAll(), tiles:tileList(), look:Object.assign(lookVals("default"), themeRead(e.item).values), name:e.name})});
     const j = await r.json(); if (!r.ok || j.error) throw new Error(j.error || r.status);

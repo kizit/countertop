@@ -162,13 +162,18 @@ function themeWhen(id){       // a short line on when a theme shows
   if (id === usedLook()) return "Shows when nothing is scheduled";
   return R.length ? R.map(whenText).join("; ") : "Not in use";
 }
+let SHOW_CLASSIC = false;        // "Show classic themes" on the Themes list (not saved)
+// themes on the screen or on the schedule stay in the list even when retired
+const themesInUse = () => [usedLook(), curLook()].concat(rules().map(r => r.look));
 function looksScreen(){
-  const now = curLook();
+  const now = curLook(), listed = THEMELIB.listed(themesInUse(), SHOW_CLASSIC), hidden = THEMELIB.L.length - listed.length;
   const card = id => '<button class="lcard' + (id === now ? " now" : "") + '" data-go="theme:' + id + '">' + lookPic(lookVals(id)) + '<b>' + esc(lookName(id)) + '</b><small>' + esc(themeWhen(id)) + '</small></button>';
   let h = '<div class="big">Themes</div><p class="intro">Colors, background, tiles and text size for every page. Tap a theme to see it on the preview, then use it or customize it.</p>';
   h += sec("Yours", '<div class="lcards">' + ["default"].concat(looks().map(t => t.id)).map(card).join("") +
     '<button class="lcard new" data-lact="new" data-id=""><div class="lpic plus">＋</div><b>New theme</b><small>Start from any theme</small></button></div>');
-  h += sec("Built in", '<div class="lcards">' + THEMELIB.L.map(t => t.id).map(card).join("") + '</div>', "Built-in themes come with Countertop and stay as they are. Customize one to make your own.");
+  h += sec("Built in", '<div class="lcards">' + listed.map(t => t.id).map(card).join("") + '</div>' +
+    (hidden || SHOW_CLASSIC ? '<button class="btnrow" data-lact="classic" data-id="">' + (SHOW_CLASSIC ? "Hide classic themes" : "Show classic themes (" + hidden + ")") + '</button>' : ""),
+    "Built-in themes come with Countertop and stay as they are. Customize one to make your own." + (hidden ? " Classic themes are the earlier built-ins; any you use or schedule always show here." : ""));
   h += sec("", row({t:"Theme Studio", sub:"Describe a look to an AI, or start from a wallpaper", chev:true, attrs:'data-go="tstudio"'}), "Countertop has no AI of its own: you copy a prompt and paste back the answer.");
   h += sec("", row({t:"Schedule", sub: rules().length ? rules().length + (rules().length === 1 ? " rule" : " rules") + " · now: " + lookName(now) : "Switch themes at certain times", chev:true, attrs:'data-go="sched"'}),
     "Date format, 24-hour time and emoji are the same in every theme: Settings → Language and formats, and Icons and emoji.");
@@ -277,6 +282,7 @@ function effectsScreen(){
   let h = '<div class="big">Effects</div><p class="intro">' + esc(schema.effects.desc) + '</p>';
   h += sec("", row({t:"Effects", post: sw(c.on, 'data-on="effects"')}) +
     row({t:"Rain, snow and falling things in front of the tiles", sub:"Off puts them behind the tiles, where they show only between and through see-through tiles.", post: sw(c.settings.front !== false, 'data-m="effects" data-k="front" data-t="bool"')}));
+  h += '<div class="sec"><div class="saverow"><button data-lact="fxall" data-id="off">Turn all off</button><button data-lact="fxall" data-id="on">Turn all on</button></div><div class="foot">Turn everything off, then turn on only the ones you want.</div></div>';
   const noEmo = (mods.general.settings.emoji || "Emoji") !== "Emoji";
   if (noEmo) h += '<div class="sec"><div class="foot">Emoji are off (Settings → Icons and emoji), so only the weather effects run. The others keep their settings for when emoji come back.</div></div>';
   if (lookVals(curLook()).fx === "Off") h += '<div class="sec"><div class="foot">The theme showing now, ' + esc(lookName(curLook())) + ', pauses every effect. Turn that off in Themes → ' + esc(lookName(curLook())) + ' → Customize → More.</div></div>';
@@ -530,6 +536,8 @@ function fxRead(j){
 /* ----- actions ----- */
 function lookAction(act, id){
   if (act === "tab"){ LTAB = id; show(); return; }
+  if (act === "fxall"){ const on = id === "on"; for (const d of FXLIB.L){ let o = fxItemsC().find(x => x.id === d.id); if (!o){ o = {id:d.id}; fxItemsC().push(o); } o.on = on; } save(); show(); return; }
+  if (act === "classic"){ SHOW_CLASSIC = !SHOW_CLASSIC; show(); return; }
   if (act === "reset"){ lookResetTab(id); return; }
   if (act === "pal"){ lookPalette(+id); return; }
   if (act === "fxpick"){ lookFxPick(id); return; }

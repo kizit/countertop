@@ -1,0 +1,1 @@
+- **Fewer built-in themes in the list.** Themes now shows Dark, Light and the newer built-ins; the other earlier ones (Glass, Photo frame, Calm evening, Atmospheric, Minimal, Kitchen table, Weather station, Family planner) are tucked behind "Show classic themes". They all still work, and one you use or schedule stays in the list.

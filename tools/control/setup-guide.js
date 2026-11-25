@@ -103,6 +103,7 @@ async function wizAct(a, id){
     await statusLoad();
     return;
   }
+  if (a === "streport"){ statusReport(); return; }
   if (a === "stcheck"){ toast("Checking…"); await statusLoad(true); toast(STATUS && STATUS.latest.error ? "Couldn't reach GitHub" : STATUS && STATUS.update ? "A new version is out" : "You're up to date", STATUS && STATUS.latest.error ? "bad" : "ok"); }
 }
 

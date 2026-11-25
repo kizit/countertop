@@ -167,7 +167,8 @@ let SHOW_CLASSIC = false;        // "Show classic themes" on the Themes list (no
 const themesInUse = () => [usedLook(), curLook()].concat(rules().map(r => r.look));
 function looksScreen(){
   const now = curLook(), listed = THEMELIB.listed(themesInUse(), SHOW_CLASSIC), hidden = THEMELIB.L.length - listed.length;
-  const card = id => '<button class="lcard' + (id === now ? " now" : "") + '" data-go="theme:' + id + '">' + lookPic(lookVals(id)) + '<b>' + esc(lookName(id)) + '</b><small>' + esc(themeWhen(id)) + '</small></button>';
+  const card = id => '<button class="lcard' + (id === now ? " now" : "") + '" data-go="theme:' + id + '" data-ctx="theme:' + esc(id) + '">' + lookPic(lookVals(id)) +
+    '<span class="morebtn cardmore" role="button" tabindex="0" data-ctxbtn="theme:' + esc(id) + '" title="More actions" aria-label="More actions">⋯</span><b>' + esc(lookName(id)) + '</b><small>' + esc(themeWhen(id)) + '</small></button>';
   let h = '<div class="big">Themes</div><p class="intro">Colors, background, tiles and text size for every page. Tap a theme to see it on the preview, then use it or customize it.</p>';
   h += sec("Yours", '<div class="lcards">' + ["default"].concat(looks().map(t => t.id)).map(card).join("") +
     '<button class="lcard new" data-lact="new" data-id=""><div class="lpic plus">＋</div><b>New theme</b><small>Start from any theme</small></button></div>');
@@ -219,8 +220,8 @@ function lookScreen(id){
   }
   if (t || isNew) h += sec("Name", '<div class="row col"><input type="text" ' + A + ' data-lk="__name" value="' + esc(DRAFT.name) + '"></div>');
   h += lookTabs(id, v, A);
-  h += isNew ? '<div class="draftbar"><span>Not saved yet</span><button data-lact="cancel">Cancel</button><button data-lact="save">Save</button><button class="pri" data-lact="saveuse">Save &amp; use</button></div>'
-    : '<div class="draftbar"><span>' + (draftDirty() ? "Unsaved changes" : "No changes yet") + '</span><button data-lact="cancel">Cancel</button><button class="pri" data-lact="save"' + (draftDirty() ? "" : " disabled") + '>Save</button></div>';
+  h += isNew ? '<div class="draftbar"><span>Not saved yet</span><button data-lact="cancel" title="Cancel (Esc)">Cancel</button><button data-lact="save" title="Save (Ctrl+S)">Save</button><button class="pri" data-lact="saveuse">Save &amp; use</button></div>'
+    : '<div class="draftbar"><span>' + (draftDirty() ? "Unsaved changes" : "No changes yet") + '</span><button data-lact="cancel" title="Cancel (Esc)">Cancel</button><button class="pri" data-lact="save" title="Save (Ctrl+S)"' + (draftDirty() ? "" : " disabled") + '>Save</button></div>';
   return h;
 }
 function schedScreen(){
@@ -228,7 +229,7 @@ function schedScreen(){
   let h = '<div class="big">Schedule</div><p class="intro">Switch to another theme at certain times or dates. The rest of the time ' + esc(lookName(usedLook())) + ' shows.</p>';
   h += sec("Themes", (R.length ? R.map((r, i) => row({t:lookName(r.look), sub:whenText(r), cls: r.on === false ? "off" : "", attrs:'data-go="rule:' + r.id + '"', chev:true,
       v: ruleMatches(r, new Date()) && now === r.look ? "Now" : "",
-      pre:'<span style="display:flex;flex-direction:column;gap:2px;margin-right:2px"><button class="link" style="padding:0 4px;font-size:13px" data-ract="up" data-id="' + r.id + '"' + (i ? "" : " disabled") + '>▲</button><button class="link" style="padding:0 4px;font-size:13px" data-ract="down" data-id="' + r.id + '"' + (i < R.length - 1 ? "" : " disabled") + '>▼</button></span>',
+      pre:'<span style="display:flex;flex-direction:column;gap:2px;margin-right:2px"><button class="link" style="padding:0 4px;font-size:13px" data-ract="up" data-id="' + r.id + '" title="Move earlier" aria-label="Move earlier"' + (i ? "" : " disabled") + '>▲</button><button class="link" style="padding:0 4px;font-size:13px" data-ract="down" data-id="' + r.id + '" title="Move later" aria-label="Move later"' + (i < R.length - 1 ? "" : " disabled") + '>▼</button></span>',
       post: sw(r.on !== false, 'data-ract="toggle" data-id="' + r.id + '"')})).join("") : '<div class="row"><div class="t"><small>Nothing scheduled: ' + esc(lookName(usedLook())) + ' always shows</small></div></div>') +
     row({t:"Add a time", cls:"add", chev:true, attrs:'data-ract="new"'}),
     "Showing now: " + lookName(now) + ". When several match, the lowest one in the list wins. The night page has its own hours: Pages → Night page.");
@@ -287,7 +288,8 @@ function effectsScreen(){
   if (noEmo) h += '<div class="sec"><div class="foot">Emoji are off (Settings → Icons and emoji), so only the weather effects run. The others keep their settings for when emoji come back.</div></div>';
   if (lookVals(curLook()).fx === "Off") h += '<div class="sec"><div class="foot">The theme showing now, ' + esc(lookName(curLook())) + ', pauses every effect. Turn that off in Themes → ' + esc(lookName(curLook())) + ' → Customize → More.</div></div>';
   const card = d => { const f = fxC(d.id), now = !d.wx && !d.party && FXLIB.timeOk(f, new Date());
-    return '<div class="fxc' + (f.on ? "" : " off") + '" data-go="fx:' + d.id + '"><canvas data-fx="' + d.id + '"></canvas><div class="fxt"><div><b>' + esc(d.name) + '</b><small>' + esc(FXLIB.whenText(f)) + (now && f.on ? ' · <span class="nowtag">now</span>' : "") + '</small></div>' +
+    return '<div class="fxc' + (f.on ? "" : " off") + '" data-go="fx:' + d.id + '" data-ctx="fx:' + esc(d.id) + '"><canvas data-fx="' + d.id + '"></canvas>' +
+      '<button type="button" class="morebtn cardmore" data-ctxbtn="fx:' + esc(d.id) + '" title="More actions" aria-label="More actions">⋯</button><div class="fxt"><div><b>' + esc(d.name) + '</b><small>' + esc(FXLIB.whenText(f)) + (now && f.on ? ' · <span class="nowtag">now</span>' : "") + '</small></div>' +
       sw(f.on, 'data-fxon="' + d.id + '"') + '</div></div>'; };
   for (const [g, foot] of FXLIB.GROUPS){
     const L = FXLIB.L.filter(d => d.grp === g);
@@ -396,7 +398,7 @@ function fxEditScreen(id){
     (D.motion === "fall" ? row({t:"Spin as they fall", post: sw(D.spin !== false, 'data-fxd="spin"')}) : ""));
   h += sec("Its season", row({t:"From", post:mon(D.from, "from")}) + row({t:"Until", post:mon(D.to, "to")}),
     "Optional. With a season it plays only then (you can still pick All year on its page). Leave both empty for all year.");
-  h += '<div class="draftbar"><span>' + (fxDirty() ? (D.isNew ? "Not saved yet" : "Unsaved changes") : "No changes yet") + '</span><button data-fxa="cancel">Cancel</button><button class="pri" data-fxa="save"' + (fxDirty() ? "" : " disabled") + '>Save</button></div>';
+  h += '<div class="draftbar"><span>' + (fxDirty() ? (D.isNew ? "Not saved yet" : "Unsaved changes") : "No changes yet") + '</span><button data-fxa="cancel" title="Cancel (Esc)">Cancel</button><button class="pri" data-fxa="save" title="Save (Ctrl+S)"' + (fxDirty() ? "" : " disabled") + '>Save</button></div>';
   return h;
 }
 function fxAction(a, id){

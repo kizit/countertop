@@ -4,6 +4,45 @@
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const ECHO = /[?&]echo=1/.test(location.search);
+const INPUT_KEY = "countertop.input";
+// Echo / Silk browsers always stay in touch mode; otherwise matchMedia decides once at load, with /control?input= and Controls > Screen overrides
+function inputIsEchoUA(){
+  return /Silk\b|\bEcho\b|\bKF[A-Z]{2,5}\b|\bAFT[A-Z]{1,4}\b/i.test(navigator.userAgent || "");
+}
+function inputAuto(){
+  if (ECHO || inputIsEchoUA()) return "touch";
+  try{ if (window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches) return "desktop"; }catch(e){}
+  return "touch";
+}
+function inputStored(){
+  try{ const v = localStorage.getItem(INPUT_KEY); return v === "desktop" || v === "touch" ? v : ""; }catch(e){ return ""; }
+}
+function inputDetect(){
+  const q = new URLSearchParams(location.search).get("input");
+  if (q !== null){
+    const v = q.trim().toLowerCase();
+    try{ if (v === "desktop" || v === "touch") localStorage.setItem(INPUT_KEY, v); else localStorage.removeItem(INPUT_KEY); }catch(e){}
+    const u = new URL(location.href); u.searchParams.delete("input"); history.replaceState(history.state, "", u);
+  }
+  if (ECHO || inputIsEchoUA()) return "touch";
+  return inputStored() || inputAuto();
+}
+const CT = window.CT = {input: inputDetect()};
+function applyInputMode(mode){
+  CT.input = ECHO || inputIsEchoUA() ? "touch" : (mode === "desktop" || mode === "touch" ? mode : inputAuto());
+  document.documentElement.dataset.input = CT.input;
+}
+applyInputMode(CT.input);
+addEventListener("storage", e => {
+  if (e.key !== INPUT_KEY || ECHO || inputIsEchoUA()) return;
+  applyInputMode(inputStored() || inputAuto());
+  inputChanged();
+});
+// a mode switch (this tab's setting or another tab's): restyle the preview, then redraw Screen settings if they're open
+function inputChanged(){
+  pvButtons(); pvDesktopSync();
+  if (cur0() === "display") show();
+}
 const MOUNTS = {auto:"Automatic", landscape:"Landscape", left:"Portrait · left edge up", right:"Portrait · right edge up"};
 const SHELL = ECHO && window.parent !== window;
 let displayMode = "auto";
@@ -22,12 +61,35 @@ function scr(){
 function scrFit(f, boxWidth){
   const [w, h] = scr(); f.style.width = w + "px"; f.style.height = h + "px"; f.style.transform = "scale(" + boxWidth / w + ")";
 }
-// the main preview's size buttons: the screen, with a browser bar's worth less, and turned the other way up
+// keep the preview sized to Controls > Screen (size + orientation); when Orientation is Automatic, offer a Portrait flip
 function pvButtons(){
-  const [w, h] = scr(), b = $("pvsize").children;
-  const set = (x, W, H, label) => { x.dataset.w = W; x.dataset.h = H; if (label) x.textContent = label; };
-  set(b[0], w, h); set(b[1], w, Math.max(240, h - 100)); set(b[2], h, w, w >= h ? "Portrait" : "Landscape");
-  pvSize(b[0]);
+  const touchBar = CT.input === "touch";
+  if ($("pvsize")) $("pvsize").hidden = !touchBar;
+  if (touchBar){           // touch: the size buttons as before (Full screen / Portrait), turned the other way up by the screen
+    PV.flip = false;
+    const [w, h] = scr(), b = $("pvsize").children;
+    const set = (x, W, H, label) => { x.dataset.w = W; x.dataset.h = H; if (label) x.textContent = label; };
+    set(b[0], w, h); set(b[1], h, w, w >= h ? "Portrait" : "Landscape");
+    if ($("pvori")) $("pvori").hidden = true;
+    if ($("pvscr")) $("pvscr").hidden = true;
+    pvSize(b[0]);
+    return;
+  }
+  if (displayMode !== "auto") PV.flip = false;
+  let [w, h] = scr();
+  if (displayMode === "auto" && PV.flip) [w, h] = [h, w];
+  PV.w = w; PV.h = h;
+  const res = w + "×" + h, port = h > w;
+  if ($("pvres")) $("pvres").textContent = res;
+  if ($("pvscr")) $("pvscr").textContent = (port ? "Portrait · " : "") + res;
+  const ori = $("pvori");
+  if (ori){
+    ori.hidden = displayMode !== "auto";
+    ori.classList.toggle("on", !!PV.flip);
+    ori.setAttribute("aria-pressed", String(!!PV.flip));
+    ori.title = PV.flip ? "Switch preview back to landscape" : "Preview and edit the portrait layout";
+  }
+  pvFit();
 }
 let everyday, schema = {}, mods = {}, SRC = {}, KINDS = {}, saveTimer = null, stack = ["root"];
 let SBXC = {tiles:{}};          // community tiles installed on the server (/config → sandbox), for the Library
@@ -37,7 +99,7 @@ window.shellBusy = () => true;       // on the Echo, the shell must not reload t
 if (ECHO){
   document.documentElement.classList.add("echo");
   $("done").textContent = "Done"; $("done").removeAttribute("target");
-  document.addEventListener("pointerdown", () => { try{ window.top.shellTap && window.top.shellTap(); }catch(e){} });
+  if (CT.input === "touch") document.addEventListener("pointerdown", () => { try{ window.top.shellTap && window.top.shellTap(); }catch(e){} });
   setInterval(() => { try{ window.top.contentTick && window.top.contentTick(); }catch(e){} }, 20e3);
 }
 $("done").href = displayHref();

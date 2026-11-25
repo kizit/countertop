@@ -14,7 +14,7 @@
 <div class="app">
   <div class="nav">
     <div class="bar">
-      <button class="link l" id="back" hidden>‹ <span id="backlbl">Settings</span></button>
+      <button class="link l" id="back" hidden title="Go back">‹ <span id="backlbl">Settings</span></button>
       <h1 id="title"></h1>
       <a class="link r" id="done" href="/dash" target="_blank">Open dashboard</a>
     </div>
@@ -22,16 +22,34 @@
   </div>
   <div class="pv" id="pv" hidden>
     <div id="starterpv"></div>
-    <div class="pvbar">
+    <div class="pvbar" id="pvbar">
+      <button id="pvnav" hidden title="Show or hide Controls sidebar" aria-label="Show or hide Controls sidebar">☰</button>
       <span class="seg" id="pvpage"></span>
-      <button id="pvedit">Edit on screen</button>
-      <span class="seg" id="pvsize" role="group" aria-label="Preview size"><button data-w="1920" data-h="1080" class="on" aria-pressed="true">Full screen</button><button data-w="1920" data-h="980" aria-pressed="false">With browser bar</button><button data-w="1080" data-h="1920" aria-pressed="false">Portrait</button></span>
-      <span class="note"><span id="pvres">1920×1080</span> preview. Click a tile to change it.</span>
+      <button id="pvedit" title="Arrange and edit tiles on the preview">Edit on screen</button>
+      <span class="seg" id="pvsize" role="group" aria-label="Preview size"><button data-w="1920" data-h="1080" class="on" aria-pressed="true">Full screen</button><button data-w="1080" data-h="1920" aria-pressed="false">Portrait</button></span>
+      <button id="pvori" hidden aria-pressed="false" title="Preview and edit the portrait layout">Portrait</button>
+      <button id="pvgrid" hidden aria-pressed="false" title="Show or hide the snap grid">Grid</button>
+      <button id="pvscr" class="pvscr" hidden title="Change screen size or orientation">1920×1080</button>
+      <span class="note" id="pvnote"><span id="pvres">1920×1080</span> preview. Click a tile to change it.</span>
+      <span class="pvedact" id="pvedact" hidden>
+        <span class="pvhint" id="pvhint"></span>
+        <button id="pvundo" disabled title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+        <button id="pvredo" disabled title="Redo (Shift+Ctrl+Z)" aria-label="Redo">↷</button>
+        <button id="pvcancel" title="Cancel editing (Esc)">Cancel</button>
+        <button id="pvsave" class="pri" title="Save layout (Ctrl+S)">Save</button>
+      </span>
     </div>
-    <div class="pvbox" id="pvbox"><iframe id="pvf" title="Dashboard preview" width="1920" height="1080"></iframe></div>
+    <div class="pvstage" id="pvstage">
+      <div class="pvbox" id="pvbox"><iframe id="pvf" title="Dashboard preview" width="1920" height="1080"></iframe></div>
+    </div>
   </div>
+  <aside class="insp" id="insp" hidden>
+    <div class="insp-body" id="insp-body"></div>
+  </aside>
 </div>
+<div id="edghost-host" hidden></div>
 <div id="lib" hidden></div>
+<div id="ctxmenu" class="ctxmenu" role="menu" hidden></div>
 <div id="toast" style="opacity:0"></div>
 <script>
 <!--#include control/core.js-->

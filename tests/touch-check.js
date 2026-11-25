@@ -374,6 +374,31 @@ async function main() {
     await onPage("c:two");
     console.log("✓ swipe + hold-to-edit + Cancel succeed under 4× CPU throttling");
 
+    // --- Desktop mode Controls check (Playwright without hasTouch): mouse grip reorder, right-click menu & keyboard shortcuts ---
+    const deskCtx = await openContext({ base, viewport: { width: 1280, height: 800 }, hasTouch: false, label: "desktop-controls" });
+    const dp = await deskCtx.newPage();
+    watchErrors(dp, errors, { prefix: "desktop-ctl" });
+    await dp.goto(base + "/control", { waitUntil: "load" });
+    await until(() => dp.evaluate(() => typeof CT === "object" && CT.input === "desktop" && document.documentElement.dataset.input === "desktop" && cpList().length === 2), "desktop Controls loaded");
+
+    // Mouse drag on ⋮⋮ grip reorders pages without triggering row navigation
+    const dg3 = await dp.locator('[data-pid="three"] [data-grip]').boundingBox();
+    const dr2 = await dp.locator('[data-pid="two"]').boundingBox();
+    await dp.mouse.move(dg3.x + dg3.width / 2, dg3.y + dg3.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(dg3.x + dg3.width / 2, dr2.y + dr2.height / 2 - 12, { steps: 10 });
+    await dp.mouse.up();
+    await until(() => dp.evaluate(() => cpList().map(p => p.id).join(",") === "three,two"), "pages reordered by desktop mouse drag");
+    assert.equal(await dp.evaluate(() => stack[stack.length - 1]), "root", "releasing mouse grip should not navigate into page row");
+    // Right-click menu Move down restores page order
+    await dp.locator('[data-pid="three"]').click({ button: "right" });
+    await dp.locator("#ctxmenu").waitFor({ state: "visible" });
+    await dp.locator('#ctxmenu button', { hasText: "Move down" }).click();
+    await until(() => dp.evaluate(() => cpList().map(p => p.id).join(",") === "two,three"), "pages restored via right-click Move down");
+    await sleep(600);
+    await deskCtx.close();
+    console.log("✓ desktop Controls mouse grip reorder and right-click menu work without hasTouch");
+
     assert.deepEqual(errors, []);
     console.log("✓ no page errors");
   });

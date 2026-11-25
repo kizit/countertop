@@ -198,7 +198,7 @@ function libLayoutItem(key){
   const saved = key.startsWith("saved:"), imp = key === "import";
   const p = saved ? c.page : null, nT = saved ? [].concat(...p.slots.map(smods)).length : 0;
   let h = libPickBar() + '<button class="lback" data-l="view" data-id="' + (imp ? "import" : LIB.view) + '">‹ ' + (imp ? "Import" : LIB.view === "mine" ? "My layouts" : "Layouts") + '</button>';
-  h += '<div class="ldet"><div><div class="lbig' + (displayMode === "auto" ? "" : " port") + '">' + libPic(key) + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' +
+  h += '<div class="ldet"><div><div ' + lbigAttrs() + '>' + libPic(key) + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' +
     (ECHO ? "" : '<p class="lnote">Live preview with your own weather, calendars and lists.</p>') + '</div><div>';
   if (saved) h += '<input class="lname" type="text" data-l="rename" data-id="' + p.id + '" value="' + esc(p.name) + '" aria-label="Name">' +
     '<div class="lsub">Saved ' + (p.at ? new Date(p.at).toLocaleDateString(undefined, {month:"long", day:"numeric"}) : "earlier") + ' · ' + nT + (nT === 1 ? " tile" : " tiles") + '</div>';
@@ -274,7 +274,7 @@ function libShare(){
   const {pkg, flags} = libPack(T.p, T.look, LIB.share.name.trim() || "Shared layout", LIB.share.desc.trim());
   const opts = [["main", "Main right now"]].concat(savedList().map(p => ["saved:" + p.id, p.name]));
   let h = '<h2 class="ltitle">Share a layout</h2><p class="ldesc">Make a small file of a layout to send to a friend or keep as a backup. They open it in Library › Import a file.</p>';
-  h += '<div class="ldet"><div><div class="lbig">' + pagePic(T.p, Object.assign(lookVals(curLook()), T.look), "page") + '</div>' +
+  h += '<div class="ldet"><div><div ' + lbigAttrs() + '>' + pagePic(T.p, Object.assign(lookVals(curLook()), T.look), "page") + '</div>' +
     '<div class="lpanel"><h3>Left out automatically</h3>' +
     [["Which calendars, lists and teams it uses", "Whoever opens it picks their own", flags.has("src")], ["Your own text", "Notes, countdown dates, picture links and Home Assistant names", flags.has("own")],
       ["Home Assistant devices", "They're different in every home", flags.has("ha")], ["Calendar links, list items, photos", "Never part of a layout", true]]
@@ -440,6 +440,13 @@ function libShow(){
   if (it && LIB.view !== "studio" && !it.startsWith("tile:") && choiceOf(it)) libPreview(it);
 }
 // Themes and Effects: Controls' own screens, stacked inside the Library, beside a live preview that stays put
+// the preview box outlives the screen: when Controls > Screen changed meanwhile, give it the screen's shape again
+function libBoxSync(){
+  const b = libEl().querySelector(".lpvcol .lbig"); if (!b) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = "<div " + lbigAttrs() + "></div>";
+  b.className = tmp.firstChild.className; b.style.aspectRatio = tmp.firstChild.style.aspectRatio;
+  const f = b.querySelector("iframe"); if (f && b.clientWidth) scrFit(f, b.clientWidth);
+}
 function libSubShow(){
   const S = LIB.sub.length ? LIB.sub : (LIB.sub = [LIB_SUB[LIB.view]]), cur = S[S.length - 1];
   if (!cur.startsWith("look:") && DRAFT) DRAFT = null;            // left Customize (Save, Cancel or back): the draft is gone
@@ -451,9 +458,9 @@ function libSubShow(){
   const side = (S.length > 1 ? '<button class="lback" data-l="sback">‹ ' + esc(backLabel(S[S.length - 2])) + '</button>' : "") +
     (h.startsWith('<div class="big">') ? "" : '<div class="big">' + esc(title) + '</div>') + h;
   const restore = scrollKeep("lib:" + cur), el = libEl(), box = el.querySelector(".lside");
-  if (box){ el.querySelector(".lrail").innerHTML = libRail(); box.innerHTML = side; }      // redraw in place: the preview keeps running, and the scroll position stays (on the Echo too)
+  if (box){ el.querySelector(".lrail").innerHTML = libRail(); box.innerHTML = side; libBoxSync(); }      // redraw in place: the preview keeps running, and the scroll position stays (on the Echo too)
   else el.innerHTML = '<nav class="lrail">' + libRail() + '</nav><div class="lmain">' + (ECHO ? '<div class="lside">' + side + '</div>' :
-    '<div class="lsplit"><div class="lside">' + side + '</div><div class="lpvcol"><div class="lbig' + (displayMode === "auto" ? "" : " port") + '"><iframe id="libpv" tabindex="-1" aria-hidden="true" title="Live preview"></iframe></div>' +
+    '<div class="lsplit"><div class="lside">' + side + '</div><div class="lpvcol"><div ' + lbigAttrs() + '><iframe id="libpv" tabindex="-1" aria-hidden="true" title="Live preview"></iframe></div>' +
     '<p class="lnote">Your dashboard, live. Changes show here before you use them.</p></div></div>') + '</div>';
   restore();
   fxPreviews();

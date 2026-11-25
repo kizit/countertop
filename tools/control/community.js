@@ -115,9 +115,9 @@ function commItem(id){
   let h = '<button class="lback" data-l="c-back">‹ Community</button><div class="ldet"><div>', warn = "";
   if (e){
     try{
-      if (kind === "layout"){ LIB.imp = libRead(e.item); LIB.slots = {}; LIB.look = true; h += '<div class="lbig' + (displayMode === "auto" ? "" : " port") + '">' + libPic("import") + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' +
+      if (kind === "layout"){ LIB.imp = libRead(e.item); LIB.slots = {}; LIB.look = true; h += '<div ' + lbigAttrs() + '>' + libPic("import") + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' +
         (ECHO ? "" : '<p class="lnote">Live preview with your own weather, calendars and lists.</p>'); }
-      else if (kind === "theme") h += '<div class="lbig">' + commPic(e) + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' + (ECHO ? "" : '<p class="lnote">Your own dashboard in this theme.</p>');
+      else if (kind === "theme") h += '<div ' + lbigAttrs() + '>' + commPic(e) + (ECHO ? "" : '<iframe tabindex="-1" aria-hidden="true" title="Live preview"></iframe>') + '</div>' + (ECHO ? "" : '<p class="lnote">Your own dashboard in this theme.</p>');
       else h += '<div class="fxc big"><canvas data-fx="' + esc(commFxId(e)) + '"></canvas></div>';
     }catch(err){ warn = err.message; h += '<div class="lempty">This one can\'t be opened here: ' + esc(err.message) + '</div>'; }
   } else h += '<div class="lempty">The gallery no longer lists this item.</div>';

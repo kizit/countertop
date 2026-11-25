@@ -347,6 +347,7 @@
   html.preview #hint,html.preview #gear{display:none!important}
   html.still *,html.still *::before,html.still *::after{animation-play-state:paused!important;transition:none!important}
   html.still #fx,html.still #fun2{display:none}
+  html.still .slot.stack > [data-mod]{animation:none}      /* a paused fade-in would leave a tile that just took its turn invisible */
   html.solo #dots,html.solo #gear,html.solo #hint{display:none!important}
   /* pages: boxes on a 48x32 grid */
   .cpage{display:block}

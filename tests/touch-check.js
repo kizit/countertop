@@ -455,6 +455,13 @@ async function main() {
     await T.tap(...await T.centre(frameLoc().locator("#edredo")));
     await until(() => D(() => !curPg().slots.some(v => v.id === "a1") && smods(curPg().slots.find(v => v.id === "a2")).join(",") === "porch_a,note_a"), "Redo to restack");
     await sleep(150);
+    // Deselecting the stacked box (tapping empty canvas / "desel") keeps the stack drawn
+    await T.tap(...await T.centre(frameLoc().locator('[data-act="desel"]')));
+    await until(() => D(() => EDIT.sel === null), "stack deselected");
+    await sleep(300);
+    const stackVis = await D(() => { const d = document.querySelector('.slot.stack[data-slot="a2"]'); if (!d) return "no stack box"; const v = [...d.children].filter(c => c.dataset.mod && !c.classList.contains("stk-off")); const r = v[0] && v[0].getBoundingClientRect(); return { n: v.length, w: r ? r.width : 0, h: r ? r.height : 0, op: v[0] ? getComputedStyle(v[0]).opacity : null, still: document.documentElement.className }; });
+    console.log("stack after deselect:", JSON.stringify(stackVis));
+    assert.ok(stackVis.n === 1 && stackVis.w > 0 && stackVis.op !== "0", "stacked box should still render after deselecting: " + JSON.stringify(stackVis));
     await T.tap(...await T.centre(frameLoc().locator("#edsave")));
     await ready();
     await onPage("main");

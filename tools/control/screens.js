@@ -12,7 +12,7 @@ function rootScreen(){
     (schema.deals ? row({t:"Store deals", sub: (mods.deals.settings.stores || []).length ? (mods.deals.settings.stores || []).join(", ") : "Not set up", chev:true, attrs:'data-go="mod:deals"'}) : ""),
     "Set these up once. Any tile can use them, and several tiles can share the same one.");
   const settings = sec("Settings",
-    row({t:"Dashboard name", sub: g.name || "Kitchen", chev:true, attrs:'data-go="gen:name"'}) +
+    row({t:"Dashboard name", sub: g.name || "Countertop", chev:true, attrs:'data-go="gen:name"'}) +
     row({t:"Location", sub: g.place || (g.lat ? g.lat + ", " + g.lon : "Not set: needed for weather"), chev:true, attrs:'data-go="gen:place"'}) +
     row({t:"Language and formats", sub:langSummary(), chev:true, attrs:'data-go="gen:lang"'}) +
     row({t:"Icons and emoji", sub:({"Simple symbols":"Simple symbols", "No emoji":"Words only"})[g.emoji] || "Color emoji", chev:true, attrs:'data-go="gen:icons"'}) +
@@ -304,7 +304,7 @@ function langSummary(){
 function genScreen(k){
   const s = schema.general, c = mods.general, G = GEN[k]; if (!G) return "";
   let h = '<div class="big">' + esc(G[0]) + '</div>';
-  if (k === "name") return h + '<p class="intro">What this screen is called in the browser tab and on the shopping-list page. The default is Kitchen.</p>' +
+  if (k === "name") return h + '<p class="intro">What this screen is called in the browser tab and on the shopping-list page. The default is Countertop.</p>' +
     sec("", G[1].map(x => field("general", x, s.settings[x], c.settings[x])).join(""));
   if (k === "place") return h + '<p class="intro">Where you are, for the weather, radar, sunrise and things overhead.</p>' +
     sec("", '<button class="btnrow blue" data-act="locate">Find a place by name…</button>', "Or type the latitude and longitude below.") +

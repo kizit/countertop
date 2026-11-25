@@ -30,10 +30,10 @@ def page_files(*names):
 
 
 def named(body, name):
-    """A page's HTML with the dashboard's own name (Controls → Dashboard name) where it says Kitchen."""
-    name = " ".join(str(name or "").split())[:60] or "Kitchen"
-    if name == "Kitchen":
+    """A page's HTML with the dashboard's own name (Controls → Dashboard name) where it says Countertop."""
+    name = " ".join(str(name or "").split())[:60] or "Countertop"
+    if name == "Countertop":
         return body
     esc = html.escape(name, quote=True)
     text = body.decode("utf-8")
-    return text.replace("Kitchen list", esc + " list").replace("<title>Kitchen</title>", "<title>%s</title>" % esc).encode("utf-8")
+    return text.replace("Countertop list", esc + " list").replace("<title>Countertop</title>", "<title>%s</title>" % esc).encode("utf-8")

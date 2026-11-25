@@ -557,14 +557,14 @@ class PhotoRoutesEndToEndTest(unittest.TestCase):
 
 
 class DashboardNameTest(unittest.TestCase):
-    def test_name_replaces_kitchen_in_titles(self):
-        shell = pages.named(b"<title>Kitchen</title>", "Hoya <home>")
+    def test_name_replaces_countertop_in_titles(self):
+        shell = pages.named(b"<title>Countertop</title>", "Hoya <home>")
         self.assertEqual(shell, b"<title>Hoya &lt;home&gt;</title>")
-        self.assertEqual(pages.named(b"<h1>Kitchen list</h1>", "Hoya"), b"<h1>Hoya list</h1>")
+        self.assertEqual(pages.named(b"<h1>Countertop list</h1>", "Hoya"), b"<h1>Hoya list</h1>")
 
-    def test_empty_or_default_keeps_kitchen(self):
-        self.assertEqual(pages.named(b"<title>Kitchen</title>", ""), b"<title>Kitchen</title>")
-        self.assertEqual(pages.named(b"<title>Kitchen</title>", None), b"<title>Kitchen</title>")
+    def test_empty_or_default_keeps_countertop(self):
+        self.assertEqual(pages.named(b"<title>Countertop</title>", ""), b"<title>Countertop</title>")
+        self.assertEqual(pages.named(b"<title>Countertop</title>", None), b"<title>Countertop</title>")
 
 
 if __name__ == "__main__":

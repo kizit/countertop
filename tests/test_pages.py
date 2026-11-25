@@ -14,7 +14,7 @@ from server import pages  # noqa: E402
 
 class PagesTest(unittest.TestCase):
     def test_pages_are_whole(self):
-        for name, title in (("dash", b"<title>Kitchen</title>"), ("control", b"<title>Dashboard settings</title>")):
+        for name, title in (("dash", b"<title>Countertop</title>"), ("control", b"<title>Dashboard settings</title>")):
             html = pages.page(name)
             self.assertTrue(html.startswith(b"<!doctype html>"), name)
             self.assertIn(title, html)

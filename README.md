@@ -50,6 +50,14 @@ Press and hold a tile to start editing right on the screen. Drag tiles where you
 
 Open any of the three layouts to see it full size. They all use the same fictional household data.
 
+### Make your own tiles
+
+Want something the built-in tiles don't do? Open **Tile Studio** (**Library → Tiles → New tile**) to write a tile of your own, or describe what you want, copy the prompt into ChatGPT, Claude, or another assistant you already use, and paste the answer back to fill in the form and live preview. Point at parts of the preview to ask for changes, switch between versions, and share your tile — or download tiles other people made in **Library → Community**.
+
+<img src="docs/screenshots/tile-studio.gif" alt="Tile Studio beside a simulated external AI chat: describing a Walk the Dog? tile, pasting the reply to fill the form and live preview, pinning a note to add a golden puppy, and filling in the updated tile." width="100%" />
+
+*The chat window on the right is a simulated external assistant (ChatGPT, Claude, etc.), not part of Countertop — Countertop has no built-in AI, and Tile Studio works with whatever assistant you already use.*
+
 ## What it can do
 
 <table>
@@ -110,7 +118,7 @@ Pick a theme for the colors, background and tiles, and schedule others by time o
 - **Designed for the Echo Show 15.** Layouts are made for its 1920×1080 screen in the Silk browser. A tablet or monitor with a modern browser works too.
 - **Your grocery list can live where you like.** Use the built-in list from any phone, send an Apple Reminders list with an iPhone Shortcut or the Countertop Mac app, or point Countertop at a list that's online. See [list sync](docs/list-sync.md).
 - **Works with Home Assistant.** Show lights, doors and sensors, and switch lights or run scenes from the screen. See [Home Assistant](docs/home-assistant.md).
-- **Save and share layouts.** The Library keeps earlier layouts to switch back to, lets you try one on the screen for two minutes, and shares any layout as a small file with your calendars and personal text left out. Themes and your own emoji effects can be shared as files too, and Library → Community has layouts, themes and effects other people made, downloaded only when you choose. See [sharing and the community gallery](docs/sharing-layouts.md).
+- **Save and share layouts.** The Library keeps earlier layouts to switch back to, lets you try one on the screen for two minutes, and shares any layout as a small file with your calendars and personal text left out. Tiles, themes and your own emoji effects can be shared as files too, and Library → Community has layouts, tiles, themes and effects other people made, downloaded only when you choose. See [sharing and the community gallery](docs/sharing-layouts.md).
 - **Some features are limited.** Store deals use US weekly ads by ZIP code. Sports cover soccer leagues such as MLS, NWSL, the Premier League, and the Champions League. Photos come from shared iCloud albums.
 - **Keep it on your home network.** Anyone who can reach the dashboard can open Controls.
 

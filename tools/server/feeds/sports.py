@@ -229,7 +229,7 @@ def team_matches(sid=""):
     hot = bool(d and d.get("next") and (d["next"].get("live") or abs(_iso_ts(d["next"].get("date")) - time.time()) < 3 * 3600))
     if d is not None and time.time() - TEAM_CACHE["at"] < (60 if hot else 600):
         return TEAM_CACHE["data"]
-    out = {"team": team, "next": None, "last": None, "error": None}
+    out = {"team": team, "league": league, "next": None, "last": None, "error": None}
     try:
         games = None
         if league.startswith("usa.1"):

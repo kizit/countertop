@@ -4,7 +4,7 @@ viewTile("radar", {
   takeover:"Take over the box when rain is near", demo:{onlyRain:false},
   desc:"An animated map of rain and snow around your home, from RainViewer, with a few minutes of forecast. Can stay hidden until rain is close, and take over its box when it is.",
   settings:{
-    zoom:{type:"choice", label:"Map", choices:["close", "region", "wide"], default:"region"},
+    zoom:{type:"choice", label:"Map", choices:["Close", "Region", "Wide"], default:"Region"},
     onlyRain:{type:"bool", label:"Only show when rain or snow is near", default:true},
     hours:{type:"int", label:"Counts as near within (hours)", default:2, min:1, max:6},
     chance:{type:"int", label:"…at a chance of at least (%)", default:40, min:10, max:90}
@@ -13,13 +13,14 @@ viewTile("radar", {
   urgent(){ return !!rainSoon(this.s); }
 }, {
   build(box){
-    box.innerHTML = '<div class="map"><div class="lyr base"></div><div class="lyr frames"></div><div class="lyr labels"></div><div class="home"></div></div>' +
+    box.innerHTML = '<div class="map" data-keep><div class="lyr base"></div><div class="lyr frames"></div><div class="lyr labels"></div><div class="home"></div></div>' +
       '<div class="ovl tl"><b class="rk"></b><span class="rt"></span></div><div class="ovl br rtime"></div><div class="rbar"><i></i></div>' + OSM_CREDIT;
     this.box = box; this.frames = []; this.fi = 0; this.loadedAt = 0;
   },
   async show(){
     const box = this.box, g = S("general"), s = this.s;
-    const z = s.zoom === "close" ? 9 : s.zoom === "wide" ? 7 : 8, rz = Math.min(z - 1, 7);
+    const zm = String(s.zoom || "").toLowerCase(), z = zm === "close" ? 9 : zm === "wide" ? 7 : 8,      // saved lowercase choices still work
+       rz = Math.min(z - 1, 7);
     const W = box.clientWidth, H = box.clientHeight, cx = TILE.x(g.lon, z), cy = TILE.y(g.lat, z);
     const key = [W, H, z, g.lat, g.lon].join();
     if (this.mapKey !== key){

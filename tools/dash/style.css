@@ -85,7 +85,7 @@
   .cs-minimal .c{display:none}
   /* weather */
   .m-weather{text-align:right;zoom:var(--cz,1)}
-  .m-weather .row{display:flex;align-items:center;gap:20px;justify-content:var(--jc,flex-end)}
+  .m-weather .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;justify-content:var(--jc,flex-end)}      /* wraps in a narrow box instead of pushing the icon off the left edge */
   .m-weather .g{font-size:86px;line-height:1;animation:bob 6s ease-in-out infinite}
   @keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(-4deg)}}
   .m-weather .tt{color:var(--big,var(--fg));font-size:100px;font-weight:200;line-height:1;flex:none;white-space:nowrap;padding-right:.08em}
@@ -133,7 +133,7 @@
   .day.today .ev em{font-style:normal;color:var(--accent);margin-right:8px}
   /* hourly */
   .m-hourly{display:flex;gap:10px;background:none;border:0;padding:0}
-  .hour{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
+  .hour{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center}
   .hour .h{font-size:18px;color:var(--dim)} .hour .t{font-size:32px;font-weight:300} .hour .p{font-size:16px;color:var(--info)}
   /* photos */
   /* big tile */
@@ -141,7 +141,7 @@
   .m-stage .view{position:absolute;inset:0;opacity:0;transition:opacity 1.2s;pointer-events:none}
   .m-stage .view.on{opacity:1}
   .m-stage canvas{position:absolute;inset:0}
-  .m-stage .map{position:absolute;inset:0;overflow:hidden;background:#11151c}
+  .m-stage .map{position:absolute;inset:0;contain:paint;background:#11151c}
   .m-stage .lyr{position:absolute;inset:0}
   .m-stage .lyr img{position:absolute;max-width:none;user-select:none}
   .m-stage .fr{transition:opacity .25s;opacity:0;mix-blend-mode:screen}
@@ -314,7 +314,7 @@
   .cell.past{opacity:.6}
   .cell.today{border-color:var(--accent);background:rgba(40,30,24,.9)}
   .cell.today .n{color:var(--accent);font-weight:600}
-  .cell .e{font-size:16px;border-radius:6px;padding:3px 7px;background:rgba(124,183,255,.16);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cell .e{font-size:16px;line-height:1.25;flex:none;border-radius:6px;padding:3px 7px;background:rgba(124,183,255,.16);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cell .e.team{background:rgba(232,52,78,.32)} .cell .e.hol{background:rgba(127,209,160,.22)} .cell .e.allday{background:rgba(255,178,124,.2)}
   .cell .more{font-size:14px;color:var(--faint)}
   .cell .cw{font-size:15px;color:var(--faint);margin-top:auto}

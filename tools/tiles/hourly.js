@@ -11,7 +11,7 @@ Tile("hourly", {
     let h = "";
     for (let i = i0; i < i0 + n && i < H.time.length; i++){
       const p = H.precipitation_probability ? H.precipitation_probability[i] : null;
-      h += '<div class="hour"><div class="h">' + new Date(H.time[i]).toLocaleTimeString([], {hour:"numeric"}) + '</div><div class="t">' +
+      h += '<div class="hour"><div class="h">' + new Date(H.time[i]).toLocaleTimeString([], {hour:"numeric"}) + '</div><div class="t" data-keep>' +
         wx(H.weather_code[i], H.is_day && H.is_day[i] === 0).g + " " + Math.round(H.temperature_2m[i]) + '°</div><div class="p">' + (p > 15 ? p + "%" : "&nbsp;") + '</div></div>';
     }
     el.innerHTML = h;

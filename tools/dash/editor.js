@@ -328,7 +328,7 @@ function field(m, k, d){
     case "int": case "number": return '<label class="kv">' + lab() + '<input type="number" ' + a + (d.min != null ? ' min="' + d.min + '"' : "") + (d.max != null ? ' max="' + d.max + '"' : "") +
       (d.type === "number" ? ' step="any"' : "") + ' value="' + esc(v == null ? "" : v) + '"></label>';
     case "color": return '<label class="kv">' + lab() + '<input type="color" ' + a + ' value="' + esc(v || "#ffffff") + '"></label>';
-    case "choice": return '<label class="kv">' + lab() + '<select ' + a + '>' + (d.choices || []).map(c => '<option' + (c === v ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select></label>';
+    case "choice": return '<label class="kv">' + lab() + '<select ' + a + '>' + (d.choices || []).map(c => '<option' + (String(c).toLowerCase() === String(v).toLowerCase() ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select></label>';
     case "text": return '<label class="kv col">' + lab() + '<input type="text" ' + a + ' placeholder="' + esc(d.placeholder || "") + '" value="' + esc(v || "") + '"></label>';
     case "list": return '<label class="kv col">' + lab() + '<textarea rows="4" ' + a + ' placeholder="' + esc(d.placeholder || "One per line") + '">' + esc((v || []).join("\n")) + '</textarea></label>';
     case "code": return '<label class="kv col">' + lab() + '<textarea class="code" rows="9" spellcheck="false" ' + a + '>' + esc(v || "") + '</textarea></label>' +

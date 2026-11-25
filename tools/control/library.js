@@ -310,7 +310,7 @@ function libClean(d, v){
     if (d.min != null) n = Math.max(d.min, n); if (d.max != null) n = Math.min(d.max, n);
     return n;
   }
-  if (d.type === "choice") return (d.choices || []).some(c => (Array.isArray(c) ? c[0] : c) === v) ? v : undefined;
+  if (d.type === "choice") return (d.choices || []).some(c => String(Array.isArray(c) ? c[0] : c).toLowerCase() === String(v).toLowerCase()) ? v : undefined;
   if (d.type === "color") return typeof v === "string" && COLOR.test(v) ? v : undefined;
   if (d.type === "list") return Array.isArray(v) ? v.filter(x => typeof x === "string").slice(0, 60).map(x => x.slice(0, 200)) : undefined;
   if (d.type === "text") return typeof v === "string" ? v.slice(0, 2000) : undefined;

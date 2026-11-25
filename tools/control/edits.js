@@ -52,6 +52,10 @@ document.addEventListener("keydown", e => {
 document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
   if (t.id === "display-orientation"){ displaySet(t); return; }
+  if (t.id === "display-size"){       // this browser only: the dashboard in another tab follows through the storage event
+    try{ if (t.value) localStorage.setItem("countertop.screenSize", t.value); else localStorage.removeItem("countertop.screenSize"); }catch(e){}
+    toast(t.value ? "Dashboard in this browser now keeps that size" : "Dashboard in this browser fills the window", "ok"); return;
+  }
   if ((d.lk && d.lv === undefined) || d.lfrom || d.fxd || d.rk || (d.fxk && d.fxv === undefined) || (d.nk && d.nv === undefined)){ lookChange(t); return; }
   if (d.sf){       // show only the fields that apply, and refresh per-kind labels and help text
     const cur = stack[stack.length - 1].split(":"), K = KINDS[cur[1]]; if (!K) return;

@@ -229,7 +229,17 @@ function displayScreen(){
     '<option value="' + mode + '"' + (mode === displayMode ? " selected" : "") + '>' + label + '</option>').join("");
   return '<p class="intro">Automatic follows the shape of each screen. Pick Landscape or Portrait to keep every page in that orientation. If the dashboard appears sideways on a turned screen, choose which edge of the landscape screen is now at the top.</p>' +
     sec("", '<div class="row col"><label class="t" for="display-orientation">Orientation</label><select id="display-orientation">' + options + '</select></div>',
-      "Applies to every display using this dashboard.");
+      "Applies to every display using this dashboard.") +
+    (ECHO ? "" : '<p class="intro">By default the dashboard fills the browser window, so it changes shape when you resize it. To test how it looks on a particular screen, pick that screen\'s size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller. Other displays are not affected.</p>' +
+      sec("This browser only", '<div class="row col"><label class="t" for="display-size">Screen size on this browser</label><select id="display-size">' + sizeOptions() + '</select></div>',
+        "For any other size, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window."));
+}
+const SCREEN_SIZES = [["", "Fill the window"], ["1920x1080", "Echo Show 15 · 1920×1080"], ["1080x1920", "Echo Show 15, upright · 1080×1920"],
+  ["1280x800", "Echo Show 8 or 10 · 1280×800"], ["800x1280", "Echo Show 8 or 10, upright · 800×1280"], ["960x480", "Echo Show 5 · 960×480"]];
+function sizeCur(){ try{ return localStorage.getItem("countertop.screenSize") || ""; }catch(e){ return ""; } }
+function sizeOptions(){
+  const cur = sizeCur(), list = SCREEN_SIZES.some(x => x[0] === cur) ? SCREEN_SIZES : SCREEN_SIZES.concat([[cur, "Custom · " + cur.replace("x", "×")]]);
+  return list.map(([v, l]) => '<option value="' + v + '"' + (v === cur ? " selected" : "") + '>' + l + '</option>').join("");
 }
 function pageSummary(p){
   if (!p) return "Empty";

@@ -199,6 +199,7 @@ async function stuDraft(){
     if (!r.ok || j.error) throw new Error(j.error || r.status);
     STU.draft = j.id; STU.err = ""; STU.log = [];
   }catch(e){ STU.err = "Can't run it yet: " + stuWhy(e); }
+  if (LIB.view !== "studio" || !STU.t) return;          // the Studio closed, or the tile was deleted, while this was on its way
   stuPreview();
 }
 function stuPreview(){
@@ -299,9 +300,10 @@ async function stuSave(){
   try{
     const r = await fetch("/studio/save", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id:STU.id, tile:stuTile()})});
     const j = await r.json(); if (!r.ok || j.error) throw new Error(j.error || r.status);
-    STU.id = j.id; STU.base = JSON.stringify(stuTile()); LIB.item = j.id;
+    const base = JSON.stringify(stuTile());
+    await stuSync();          // the tile list knows the saved tile before the Studio shows it as saved (Add needs it there)
+    STU.id = j.id; STU.base = base; LIB.item = j.id;
     STU.vers = []; STU.cur = 0; STU.nextN = 2;          // only the version shown is kept
-    await stuSync();
     toast("Saved " + (STU.t.name || "your tile") + (j.version > 1 ? " (version " + j.version + ")" : ""), "ok");
     libShow(); stuDraft();
   }catch(e){ toast("Didn't save: " + stuWhy(e), "bad"); }

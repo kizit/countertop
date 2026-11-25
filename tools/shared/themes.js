@@ -36,6 +36,8 @@ const THEMELIB = (function(){
     Grid:"linear-gradient(rgba(128,128,128,.12) 1px,transparent 1px) 0 0/48px 48px,linear-gradient(90deg,rgba(128,128,128,.12) 1px,transparent 1px) 0 0/48px 48px",
     Dots:"radial-gradient(rgba(128,128,128,.2) 1.5px,transparent 1.6px) 0 0/28px 28px",
     Stripes:"repeating-linear-gradient(90deg,rgba(128,128,128,.09) 0 18px,transparent 18px 36px)"};
+  // what a shared theme can be filed under in the community gallery (one, optional)
+  const CATEGORIES = ["Minimalist", "Cozy", "Retro", "Seasonal", "Nature", "Futuristic", "High Contrast"];
   const BG_CHOICES = ["Sky", "Color", "Gradient", "Texture", "Wallpaper", "Photos"];
   const T = (id, name, sub, values, starter) => ({id:"builtin-" + id, name, sub, values:Object.freeze(Object.assign({}, BASE, values)), builtin:true, starter});
   const L = [
@@ -107,5 +109,5 @@ const THEMELIB = (function(){
     return out;
   }
   const get = id => L.find(t => t.id === id) || null;
-  return {L, BASE, LOCAL, FONTS, BODY_FONTS, DISPLAY_FONTS, DENSITY, SHAPES, SURFACES, GRADIENTS, TEXTURES, BG_CHOICES, resolve, tokens, spacing, background, portable, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
+  return {L, BASE, LOCAL, FONTS, BODY_FONTS, DISPLAY_FONTS, DENSITY, SHAPES, SURFACES, GRADIENTS, TEXTURES, BG_CHOICES, CATEGORIES, resolve, tokens, spacing, background, portable, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
 })();

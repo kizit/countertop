@@ -43,3 +43,19 @@ A **wallpaper** is a picture uploaded to this Countertop's own data folder (PNG,
 ## Keeping it unchanged
 
 `node tests/theme-compat-check.js` loads the dashboard in every built-in theme and a few custom ones and compares the computed colors, borders, radius, padding, gaps and shadows of the elements with `tests/fixtures/theme-compat.json`. If a change should alter the look, regenerate the file with `--write` and say why in the pull request.
+
+## Theme Studio
+
+Themes → Theme Studio makes a new theme without touching every setting. Countertop has no AI of its own and sends nothing anywhere:
+
+1. Describe the look and copy the prompt. It lists every setting a theme has and, as a starting point, the theme you picked (never your wallpaper, photo album or anything else private: it goes through the same portable-theme step as sharing). If your AI can look at pictures, attach a photo of your kitchen.
+2. Paste back what it writes. Countertop checks it setting by setting: only known settings with allowed values (the same lists as the theme editor), colors as six-digit hex, whole numbers in range, text up to 60 or 500 characters. Anything with links, CSS or code anywhere in the reply, or a reply over 20,000 characters, is refused outright. A setting that doesn't pass is left out and listed; the rest opens.
+3. **Open in the editor** starts an ordinary new-theme draft: the same live preview, Save, Save & use and Cancel as a theme made by hand. Nothing is saved until you press Save.
+
+Or choose a picture under "Or start from a wallpaper": Countertop picks a palette from it on this device (light or dark, a background color and an accent that reads on it) and opens it the same way. The picture isn't uploaded or stored.
+
+A theme can be filed under one category when you share it (Minimalist, Cozy, Retro, Seasonal, Nature, Futuristic, High Contrast). It's optional, travels in the share file and the gallery submission, and is ignored if it isn't one of those.
+
+![Theme Studio](screenshots/theme-studio.png)
+![A checked reply, ready to open](screenshots/theme-studio-checked.png)
+![The same theme in the editor](screenshots/theme-studio-editor.png)

@@ -38,7 +38,7 @@ function draftSave(use){
   if (d.isNew){
     const base = d.name.trim() || "My theme", nid = "t" + Date.now().toString(36);
     let name = base; for (let i = 2; looks().some(t => t.name === name) || name === "Everyday"; i++) name = base + " " + i;
-    looks().push({id:nid, name, values:Object.assign({}, d.values)});
+    looks().push(Object.assign({id:nid, name, values:Object.assign({}, d.values)}, d.category ? {category:d.category} : {}));
     if (use) LS().use = nid;
     DRAFT = null; save(!!use); toast(use ? useText(nid) : "Saved " + name, "ok"); navStack().pop(); go("theme:" + nid); return;
   }
@@ -169,6 +169,7 @@ function looksScreen(){
   h += sec("Yours", '<div class="lcards">' + ["default"].concat(looks().map(t => t.id)).map(card).join("") +
     '<button class="lcard new" data-lact="new" data-id=""><div class="lpic plus">＋</div><b>New theme</b><small>Start from any theme</small></button></div>');
   h += sec("Built in", '<div class="lcards">' + THEMELIB.L.map(t => t.id).map(card).join("") + '</div>', "Built-in themes come with Countertop and stay as they are. Customize one to make your own.");
+  h += sec("", row({t:"Theme Studio", sub:"Describe a look to an AI, or start from a wallpaper", chev:true, attrs:'data-go="tstudio"'}), "Countertop has no AI of its own: you copy a prompt and paste back the answer.");
   h += sec("", row({t:"Schedule", sub: rules().length ? rules().length + (rules().length === 1 ? " rule" : " rules") + " · now: " + lookName(now) : "Switch themes at certain times", chev:true, attrs:'data-go="sched"'}),
     "Date format, 24-hour time and emoji are the same in every theme: Settings → Language and formats, and Icons and emoji.");
   h += '<div class="sec"><div class="foot">To share a theme, open it and press Share.</div></div>';
@@ -438,7 +439,7 @@ const SHARE = {key:"", name:"", desc:""};
 function sharePack(key){
   const [kind, id] = [key.split(":")[0], key.split(":").slice(1).join(":")];
   const base = {countertop:kind, format:LIB_FMT, name:SHARE.name.trim() || (kind === "theme" ? "Shared theme" : "Shared effect"), description:SHARE.desc.trim(), made:new Date().toISOString().slice(0, 10)};
-  if (kind === "theme") return Object.assign(base, {values:themePortable(lookVals(id))});
+  if (kind === "theme") return Object.assign(base, SHARE.category ? {category:SHARE.category} : {}, {values:themePortable(lookVals(id))});
   const m = mineById(id); if (!m) return null;
   const e = fxPlain(m); delete e.name;
   return Object.assign(base, {effect:e});
@@ -447,12 +448,13 @@ function shareScreen(key){
   const kind = key.split(":")[0], id = key.split(":").slice(1).join(":");
   const known = kind === "theme" ? id === "default" || lookById(id) : mineById(id);
   if (!known) return '<div class="big">Not found</div>';
-  if (SHARE.key !== key) Object.assign(SHARE, {key, name: kind === "theme" ? lookName(id) : mineById(id).name, desc:""});
+  if (SHARE.key !== key) Object.assign(SHARE, {key, name: kind === "theme" ? lookName(id) : mineById(id).name, desc:"", category: kind === "theme" && (lookById(id) || {}).category || ""});
   const pkg = sharePack(key), what = kind === "theme" ? "theme" : "effect";
   let h = '<div class="big">Share ' + esc(kind === "theme" ? lookName(id) : mineById(id).name) + '</div>' + (kind === "theme" ? lookPic(lookVals(id), "big") : '<div class="fxc big"><canvas data-fx="' + esc(id) + '"></canvas></div>');
   h += '<p class="intro">A small file of this ' + what + ' to send to a friend or keep as a backup. They open it in Library → Import a file, and it joins their ' + what + 's only when they add it.' +
     (kind === "theme" ? " It holds colors, background, tiles and text size; " + (lookVals(id).bg === "Photos" ? "your photos stay here (theirs show instead)." : "nothing else.") : " It holds the emoji and how they move; no code.") + '</p>';
   h += sec("Name", '<div class="row"><input type="text" data-sh="name" maxlength="80" value="' + esc(SHARE.name) + '" style="flex:1"></div>');
+  if (kind === "theme") h += sec("Category", '<div class="row"><select data-sh="category" style="flex:1"><option value="">None</option>' + THEMELIB.CATEGORIES.map(c => '<option' + (SHARE.category === c ? " selected" : "") + '>' + esc(c) + '</option>').join("") + '</select></div>', "Helps people find it in the community gallery. Optional.");
   h += sec("What it\'s for", '<div class="row"><textarea data-sh="desc" maxlength="500" rows="2" style="flex:1" placeholder="' + (kind === "theme" ? "Warm and dim for evenings." : "Pumpkins and bats for October.") + '">' + esc(SHARE.desc) + '</textarea></div>');
   h += sec("", (ECHO ? "" : '<button class="btnrow blue" data-sha="download">Download file</button>') + '<button class="btnrow' + (ECHO ? " blue" : "") + '" data-sha="copy">Copy share code</button><button class="btnrow" data-sha="submit">Submit to the gallery</button>');
   h += sec("Share code", '<div class="row"><textarea class="code" readonly data-sh="code" rows="3" style="flex:1;font-size:12px;word-break:break-all">' + esc(libCode(pkg)) + '</textarea></div>', "The same " + what + " as text, for pasting into a message.");
@@ -482,7 +484,7 @@ function themeImpScreen(){
   const v = Object.assign(lookVals("default"), T.values);
   const same = ["default"].concat(looks().map(t => t.id), THEMELIB.L.map(t => t.id)).find(id => LOOK_KEYS.every(k => String(lookVals(id)[k]) === String(v[k])));
   let h = '<div class="big">' + esc(T.name) + '</div>' + lookPic(v, "big");
-  h += '<p class="intro">' + esc(T.desc || "A theme from a shared file.") + (T.made ? " Made " + esc(T.made) + "." : "") + (ECHO ? "" : " The preview shows it with your own pages.") + '</p>';
+  h += '<p class="intro">' + esc(T.desc || "A theme from a shared file.") + (T.made ? " Made " + esc(T.made) + "." : "") + (T.category ? " Category: " + esc(T.category) + "." : "") + (ECHO ? "" : " The preview shows it with your own pages.") + '</p>';
   if (same) h += '<div class="sec"><div class="foot">You already have this theme: ' + esc(lookName(same)) + '.</div></div>';
   h += '<div class="saverow"><button class="pri" data-tia="use">Add and use it</button><button data-tia="add">Add to my themes</button></div>';
   h += '<div class="sec"><div class="foot">Adding it changes nothing on the screen until you use it. ' + esc(lookName(curLook())) + ' stays as it is.</div></div>';
@@ -491,7 +493,7 @@ function themeImpScreen(){
 function themeImpAction(a){
   const T = LIB.timp; if (!T) return;
   const nid = "t" + Date.now().toString(36), base = T.name, name = looks().some(t => t.name === base) ? base + " " + (looks().length + 1) : base;
-  looks().push({id:nid, name, values:Object.assign(lookVals("default"), T.values), from:"file"});
+  looks().push(Object.assign({id:nid, name, values:Object.assign(lookVals("default"), T.values), from:"file"}, T.category ? {category:T.category} : {}));
   if (a === "use") LS().use = nid;
   LIB.timp = null; save(); toast(a === "use" ? "Using " + name : "Added " + name + " to your themes", "ok");
   navStack().pop(); go("theme:" + nid);
@@ -507,11 +509,12 @@ function fxImpScreen(){
   return h;
 }
 // files: what's in a theme or an effect is checked against what this Countertop knows
+const themeCat = v => THEMELIB.CATEGORIES.includes(v) ? v : "";
 function themeRead(j){
   const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "", LSD = (schema.look && schema.look.settings) || {}, values = {};
   for (const k of LOOK_KEYS) if (!THEMELIB.LOCAL.includes(k) && j.values && j.values[k] !== undefined){ const c = libClean(LSD[k], j.values[k]); if (c !== undefined) values[k] = c; }
   if (!Object.keys(values).length) throw new Error("This theme has no colors or settings in it.");
-  return {name:str(j.name, 80) || "Shared theme", desc:str(j.description, 500), made:str(j.made, 10), values};
+  return {name:str(j.name, 80) || "Shared theme", desc:str(j.description, 500), made:str(j.made, 10), category:themeCat(j.category), values};
 }
 function fxRead(j){
   const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "", e = j.effect && typeof j.effect === "object" ? j.effect : {};

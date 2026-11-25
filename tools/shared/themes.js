@@ -123,5 +123,12 @@ const THEMELIB = (function(){
     return out;
   }
   const get = id => L.find(t => t.id === id) || null;
-  return {L, BASE, LOCAL, FONTS, BODY_FONTS, DISPLAY_FONTS, DENSITY, SHAPES, SURFACES, GRADIENTS, TEXTURES, BG_CHOICES, CATEGORIES, resolve, tokens, spacing, background, portable, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
+  /* Classic themes: the original built-ins that look a lot like Dark or Light with other colors. They stay in L, so every saved look,
+     schedule rule, shared layout and gallery item that names one keeps working, but the Themes list hides them unless one is in use
+     or the person asks for them. Never remove an id from L; add it here to retire a theme. */
+  const CLASSIC = ["glass", "photo-frame", "calm-evening", "atmospheric", "minimal", "kitchen-table", "weather-station", "family-planner"].map(x => "builtin-" + x);
+  for (const t of L) t.classic = CLASSIC.includes(t.id);
+  // the themes to list: all but the classic ones, plus any in useIds (on the screen or on the schedule), plus all of them when showAll
+  const listed = (useIds, showAll) => L.filter(t => showAll || !t.classic || (useIds || []).includes(t.id));
+  return {L, listed, BASE, LOCAL, FONTS, BODY_FONTS, DISPLAY_FONTS, DENSITY, SHAPES, SURFACES, GRADIENTS, TEXTURES, BG_CHOICES, CATEGORIES, resolve, tokens, spacing, background, portable, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
 })();

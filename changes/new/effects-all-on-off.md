@@ -1,0 +1,1 @@
+- **Effects: Turn all off / Turn all on.** Two buttons at the top of Library → Effects, so you can switch everything off and turn on only the ones you want.

@@ -226,7 +226,25 @@ function themeFromLayout(key, c){
   if (T.from) t.from = T.from;
   looks().push(t); LS().use = id;
 }
-function displayScreen(){
+function displayScreen(){ return CT.input === "desktop" ? displayScreenDesktop() : displayScreenTouch(); }
+function displayScreenTouch(){
+const inputSec = () => ECHO ? "" : sec("This browser only", '<div class="row col"><label class="t" for="display-input">Controls layout</label><select id="display-input">' + inputOptions() + '</select></div>',
+    "Automatic uses the desktop layout when this browser has a mouse and keyboard. Also /control?input=desktop, touch or auto.");
+  const options = Object.entries(MOUNTS).map(([mode, label]) =>
+    '<option value="' + mode + '"' + (mode === displayMode ? " selected" : "") + '>' + label + '</option>').join("");
+  return '<p class="intro">Automatic follows the shape of each screen. Pick Landscape or Portrait to keep every page in that orientation. If the dashboard appears sideways on a turned screen, choose which edge of the landscape screen is now at the top.</p>' +
+    sec("", '<div class="row col"><label class="t" for="display-orientation">Orientation</label><select id="display-orientation">' + options + '</select></div>',
+      "Applies to every display using this dashboard.") +
+    '<p class="intro">Screen size is what the previews and the layout editor in Controls are drawn at, so what you arrange here matches your screen. Pick your device, or the nearest size.</p>' +
+    sec("Screen size", '<div class="row col"><label class="t" for="display-screen">Size of the dashboard screen</label><select id="display-screen">' + screenOptions() + '</select></div>' +
+      (ECHO ? '<button class="btnrow blue" data-act="screenmatch">Use this screen: ' + thisScreen().replace("x", "×") + '</button>' : ""),
+      ECHO ? "Echo Shows list their panel size. Press the button to use what this screen really reports." : "Echo Show sizes are the panel resolution. If Controls is open on the Echo itself, a button there uses its real size.") +
+    (ECHO ? "" : inputSec() + '<p class="intro">By default /dash on this computer fills the browser window, so it changes shape when you resize it. To test a particular screen, pick a size. The dashboard then keeps that layout, and shrinks to fit if the window is smaller.</p>' +
+      sec("This browser only", '<div class="row col"><label class="t" for="display-size">How /dash looks in this browser</label><select id="display-size">' + sizeOptions() + '</select></div>' +
+        '<div class="row col"><label class="t" for="display-fs">Full screen when you tap /dash</label><select id="display-fs"><option value="1"' + (fsCur() ? " selected" : "") + '>On (default)</option><option value="0"' + (fsCur() ? "" : " selected") + '>Off, stay in the window</option></select></div>',
+        "Doesn't change any other display. For a size not listed, open /dash?size=1280x800 once. /dash?size=auto goes back to filling the window. /dash?fullscreen=0 turns full screen off in this browser and ?fullscreen=1 turns it back on. Off only stops the browser going full screen; a tap still arms keep-alive."));
+}
+function displayScreenDesktop(){
   const options = Object.entries(MOUNTS).map(([mode, label]) =>
     '<option value="' + mode + '"' + (mode === displayMode ? " selected" : "") + '>' + label + '</option>').join("");
   return sec("Dashboard display",

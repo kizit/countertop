@@ -18,6 +18,14 @@ function pvFit(){
   box.style.width = Math.round(PV.w * k) + 2 + "px";
   box.style.height = Math.round(PV.h * k) + 2 + "px";
 }
+function pvSize(b){
+  PV.w = +b.dataset.w; PV.h = +b.dataset.h; $("pvres").textContent = PV.w + "×" + PV.h;
+  for (const x of $("pvsize").children){
+    x.classList.toggle("on", x === b);
+    x.setAttribute("aria-pressed", String(x === b));
+  }
+  pvFit();
+}
 function pvApplyNav(){
   if (!document.body.classList.contains("editing-desk")){
     document.body.classList.remove("nav-collapsed");
@@ -198,6 +206,7 @@ if (!ECHO){
   };
   addEventListener("scroll", pvHold, {passive:true}); addEventListener("wheel", pvHold, {passive:true});
   $("pvedit").addEventListener("click", () => { try{ pvWin().dashEditing() ? pvWin().dashEdit(false) : pvWin().dashEdit(true); }catch(e){} });
+  $("pvsize").addEventListener("click", e => { const b = e.target.closest("button"); if (b) pvSize(b); });
   $("pvnav").addEventListener("click", () => { PV.navManual = document.body.classList.contains("nav-collapsed"); pvApplyNav(); requestAnimationFrame(pvFit); });
   $("pvgrid").addEventListener("click", () => { try{ pvWin().dashHostGrid(); }catch(e){} });
   $("pvundo").addEventListener("click", () => { try{ pvWin().dashHostUndo(1); }catch(e){} });

@@ -36,9 +36,13 @@ applyInputMode(CT.input);
 addEventListener("storage", e => {
   if (e.key !== INPUT_KEY || ECHO || inputIsEchoUA()) return;
   applyInputMode(inputStored() || inputAuto());
-  if (typeof pvDesktopSync === "function") pvDesktopSync();
-  if (typeof cur0 === "function" && cur0() === "display" && typeof show === "function") show();
+  inputChanged();
 });
+// a mode switch (this tab's setting or another tab's): restyle the preview, then redraw Screen settings if they're open
+function inputChanged(){
+  pvButtons(); pvDesktopSync();
+  if (cur0() === "display") show();
+}
 const MOUNTS = {auto:"Automatic", landscape:"Landscape", left:"Portrait · left edge up", right:"Portrait · right edge up"};
 const SHELL = ECHO && window.parent !== window;
 let displayMode = "auto";
@@ -59,6 +63,18 @@ function scrFit(f, boxWidth){
 }
 // keep the preview sized to Controls > Screen (size + orientation); when Orientation is Automatic, offer a Portrait flip
 function pvButtons(){
+  const touchBar = CT.input === "touch";
+  if ($("pvsize")) $("pvsize").hidden = !touchBar;
+  if (touchBar){           // touch: the size buttons as before (Full screen / Portrait), turned the other way up by the screen
+    PV.flip = false;
+    const [w, h] = scr(), b = $("pvsize").children;
+    const set = (x, W, H, label) => { x.dataset.w = W; x.dataset.h = H; if (label) x.textContent = label; };
+    set(b[0], w, h); set(b[1], h, w, w >= h ? "Portrait" : "Landscape");
+    if ($("pvori")) $("pvori").hidden = true;
+    if ($("pvscr")) $("pvscr").hidden = true;
+    pvSize(b[0]);
+    return;
+  }
   if (displayMode !== "auto") PV.flip = false;
   let [w, h] = scr();
   if (displayMode === "auto" && PV.flip) [w, h] = [h, w];

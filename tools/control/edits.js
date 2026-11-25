@@ -374,7 +374,7 @@ document.addEventListener("change", e => {
   if (t.id === "display-input"){      // this browser only: touch vs desktop Controls mode
     try{ if (t.value) localStorage.setItem(INPUT_KEY, t.value); else localStorage.removeItem(INPUT_KEY); }catch(e){}
     applyInputMode(t.value || inputAuto());
-    if (typeof pvDesktopSync === "function") pvDesktopSync();
+    pvButtons(); pvDesktopSync();
     toast(t.value === "desktop" ? "Controls in this browser now use desktop mode" : t.value === "touch" ? "Controls in this browser now use touch mode" : "Controls in this browser follow your device (" + CT.input + ")", "ok");
     show(); return;
   }

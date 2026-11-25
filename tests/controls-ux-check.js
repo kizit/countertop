@@ -709,6 +709,35 @@ async function main() {
     await dp.keyboard.press("Control+z");
     await until(() => dp.evaluate(() => pvWin().curPg().slots.find(s => s.id === "ms3").x === 24), "Ctrl+Z undid ms3 nudge");
 
+    // Mouse drag of ms3 onto the right half of ms2 offers Stack and combines both tiles; Ctrl+Z unstacks
+    const ms2Box = await pvFrame.locator('.eslot[data-slot="ms2"]').boundingBox();
+    const ms3Pre = await pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox();
+    await dp.mouse.move(ms3Pre.x + ms3Pre.width / 2, ms3Pre.y + ms3Pre.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(ms2Box.x + ms2Box.width * 0.75, ms2Box.y + ms2Box.height / 2, { steps: 10 });
+    assert.match(await dp.evaluate(() => pvWin().document.getElementById("edph").className), /\bchoose\b.*\bpick-stack\b/, "desktop drag should offer Stack on the right half");
+    await dp.mouse.up();
+    await until(() => dp.evaluate(() => {
+      const pg = pvWin().curPg(), s2 = pg.slots.find(v => v.id === "ms2");
+      return !pg.slots.some(v => v.id === "ms3") && s2 && pvWin().smods(s2).length === 2;
+    }), "desktop mouse drag stacked ms3 onto ms2");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(() => pvWin().curPg().slots.some(v => v.id === "ms3")), "Ctrl+Z unstacked ms3");
+    // (redo, then deselect by clicking empty canvas: the stack must stay drawn)
+    await dp.keyboard.press("Control+Shift+z");
+    await until(() => dp.evaluate(() => !pvWin().curPg().slots.some(v => v.id === "ms3")), "redo stacked again");
+    const pvB = await dp.locator("#pvf").boundingBox();
+    await dp.mouse.click(pvB.x + pvB.width * 0.5, pvB.y + pvB.height * 0.93);
+    await sleep(500);
+    const dstack = await dp.evaluate(() => { const w = pvWin(), d = w.document.querySelector('.slot.stack'); if (!d) return "no stack"; const v = [...d.children].filter(c => c.dataset.mod && !c.classList.contains("stk-off")); const r = v[0] && v[0].getBoundingClientRect(); return {sel: w.eval("EDIT.sel"), n: v.length, w: r ? r.width : 0, still: w.document.documentElement.className}; });
+    console.log("desktop stack after deselect:", JSON.stringify(dstack));
+    assert.ok(dstack.n === 1 && dstack.w > 0, "stack must stay drawn after deselecting in desktop mode: " + JSON.stringify(dstack));
+    // While Controls pauses the preview (scrolling), a tile that takes its turn in a stack must still show
+    const paused = await dp.evaluate(async () => { const w = pvWin(); w.dashPause(true); const d = w.document.querySelector('.slot.stack'); const ids = [...d.children].filter(c => c.dataset.mod); ids.forEach(c => c.classList.toggle("stk-off")); await new Promise(r => setTimeout(r, 200)); const v = ids.find(c => !c.classList.contains("stk-off")); const op = +w.getComputedStyle(v).opacity; w.dashPause(false); return op; });
+    assert.equal(paused, 1, "stacked tile must be fully visible while the preview is paused");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(() => pvWin().curPg().slots.some(v => v.id === "ms3")), "Ctrl+Z unstacked ms3 again");
+
     // Mouse drag moves ms3 into empty space to the right, then Ctrl+S saves and exits 3-pane studio cleanly
     const ms3Box = await until(() => pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox(), "ms3 bounding box");
     await dp.mouse.move(ms3Box.x + ms3Box.width / 2, ms3Box.y + ms3Box.height / 2);

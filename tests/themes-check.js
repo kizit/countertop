@@ -52,7 +52,18 @@ async function main() {
 
     // Themes shows every built-in; opening one saves nothing and offers no Delete or Share
     await ctl.evaluate(() => go("looks"));
-    await until(() => ctl.locator('[data-go^="theme:builtin-"]').count().then(c => c === before.ids.length), "built-in cards on Themes");
+    const classicIds = await ctl.evaluate(() => THEMELIB.L.filter(t => t.classic).map(t => t.id));
+    assert.ok(classicIds.length > 0 && classicIds.length < before.ids.length, "some built-ins are classic");
+    assert.ok(!classicIds.includes("builtin-dark") && !classicIds.includes("builtin-light"), "Dark and Light stay visible");
+    const shown = before.ids.length - classicIds.length;
+    await until(() => ctl.locator('[data-go^="theme:builtin-"]').count().then(c => c === shown), "only non-classic built-ins on Themes");
+    assert.equal(await ctl.locator('[data-go="theme:builtin-glass"]').count(), 0, "a classic theme is hidden by default");
+    // the toggle reveals them all, and hides them again
+    await ctl.locator('[data-lact="classic"]').click();
+    await until(() => ctl.locator('[data-go^="theme:builtin-"]').count().then(c => c === before.ids.length), "Show classic themes lists every built-in");
+    await ctl.locator('[data-lact="classic"]').click();
+    await until(() => ctl.locator('[data-go^="theme:builtin-"]').count().then(c => c === shown), "Hide classic themes");
+    // a classic theme stays resolvable by id even while hidden
     await ctl.evaluate(() => go("theme:builtin-glass"));
     await ctl.locator('[data-lact="use"]').waitFor();
     assert.equal(await ctl.locator('[data-lact="del"], [data-go^="share:"]').count(), 0, "no Delete or Share on a built-in");
@@ -63,6 +74,20 @@ async function main() {
     await ctl.locator('[data-lact="use"]').click();
     await until(async () => (await cfg()).use === "builtin-glass", "use saved as the built-in id");
     assert.equal((await cfg()).items.length, 2);
+    // Library → Effects: Turn all off / Turn all on change every effect toggle and save
+    await ctl.evaluate(() => go("effects"));
+    await ctl.locator('[data-lact="fxall"][data-id="off"]').click();
+    await until(() => ctl.evaluate(() => FXLIB.L.every(d => !fxC(d.id).on)), "Turn all off");
+    assert.equal(await ctl.locator('.fxc[data-go]:not(.off)').count(), 0, "every effect card shows off");
+    await ctl.locator('[data-lact="fxall"][data-id="on"]').click();
+    await until(() => ctl.evaluate(() => FXLIB.L.every(d => fxC(d.id).on)), "Turn all on");
+    await ctl.locator('[data-lact="fxall"][data-id="off"]').click();
+    await ctl.locator('[data-fxon]').first().click();
+    await until(() => ctl.evaluate(() => FXLIB.L.filter(d => fxC(d.id).on).length === 1), "turn one back on after all off");
+    // a classic theme that is in use is listed even though classics are hidden
+    await ctl.evaluate(() => go("looks"));
+    await until(() => ctl.locator('[data-go="theme:builtin-glass"]').count().then(c => c === 1), "a classic theme in use stays listed");
+    assert.equal(await ctl.locator('[data-go="theme:builtin-atmospheric"]').count(), 0, "other classic themes stay hidden");
 
     const dash = await ctx.newPage();
     watchErrors(dash, errs, { prefix: "dash" });

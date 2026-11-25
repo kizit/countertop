@@ -169,7 +169,7 @@ async function loadPhotos(){
   clearTimeout(photoTimer); photoTimer = null;
   const bg = typeof THEMEV !== "undefined" && THEMEV.bg === "Photos";
   if (!usesFeed("photos") && !bg) return;
-  const ids = [...new Set(Object.values(MODULES).filter(m => (m.feeds || []).includes("photos")).map(m => m.s.album || "").concat(bg ? [""] : []))];
+  const ids = [...new Set(Object.values(MODULES).filter(m => (m.feeds || []).includes("photos")).map(m => m.s.album || "").concat(bg ? [THEMEV.album || ""] : []))];
   await Promise.all(ids.map(async id => { try{ STATE.albums[id] = await getJSON("/photos?id=" + encodeURIComponent(id)); }catch(e){ STATE.albums[id] = {photos:[], error:String(e)}; } }));
   for (const id in MOUNTED) if (MODULES[id] && MODULES[id].type === "photos" && !MOUNTED[id]._layers){ MOUNTED[id]._shown = null; }
   renderFeed("photos"); themePhotos();
@@ -282,6 +282,8 @@ function applySeason(){
 /* ---------- effects: the ones that are on and whose time it is (see FXLIB) ---------- */
 const FXD = {back:null, front:null, wx:null, next:{}, paused:false};
 const fxItems = () => S("effects").items || [];
+// a theme can pick its own effects (FXCFG.pick): those play, whatever Effects has on; they still follow their own dates and weather
+const fxConf = id => { const c = FXLIB.conf(fxItems(), id); return FXCFG.pick ? Object.assign({}, c, {on:FXCFG.pick.includes(id)}) : c; };
 const fxOn = () => FXCFG.any && !FXD.paused;
 const fxEmojiOk = def => !def.emoji || !LOOK.plain;          // with emoji turned off, the emoji effects rest too
 function fxInit(){ if (!FXD.back){ FXD.back = FXLIB.Runner($("fx"), {full:true, fps:22}); FXD.front = FXLIB.Runner($("fun2"), {full:true, fps:30}); } }
@@ -290,7 +292,7 @@ function fxUpdate(){
   const B = [], F = [], d = new Date();
   if (fxOn()) for (const def of FXLIB.L){
     if (def.layer === "show" || !fxEmojiOk(def)) continue;
-    const c = FXLIB.conf(fxItems(), def.id); if (!c.on) continue;
+    const c = fxConf(def.id); if (!c.on) continue;
     const wxNow = !!FXD.wx && !!def.wx && def.wx.includes(FXD.wx);
     if (!(def.wx ? c.when === "always" || wxNow : FXLIB.timeOk(c, d))) continue;
     const p = {id:def.id, amount:c.amount, kind: def.id === "rain" ? (wxNow ? FXD.wx : "rain") : "", front: def.layer === "fall" && FXCFG.front};
@@ -306,7 +308,7 @@ function fxShows(){          // a show whose turn has come plays; one at a time
   const now = Date.now(), d = new Date();
   for (const def of FXLIB.L){
     if (def.layer !== "show" || def.party || !fxEmojiOk(def)) continue;
-    const c = FXLIB.conf(fxItems(), def.id);
+    const c = fxConf(def.id);
     if (!c.on || !FXLIB.timeOk(c, d)){ delete FXD.next[def.id]; continue; }
     const ev = Math.max(2, +c.every || 15) * 60e3;
     if (!FXD.next[def.id]){ FXD.next[def.id] = now + ev * (.25 + Math.random() * .5); continue; }

@@ -6,7 +6,37 @@
    A new theme setting goes in three places: the look schema in tools/server/config.py, LOOK_KEYS in tools/control/look.js
    and BASE here, with the same default (tests/themes-check.js checks). */
 const THEMELIB = (function(){
-  const BASE = {mode:"Dark", accent:"#7cb7ff", holiday:false, textColor:"", bigColor:"", themeWins:false, tiles:"Solid", opacity:60, textScale:100, titles:true, bg:"Sky", bgColor:"#0a0c0f", dim:0, fx:"On"};
+  const BASE = {mode:"Dark", accent:"#7cb7ff", holiday:false, textColor:"", bigColor:"", themeWins:false, tiles:"Solid", opacity:60, textScale:100, titles:true, bg:"Sky", bgColor:"#0a0c0f", dim:0, fx:"On",
+    fontBody:"System", fontDisplay:"Default", surface:"Classic", shape:"Rounded", density:"Normal",
+    gradient:"Dusk", texture:"Paper", wallpaper:"", album:"", photoEvery:5, tint:"", tintAmt:0, fxPick:[]};
+  /* Theme settings that never travel: they point at something on this Countertop's own server (an uploaded wallpaper, a photo
+     album). Sharing a theme, a layout, a gallery submission or a Theme Studio prompt goes through portable(), which drops them. */
+  const LOCAL = ["wallpaper", "album"];
+  // fonts: the bundled ones (tools/fonts). Body text may use the five that read well in small sizes; big numbers can use all eight.
+  const FONTS = {System:'-apple-system,system-ui,"Segoe UI",Roboto,sans-serif', Outfit:'"Outfit",system-ui,sans-serif', "Bebas Neue":'"Bebas Neue",Impact,sans-serif',
+    "DM Serif Display":'"DM Serif Display",Georgia,serif', Fraunces:'"Fraunces",Georgia,serif', "JetBrains Mono":'"JetBrains Mono",ui-monospace,monospace',
+    Nunito:'"Nunito",system-ui,sans-serif', "Space Grotesk":'"Space Grotesk",system-ui,sans-serif'};
+  const BODY_FONTS = ["System", "Nunito", "Outfit", "Space Grotesk", "Fraunces"], DISPLAY_FONTS = ["Default"].concat(Object.keys(FONTS));
+  // how roomy the dashboard is: the gap between tiles, the padding inside them and the margin around the page (px at 1920 wide)
+  const DENSITY = {Compact:{gap:10, py:10, px:14, t:14, x:24, b:16}, Normal:{gap:16, py:16, px:20, t:22, x:36, b:26}, Roomy:{gap:22, py:20, px:26, t:30, x:48, b:34}};
+  const SHAPES = {Square:6, Rounded:18, Soft:30};
+  // surfaces: the edge of a tile. border = width in px; line = how strong the border is (null: the theme's usual one); shadow per light or dark
+  const SURFACES = {
+    Classic:{border:1, line:null, shadow:["none", "none"], note:"The usual thin edge"},
+    Flat:{border:0, line:null, shadow:["none", "none"], note:"No edge at all"},
+    Soft:{border:0, line:null, shadow:["0 8px 28px rgba(0,0,0,.34)", "0 8px 24px rgba(40,50,70,.16)"], note:"No edge, a soft shadow"},
+    Outline:{border:2, line:.34, shadow:["none", "none"], note:"A clear outline"},
+    Glass:{border:1, line:.22, shadow:["inset 0 1px 0 rgba(255,255,255,.2),0 6px 20px rgba(0,0,0,.22)", "inset 0 1px 0 rgba(255,255,255,.7),0 6px 20px rgba(40,50,70,.12)"], note:"A bright edge and a light shine"}};
+  const GRADIENTS = {Dusk:"linear-gradient(160deg,#2b2f4a,#0d0f1a)", Ember:"linear-gradient(160deg,#4a2a2a,#14090c)", Forest:"linear-gradient(160deg,#1d3a2f,#08130f)",
+    Ocean:"linear-gradient(160deg,#123b5c,#06121f)", Slate:"linear-gradient(160deg,#39414d,#14181d)", Sand:"linear-gradient(160deg,#efe3cf,#cdbb9d)",
+    Mist:"linear-gradient(160deg,#e6ecf3,#b9c6d6)", Blush:"linear-gradient(160deg,#f5e3e3,#c9a7b0)"};
+  // textures are drawn over the background color, with plain CSS (no pictures to load)
+  const TEXTURES = {Paper:"repeating-linear-gradient(0deg,rgba(128,128,128,.045) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(128,128,128,.035) 0 1px,transparent 1px 4px)",
+    Linen:"repeating-linear-gradient(45deg,rgba(128,128,128,.07) 0 1px,transparent 1px 5px),repeating-linear-gradient(-45deg,rgba(128,128,128,.07) 0 1px,transparent 1px 5px)",
+    Grid:"linear-gradient(rgba(128,128,128,.12) 1px,transparent 1px) 0 0/48px 48px,linear-gradient(90deg,rgba(128,128,128,.12) 1px,transparent 1px) 0 0/48px 48px",
+    Dots:"radial-gradient(rgba(128,128,128,.2) 1.5px,transparent 1.6px) 0 0/28px 28px",
+    Stripes:"repeating-linear-gradient(90deg,rgba(128,128,128,.09) 0 18px,transparent 18px 36px)"};
+  const BG_CHOICES = ["Sky", "Color", "Gradient", "Texture", "Wallpaper", "Photos"];
   const T = (id, name, sub, values, starter) => ({id:"builtin-" + id, name, sub, values:Object.freeze(Object.assign({}, BASE, values)), builtin:true, starter});
   const L = [
     T("dark", "Dark", "Dark tiles over a sky that follows the sun", {}),
@@ -38,6 +68,44 @@ const THEMELIB = (function(){
     return {light, op, tc, bc, text, fg:tc || A.fg, big:bc || tc || A.fg, line:A.line, card:"rgba(" + A.card + "," + op + ")",
       accent:v.accent || "#7cb7ff", clear:v.tiles === "Clear"};
   }
+  /* The shape of the dashboard for a theme: CSS variables for fonts, corners, tile edges and spacing. A null means "the usual value",
+     so the variable is removed and the stylesheet's own default shows (old themes look exactly as they did). Used by the dashboard
+     (themeApply) and the Controls previews, so they agree. */
+  function tokens(v){
+    const r = resolve(v), t = {}, light = r.light;
+    t["--font"] = BODY_FONTS.includes(v.fontBody) && v.fontBody !== "System" ? FONTS[v.fontBody] : null;
+    t["--font-display"] = v.fontDisplay !== "Default" && FONTS[v.fontDisplay] ? FONTS[v.fontDisplay] : null;
+    const rad = SHAPES[v.shape]; t["--radius"] = rad && rad !== SHAPES.Rounded ? rad + "px" : null;
+    const d = DENSITY[v.density] || DENSITY.Normal, n = DENSITY.Normal, on = v.density in DENSITY && v.density !== "Normal";
+    t["--gap"] = on ? d.gap + "px" : null; t["--pad-y"] = on ? d.py + "px" : null; t["--pad-x"] = on ? d.px + "px" : null;
+    t["--pg-t"] = on ? d.t + "px" : null; t["--pg-x"] = on ? d.x + "px" : null; t["--pg-b"] = on ? d.b + "px" : null;
+    const sf = SURFACES[v.surface] || SURFACES.Classic, isDefault = sf === SURFACES.Classic;
+    t["--border-w"] = isDefault ? null : sf.border + "px";
+    t["--surface-line"] = sf.line == null ? null : (light ? "rgba(0,0,0," + (sf.line * .7).toFixed(3) + ")" : "rgba(255,255,255," + sf.line + ")");
+    t["--shadow"] = isDefault ? null : v.tiles === "Clear" ? "none" : sf.shadow[light ? 1 : 0];      // Light has a soft shadow of its own, so a plain one has to say "none"
+    return t;
+  }
+  // the pixel sizes of a theme's density (the grid editor needs the gap to place tiles)
+  const spacing = v => DENSITY[v && v.density] || DENSITY.Normal;
+  // the CSS background of a theme's background, for the screen and for the small drawings in Controls; null: the sky or the photos draw themselves
+  function background(v, wallpaperUrl){
+    const bgc = HEX6.test(v.bgColor || "") ? v.bgColor : "#0a0c0f";
+    if (v.bg === "Color") return bgc;
+    if (v.bg === "Gradient") return GRADIENTS[v.gradient] || GRADIENTS.Dusk;
+    if (v.bg === "Texture") return (TEXTURES[v.texture] || TEXTURES.Paper) + "," + bgc;
+    if (v.bg === "Wallpaper") return wallpaperUrl ? 'center/cover no-repeat url("' + wallpaperUrl + '"),' + bgc : bgc;
+    return null;
+  }
+  /* What may leave this Countertop in a shared theme, a shared layout, a gallery submission or a Theme Studio prompt. One place,
+     so a new setting can't leak by being forgotten in one of them: anything that points at this server (an uploaded wallpaper, a
+     photo album) is dropped, and a theme on a wallpaper falls back to a gradient. ctx.fxOk(id) says which effects others have too. */
+  function portable(v, ctx){
+    const out = {};
+    for (const k in BASE) if (v && v[k] !== undefined && !LOCAL.includes(k)) out[k] = v[k];
+    if (out.bg === "Wallpaper"){ out.bg = "Gradient"; if (!out.gradient) out.gradient = out.mode === "Light" ? "Mist" : "Dusk"; }
+    if (Array.isArray(out.fxPick)) out.fxPick = out.fxPick.filter(id => typeof id === "string" && /^[a-z0-9-]+$/.test(id) && (!ctx || !ctx.fxOk || ctx.fxOk(id)));
+    return out;
+  }
   const get = id => L.find(t => t.id === id) || null;
-  return {L, BASE, resolve, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
+  return {L, BASE, LOCAL, FONTS, BODY_FONTS, DISPLAY_FONTS, DENSITY, SHAPES, SURFACES, GRADIENTS, TEXTURES, BG_CHOICES, resolve, tokens, spacing, background, portable, rgba, get, has: id => !!get(id), forStarter: key => L.find(t => t.starter === key) || null};
 })();

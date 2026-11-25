@@ -9,11 +9,11 @@ function curPg(){ return gridOf(EDIT.page); }
 function pgSec(){ return EDIT.page === "main" ? $("p1") : document.querySelector('.cpage[data-page="' + (EDIT.page === "night" ? "night" : EDIT.page.slice(2)) + '"]'); }
 function pgGrid(){
   const sec = pgSec(), g = sec && sec.querySelector(":scope > .cgrid"); if (!g) return null;
-  const r = g.getBoundingClientRect(), gap = GAP * EDIT.k;
+  const r = g.getBoundingClientRect(), gap = gapPx() * EDIT.k;
   return {r, cw:(r.width + gap) / GC, ch:(r.height + gap) / GR};
 }
 function cellAt(x, y){ const G = pgGrid(); return [Math.floor((x - G.r.left) / G.cw), Math.floor((y - G.r.top) / G.ch)]; }
-function cellRect(s){ const G = pgGrid(), gap = GAP * EDIT.k;
+function cellRect(s){ const G = pgGrid(), gap = gapPx() * EDIT.k;
   return {left:G.r.left + s.x * G.cw, top:G.r.top + s.y * G.ch, width:s.w * G.cw - gap, height:s.h * G.ch - gap}; }
 const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 // box s in the arrangement being edited (null: not on this screen)
@@ -191,7 +191,7 @@ function edPaint(force){
   $("edhint").textContent = dzx ? "Designing “" + dzx.name + "” · tap Done when finished" : dirty ? "Unsaved changes" : "";
   const fr = {left:G.r.left - 2, top:G.r.top - 2, width:G.r.width + 4, height:G.r.height + 4};
   Object.assign($("edcanvas").style, px(fr)); Object.assign($("edgrid").style, px(G.r));
-  $("edgrid").style.gridTemplateColumns = "repeat(" + GC + ",1fr)"; $("edgrid").style.gridTemplateRows = "repeat(" + GR + ",1fr)"; $("edgrid").style.gap = (GAP * EDIT.k) + "px";
+  $("edgrid").style.gridTemplateColumns = "repeat(" + GC + ",1fr)"; $("edgrid").style.gridTemplateRows = "repeat(" + GR + ",1fr)"; $("edgrid").style.gap = (gapPx() * EDIT.k) + "px";
   const B = $("edboxes"); B.innerHTML = "";
   for (const s of pg.slots || []){
     const r = RG(s, pg); if (!r) continue;

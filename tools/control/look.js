@@ -1,13 +1,15 @@
 /* ---------- Look: looks (picture cards + a short Adjust screen), the schedule, effects, the night page ---------- */
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const LS = () => mods.look.settings;
+// what may leave this Countertop (shared themes and layouts, gallery submissions, Theme Studio prompts): THEMELIB.portable, with the effects others have too
+const themePortable = v => THEMELIB.portable(v, {fxOk:id => !!(typeof FXLIB !== "undefined" && FXLIB.BY[id] && !FXLIB.BY[id].mine)});
 const looks = () => (LS().items = LS().items || []);
 const rules = () => (LS().rules = LS().rules || []);
 const lookById = id => looks().find(t => t.id === id) || THEMELIB.get(id);      // yours, or a built-in one (tools/shared/themes.js)
 const isBuiltin = id => !looks().some(t => t.id === id) && THEMELIB.has(id);
 const themeKnown = id => id === "default" || !!lookById(id);
 const ruleById = id => rules().find(r => r.id === id);
-const LOOK_KEYS = ["mode", "accent", "holiday", "textColor", "bigColor", "themeWins", "tiles", "opacity", "textScale", "titles", "bg", "bgColor", "dim", "fx"];
+const LOOK_KEYS = Object.keys(THEMELIB.BASE);       // every theme setting; what may be shared is THEMELIB.portable
 function lookVals(id){
   const v = {}; LOOK_KEYS.forEach(k => { v[k] = LS()[k]; });
   const t = id === "default" ? null : lookById(id);
@@ -102,7 +104,8 @@ function textColorRows(v, A){
 /* ----- a small drawing of the dashboard in a look ----- */
 function lookColors(v){        // the same numbers the dashboard uses (THEMELIB.resolve), plus the background drawing
   const r = THEMELIB.resolve(v);
-  const bg = v.bg === "Color" ? esc(v.bgColor || "#0a0c0f") : v.bg === "Photos" ? "linear-gradient(165deg,#88a6c2 0%,#d7b08a 52%,#4d5e43 53%,#2a3624 100%)"
+  const own = THEMELIB.background(v, v.bg === "Wallpaper" && /^w-[0-9a-f]{12}$/.test(v.wallpaper || "") ? "/wallpaper/" + v.wallpaper : "");      // color, gradient, texture or wallpaper
+  const bg = own ? esc(own.replace(/"/g, "'")) : v.bg === "Photos" ? "linear-gradient(165deg,#88a6c2 0%,#d7b08a 52%,#4d5e43 53%,#2a3624 100%)"
     : "linear-gradient(180deg,#2f6aa3 0%,#1c4370 45%,#0d1a2b 100%)";
   return {light:r.light, bg, card:r.card, fg:esc(r.fg), big:esc(r.big), dim:r.text.dim, bd:r.clear ? "transparent" : r.line, acc:esc(r.accent)};
 }
@@ -448,7 +451,7 @@ const SHARE = {key:"", name:"", desc:""};
 function sharePack(key){
   const [kind, id] = [key.split(":")[0], key.split(":").slice(1).join(":")];
   const base = {countertop:kind, format:LIB_FMT, name:SHARE.name.trim() || (kind === "theme" ? "Shared theme" : "Shared effect"), description:SHARE.desc.trim(), made:new Date().toISOString().slice(0, 10)};
-  if (kind === "theme"){ const v = lookVals(id), values = {}; LOOK_KEYS.forEach(k => { if (v[k] !== undefined) values[k] = v[k]; }); return Object.assign(base, {values}); }
+  if (kind === "theme") return Object.assign(base, {values:themePortable(lookVals(id))});
   const m = mineById(id); if (!m) return null;
   const e = fxPlain(m); delete e.name;
   return Object.assign(base, {effect:e});
@@ -519,7 +522,7 @@ function fxImpScreen(){
 // files: what's in a theme or an effect is checked against what this Countertop knows
 function themeRead(j){
   const str = (v, n) => typeof v === "string" ? v.trim().slice(0, n) : "", LSD = (schema.look && schema.look.settings) || {}, values = {};
-  for (const k of LOOK_KEYS) if (j.values && j.values[k] !== undefined){ const c = libClean(LSD[k], j.values[k]); if (c !== undefined) values[k] = c; }
+  for (const k of LOOK_KEYS) if (!THEMELIB.LOCAL.includes(k) && j.values && j.values[k] !== undefined){ const c = libClean(LSD[k], j.values[k]); if (c !== undefined) values[k] = c; }
   if (!Object.keys(values).length) throw new Error("This theme has no colors or settings in it.");
   return {name:str(j.name, 80) || "Shared theme", desc:str(j.description, 500), made:str(j.made, 10), values};
 }

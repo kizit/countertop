@@ -4,7 +4,8 @@
     /* Theme tokens (PR 1). The older names above stay as aliases: community tiles and tile designs use them. */
     --text:var(--fg);--text-dim:var(--dim);--text-faint:var(--faint);--surface:var(--card);--surface-line:var(--line);
     --inset:rgba(255,255,255,.06);--ok:#9be38f;--info:#8fc3ff;--warn:#ffc850;--bad:#ff8a80;
-    --font:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;--radius:18px;--pad-y:16px;--pad-x:20px;--gap:16px;--shadow:none;
+    --font:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;--font-display:var(--font);--radius:18px;--pad-y:16px;--pad-x:20px;--gap:16px;--shadow:none;
+    --pg-t:22px;--pg-x:36px;--pg-b:26px;--border-w:1px;
     --team:#e8344e;--teamb:#0b1f3f;--teamy:#f6c443;--page-w:100vw;--page-h:100vh}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;cursor:none;
@@ -15,9 +16,9 @@
   #fun2{position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
   #pages{position:relative;z-index:1;display:flex;width:var(--page-w);height:var(--page-h);transition:transform .6s cubic-bezier(.2,.8,.2,1)}
   .page[hidden]{display:none}
-  .page{position:relative;width:var(--page-w);height:var(--page-h);padding:22px 36px 26px;display:grid;gap:var(--gap);min-height:0}
+  .page{position:relative;width:var(--page-w);height:var(--page-h);padding:var(--pg-t) var(--pg-x) var(--pg-b);display:grid;gap:var(--gap);min-height:0}
   header{display:flex;justify-content:space-between;align-items:flex-start;text-shadow:0 2px 12px rgba(0,0,0,.45)}
-  .card{background:var(--surface);border:1px solid var(--surface-line);border-radius:var(--radius);padding:var(--pad-y) var(--pad-x);box-shadow:var(--shadow);min-height:0;overflow:hidden;position:relative}
+  .card{background:var(--surface);border:var(--border-w) solid var(--surface-line);border-radius:var(--radius);padding:var(--pad-y) var(--pad-x);box-shadow:var(--shadow);min-height:0;overflow:hidden;position:relative}
   .m-sbx iframe.sbxf{position:absolute;border:0;background:transparent;color-scheme:normal}
   .m-sbx .sbxmsg{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:20px;line-height:1.35}
   .m-sbx .sbxc{position:absolute;display:grid;grid-auto-rows:1fr;gap:8px;overflow-x:auto;overflow-y:hidden}
@@ -349,7 +350,7 @@
   /* pages: boxes on a 48x32 grid */
   .cpage{display:block}
   #p1.gpage{display:block}
-  .cgrid{position:absolute;inset:22px 36px 26px;display:grid;grid-template-columns:repeat(48,1fr);grid-template-rows:repeat(32,1fr);gap:var(--gap)}
+  .cgrid{position:absolute;inset:var(--pg-t) var(--pg-x) var(--pg-b);display:grid;grid-template-columns:repeat(48,1fr);grid-template-rows:repeat(32,1fr);gap:var(--gap)}
   .slot{min-width:0;min-height:0;display:flex;flex-direction:column;grid-column:var(--slot-col);grid-row:var(--slot-row)}
   .slot > *{flex:1 1 auto;min-height:0}
   .slot > .m-week{grid-auto-flow:column}
@@ -573,3 +574,7 @@
 #trialbar{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:14px;padding:8px 8px 8px 18px;border-radius:99px;
   background:rgba(12,15,20,.82);color:#fff;font-size:18px;box-shadow:0 6px 24px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 #trialbar button{font:inherit;font-size:16px;font-weight:600;border:0;border-radius:99px;padding:6px 16px;background:#fff;color:#111;cursor:pointer}
+  /* theme shape (docs/theming.md): a Big numbers font set by the theme applies to the clock's time and the temperature,
+     unless the tile's design picked a font of its own (.ownfont) */
+  html.dfont :is(.m-clock,.m-weather):not(.ownfont) :is(.t,.tt){font-family:var(--font-display)}
+  #tinter{position:fixed;inset:0;z-index:3;pointer-events:none}

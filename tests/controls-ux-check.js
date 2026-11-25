@@ -709,6 +709,21 @@ async function main() {
     await dp.keyboard.press("Control+z");
     await until(() => dp.evaluate(() => pvWin().curPg().slots.find(s => s.id === "ms3").x === 24), "Ctrl+Z undid ms3 nudge");
 
+    // Mouse drag of ms3 onto the right half of ms2 offers Stack and combines both tiles; Ctrl+Z unstacks
+    const ms2Box = await pvFrame.locator('.eslot[data-slot="ms2"]').boundingBox();
+    const ms3Pre = await pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox();
+    await dp.mouse.move(ms3Pre.x + ms3Pre.width / 2, ms3Pre.y + ms3Pre.height / 2);
+    await dp.mouse.down();
+    await dp.mouse.move(ms2Box.x + ms2Box.width * 0.75, ms2Box.y + ms2Box.height / 2, { steps: 10 });
+    assert.match(await dp.evaluate(() => pvWin().document.getElementById("edph").className), /\bchoose\b.*\bpick-stack\b/, "desktop drag should offer Stack on the right half");
+    await dp.mouse.up();
+    await until(() => dp.evaluate(() => {
+      const pg = pvWin().curPg(), s2 = pg.slots.find(v => v.id === "ms2");
+      return !pg.slots.some(v => v.id === "ms3") && s2 && pvWin().smods(s2).length === 2;
+    }), "desktop mouse drag stacked ms3 onto ms2");
+    await dp.keyboard.press("Control+z");
+    await until(() => dp.evaluate(() => pvWin().curPg().slots.some(v => v.id === "ms3")), "Ctrl+Z unstacked ms3");
+
     // Mouse drag moves ms3 into empty space to the right, then Ctrl+S saves and exits 3-pane studio cleanly
     const ms3Box = await until(() => pvFrame.locator('.eslot[data-slot="ms3"]').boundingBox(), "ms3 bounding box");
     await dp.mouse.move(ms3Box.x + ms3Box.width / 2, ms3Box.y + ms3Box.height / 2);

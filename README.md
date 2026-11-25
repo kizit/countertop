@@ -52,7 +52,7 @@ Open any of the three layouts to see it full size. They all use the same fiction
 
 ### Make your own tiles
 
-Want something the built-in tiles don't do? Open **Tile Studio** (**Library → Tiles → New tile**) to write a tile of your own, or describe what you want, copy the prompt into ChatGPT, Claude, or another assistant you already use, and paste the answer back to fill in the form and live preview. Point at parts of the preview to ask for changes, switch between versions, and share your tile — or download tiles other people made in **Library → Community**.
+Want something the built-in tiles don't do? Open **Tile Studio** (**Library → Make → Tile Studio**) to write a tile of your own, or describe what you want, copy the prompt into ChatGPT, Claude, or another assistant you already use, and paste the answer back to fill in the form and live preview. Point at parts of the preview to ask for changes, switch between versions, and share your tile — or download tiles other people made in **Library → Community**.
 
 <img src="docs/screenshots/tile-studio.gif" alt="Tile Studio beside a simulated external AI chat: describing a Walk the Dog? tile, pasting the reply to fill the form and live preview, pinning a note to add a golden puppy, and filling in the updated tile." width="100%" />
 

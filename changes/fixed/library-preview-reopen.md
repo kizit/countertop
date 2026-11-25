@@ -1,0 +1,1 @@
+- **Theme and Effects open with their live preview.** Opening either from the Controls home screen, after the Library had been closed once, left the preview blank.

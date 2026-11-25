@@ -131,6 +131,46 @@ async function main() {
     await until(() => ctl.evaluate(() => looks().some(t => t.name === "Cozy Dusk")), "theme saved on first tap after typing");
     console.log("✓ typing a theme name and tapping Save immediately saves on the first tap");
 
+    // Theme editor: tapping an option redraws the screen for the preview but keeps the scroll position and the tab (Library, where Themes live)
+    await ctl.evaluate(() => { libOpen("themes"); LIB.sub.push("look:new"); draftNew(""); LTAB = "surface"; libShow(); });
+    await ctl.waitForSelector('#lib .ltabs button.on');
+    const lastOpt = ctl.locator('#lib [data-lk][data-lv]:not(.on)').last();
+    await lastOpt.scrollIntoViewIfNeeded();
+    const scrolled = await ctl.evaluate(() => { const b = document.querySelector("#lib .lmain"); return Math.max(b.scrollTop, scrollY); });
+    console.log("  scrolled to", scrolled);
+    await lastOpt.click();
+    await sleep(1500);
+    const after = await ctl.evaluate(() => ({ top: Math.max(document.querySelector("#lib .lmain").scrollTop, scrollY), tab: document.querySelector("#lib .ltabs button.on").dataset.id }));
+    assert.equal(after.top, scrolled, "theme editor jumped after tapping an option");
+    assert.equal(after.tab, "surface", "theme editor changed tab after tapping an option");
+    await ctl.evaluate(() => libClose());
+    console.log("✓ tapping a theme option keeps the scroll position and tab");
+
+    // The same on Controls' own theme editor screen (page scroll), as used without the Library
+    await ctl.evaluate(() => { stack = ["root", "looks"]; show(); draftNew(""); LTAB = "type"; go("look:new"); });
+    await ctl.waitForSelector('#screen .ltabs button.on');
+    const lastC = ctl.locator('#screen [data-lk][data-lv]:not(.on)').last();
+    await lastC.scrollIntoViewIfNeeded();
+    const pageTop = await ctl.evaluate(() => scrollY);
+    console.log("  page scrolled to", pageTop);
+    assert.ok(pageTop > 0, "Controls theme editor not scrollable in test");
+    await lastC.click();
+    await sleep(1500);
+    const pageAfter = await ctl.evaluate(() => ({ y: scrollY, tab: document.querySelector("#screen .ltabs button.on").dataset.id }));
+    assert.equal(pageAfter.y, pageTop, "Controls theme editor jumped after tapping an option");
+    assert.equal(pageAfter.tab, "type");
+    await ctl.evaluate(() => { DRAFT = null; stack = ["root"]; show(); });
+    console.log("✓ tapping an option on Controls' theme editor keeps the page position");
+
+    // Opening Theme or Effects from Controls' home renders the live preview, also the second time after closing the Library
+    for (const [row, label] of [["themes", "Theme"], ["effects", "Effects"], ["themes", "Theme (again)"]]) {
+      await ctl.evaluate(() => { stack = ["root"]; show(); });
+      await ctl.locator('[data-act="lib"][data-id="' + row + '"]').click();
+      await until(() => ctl.evaluate(() => { const f = document.getElementById("libpv"); return !!f && /\/dash\/content\?preview=1/.test(f.getAttribute("src") || "") && f.classList.contains("on"); }), label + " preview rendered", 15000);
+      await ctl.evaluate(() => { libClose(); show(); });
+    }
+    console.log("✓ Theme and Effects opened from Controls' home show the live preview, every time");
+
     // New custom effect: change emoji -> preview canvas redraws (ff7b5f3) + immediate tap Save (b732808)
     await ctl.evaluate(() => { stack = ["root", "effects"]; show(); });
     await ctl.locator('[data-fxa="new"]').click();
@@ -363,6 +403,19 @@ async function main() {
       assert.ok(t.h >= 36, "Echo control too small for touch: " + JSON.stringify(t));
       assert.ok(t.reachable, "Echo control covered: " + JSON.stringify(t));
     }
+    // On the Echo itself the theme editor is a full screen in the Library: tapping an option keeps the scroll position and tab
+    await ep.evaluate(() => { libOpen("themes"); LIB.sub.push("look:new"); draftNew(""); LTAB = "surface"; libShow(); });
+    await ep.waitForSelector('#lib .ltabs button.on');
+    const eLast = ep.locator('#lib [data-lk][data-lv]:not(.on)').last();
+    await eLast.scrollIntoViewIfNeeded();
+    const eTop = await ep.evaluate(() => Math.max(document.querySelector("#lib .lmain").scrollTop, scrollY));
+    assert.ok(eTop > 0, "Echo theme editor not scrollable in test");
+    await eLast.click();
+    await sleep(500);
+    const eAfter = await ep.evaluate(() => ({ top: Math.max(document.querySelector("#lib .lmain").scrollTop, scrollY), tab: document.querySelector("#lib .ltabs button.on").dataset.id }));
+    assert.equal(eAfter.top, eTop, "Echo theme editor jumped after tapping an option");
+    assert.equal(eAfter.tab, "surface");
+    console.log("✓ tapping a theme option on the Echo keeps the scroll position");
     assert.deepEqual(echoErrs, []);
     await echoCtx.close();
     console.log("✓ Echo Controls (/control?echo=1) touch targets are sized and reachable");

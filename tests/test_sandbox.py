@@ -180,6 +180,15 @@ class SafeMode(Base):
         self.assertEqual(self.beat(t=1200, gap=190000), {"safe": True})
         self.assertEqual(self.beat("screenB", t=1201, gap=10), {"safe": True})
 
+    def test_a_screen_that_starts_again_after_a_power_cut_turns_it_back_on(self):
+        self.beat(t=1000)
+        sbx.safe_freeze_check(now=1040)
+        self.assertTrue(sbx.safe_mode()["on"])
+        self.assertEqual(sbx.sandbox_beat({"session": "afterpower", "boot": True}, "10.0.0.5", 1, now=1300), {"safe": True},
+                         "another address isn't the screen that went quiet")
+        self.assertEqual(sbx.sandbox_beat({"session": "afterpower2", "boot": True}, "10.0.0.9", 1, now=1400), {"safe": False})
+        self.assertFalse(sbx.safe_mode()["on"])
+
     def test_nothing_showing_means_nothing_to_watch(self):
         self.beat(t=1000)
         self.beat(t=1003, showing=())

@@ -58,7 +58,7 @@ function statusScreen(){
     h += sec("List", row({t:L.name, sub:(SRCN[L.source] || L.source) + (L.error ? " · " + L.error : ""), v:L.count + (L.count === 1 ? " item" : " items")})); }
   const X = S.sandbox;    // only once a community tile is installed, or safe mode is on
   if (X){
-    const WHY = {froze:"Turned on by itself: the screen stopped answering while " + (X.tiles.join(", ") || "a community tile") + " was showing.",
+    const WHY = {froze:"Turned on by itself: the screen stopped answering while " + (X.tiles.join(", ") || "a community tile") + " was showing. It turns back on when the screen starts again.",
       reloads:"Turned on by itself: the screen restarted 3 times in 10 minutes with " + (X.tiles.join(", ") || "community tiles") + " on it.",
       person:"Turned on here."};
     h += sec("Community tiles", row({t:"Turn off all community tiles", sub: X.safe ? WHY[X.why] || "" : X.installed + (X.installed === 1 ? " tile installed" : " tiles installed") +

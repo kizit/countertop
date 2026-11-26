@@ -1,0 +1,1 @@
+- **Community tiles after a power cut.** If a screen loses power while showing a community tile, tiles turn back on by themselves when it starts again.

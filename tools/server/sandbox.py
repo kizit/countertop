@@ -418,6 +418,7 @@ def set_safe_mode(on, why="", tiles=(), by="", reload=True):
 
 
 SBX_SESSIONS = {}          # page session -> {"at", "showing": [tile names], "ip", "tripped"}
+SBX_TRIP_IP = [None]       # the address of the screen that last went quiet, so only that screen's restart turns tiles back on
 SBX_BOOTS = collections.deque(maxlen=20)        # (time, version) of each dashboard start with community tiles on it
 SBX_NOTES = collections.deque(maxlen=20)        # things Status mentions: a tile stopped for leaving its frame, a page over the limit
 SBX_SESSION_RE = re.compile(r"^[A-Za-z0-9_-]{4,40}$")
@@ -459,6 +460,12 @@ def sandbox_beat(body, ip, version, now=None):
             # the same page is back, and its timers never stopped: the connection dropped, the screen didn't freeze
             s = set_safe_mode(False)
             SBX_NOTES.append({"at": now, "text": "A screen stopped checking in for a while, but it hadn't frozen, so community tiles were turned back on."})
+    elif (body.get("boot") and s["on"] and s["why"] == "froze" and s["by"] != sid
+          and SBX_TRIP_IP[0] in (None, ip)):
+        # the screen that went quiet has started a fresh page: it was restarted (a power cut, a reboot, a new browser),
+        # so it was cut off and not stuck on a tile. If a tile really does freeze it again, safe mode comes back.
+        s = set_safe_mode(False)
+        SBX_NOTES.append({"at": now, "text": "A screen stopped checking in and then started again, so community tiles were turned back on."})
     if body.get("boot") and not body.get("clean") and not s["on"]:
         with SBX_LOCK:
             same = [t for t, v in SBX_BOOTS if now - t < SBX_RELOAD_WINDOW and v == version]
@@ -481,6 +488,7 @@ def safe_freeze_check(now=None):
             s["tripped"] = True
     if quiet and not safe_mode()["on"]:
         sid, s = quiet[0]
+        SBX_TRIP_IP[0] = s.get("ip")
         set_safe_mode(True, "froze", s["showing"], sid, reload=False)
     return bool(quiet)
 
@@ -524,7 +532,7 @@ def sandbox_problems():
     if st["safe"]:
         names = ", ".join("“%s”" % n for n in st["tiles"])
         out.append(["warn", {
-            "froze": "Community tiles are off: the screen stopped answering while %s was showing. Restart the browser on the screen if it's still stuck, then turn community tiles back on in Status when you're ready." % (names or "a community tile"),
+            "froze": "Community tiles are off: the screen stopped answering while %s was showing. It may only have lost power or its connection. They turn back on by themselves when the screen starts again; if it's still stuck, restart its browser." % (names or "a community tile"),
             "reloads": "Community tiles are off: the screen restarted 3 times in 10 minutes with %s on it. Turn them back on in Status when you're ready." % (names or "community tiles"),
         }.get(st["why"], "Community tiles are off (safe mode). Turn them back on in Status.")])
     for n in st["takenDown"]:

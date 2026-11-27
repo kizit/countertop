@@ -1,0 +1,1 @@
+- **Steadier checks.** The theme comparison test no longer depends on the date it runs on.

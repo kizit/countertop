@@ -29,9 +29,10 @@ async function main() {
     onCleanup(() => fs.rmSync(data, { recursive: true, force: true }));
     const srv = await startServer(data);
     onCleanup(() => srv.stop());
-    const ctx = await openContext({ base: srv.base, viewport: { width: 1920, height: 1080 }, useFixtures: true, interceptReports: true, label: "compat" });
-    // the Dinner tile follows the time of day (a Dessert idea has no "uses something on your list" line after 19:30), so the clock is fixed
-    await ctx.clock.install({ time: new Date(2026, 10, 25, 18, 0, 0) });
+    const FIXED = new Date(2026, 10, 25, 18, 0, 0);
+    const ctx = await openContext({ base: srv.base, viewport: { width: 1920, height: 1080 }, useFixtures: true, demoTime: FIXED, interceptReports: true, label: "compat" });
+    // the Dinner tile follows the time of day (a Dessert idea has no "uses something on your list" line after 19:30), so the clock is fixed, and the demo calendar is placed around the same moment (otherwise it follows the machine's date)
+    await ctx.clock.install({ time: FIXED });
     const page = await ctx.newPage();
     watchErrors(page, [], { prefix: "dash" });
     const ids = ["default"].concat(Object.keys(CUSTOM));

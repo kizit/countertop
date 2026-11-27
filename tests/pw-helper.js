@@ -101,6 +101,7 @@ async function runSuite(suiteName, fn) {
       isMobile = false,
       userAgent = "",
       useFixtures = false,
+      demoTime = null,
       realSaves = false,
       stubFullscreen = hasTouch,
       interceptReports = false,
@@ -116,7 +117,8 @@ async function runSuite(suiteName, fn) {
     }
     const initParts = [];
     if (useFixtures) {
-      const flags = realSaves ? "window.__DEMO_SAVE_CONFIG = true; window.__DEMO_REAL_NOTES = true;\n" : "";
+      let flags = realSaves ? "window.__DEMO_SAVE_CONFIG = true; window.__DEMO_REAL_NOTES = true;\n" : "";
+      if (demoTime) flags += "window.__DEMO_TIME = " + JSON.stringify(new Date(demoTime).toISOString()) + ";\n";      // demo events are placed relative to this, not to the machine's date
       initParts.push("if (!location.pathname.startsWith('/tile-frame')) {\n" + flags + fixtures + "\n}");
     }
     if (stubFullscreen) initParts.push("Element.prototype.requestFullscreen = function () { return Promise.resolve(); };");

@@ -1,0 +1,1 @@
+- **Photo frame captions.** Choose which parts of the caption show: the album name, the date, and the photo count. The date follows your region setting.

@@ -1,0 +1,1 @@
+- **Live cam captions.** A new Closed captions setting (Off by default) hides YouTube's captions on live cams, such as muted news streams that show them on their own. Turn it On to show them. Captions burned into the video itself can't be hidden.

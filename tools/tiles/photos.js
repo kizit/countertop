@@ -6,7 +6,10 @@ Tile("photos", {
     album:{type:"source", kind:"albums", label:"Album", default:""},
     every:{type:"int", label:"Seconds per photo", default:60, min:10, max:3600},
     shuffle:{type:"bool", label:"Shuffle", default:true},
-    captions:{type:"bool", label:"Show captions", default:true}
+    captions:{type:"bool", label:"Show captions", default:true},
+    capName:{type:"bool", label:"Album name", default:true, when:{captions:true}},
+    capDate:{type:"bool", label:"Date", default:true, when:{captions:true}},
+    capCount:{type:"bool", label:"Photo count", default:true, when:{captions:true}}
   },
 
   render(el){
@@ -45,8 +48,12 @@ Tile("photos", {
       blurs[f].style.opacity = "0"; imgs[f].style.opacity = "0";
       el._flip = 1 - f;
       const when = ph.date ? new Date(ph.date) : null;
-      el.querySelector(".cap").innerHTML = s.captions ? (esc(ph.caption || P.album || "") + '<span>' +
-        (when && !isNaN(when) ? when.toLocaleDateString([], {month:"long", year:"numeric"}) + " · " : "") + (el._i + 1) + " of " + el._order.length + '</span>') : "";
+      // dates follow the Language and formats setting (the default locale is the chosen one)
+      const parts = [];
+      if (s.capDate !== false && when && !isNaN(when)) parts.push(when.toLocaleDateString([], {month:"long", year:"numeric"}));
+      if (s.capCount !== false) parts.push((el._i + 1) + " of " + el._order.length);
+      el.querySelector(".cap").innerHTML = s.captions === false ? "" :
+        (s.capName !== false ? esc(ph.caption || P.album || "") : "") + (parts.length ? "<span>" + esc(parts.join(" · ")) + "</span>" : "");
     };
     img.onerror = () => {
       el._errs = (el._errs || 0) + 1;

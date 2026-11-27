@@ -4,7 +4,8 @@ viewTile("cam", {
   desc:"A muted YouTube live stream, like an aquarium or animal cam. Add channels or videos in Setup → Live cams; this tile switches between the ones that are live.",
   settings:{
     cams:{type:"source", kind:"cams", multi:true, label:"Cams", default:[]},
-    every:{type:"int", label:"Switch cams every (seconds)", default:600, min:60, max:7200}
+    every:{type:"int", label:"Switch cams every (seconds)", default:600, min:60, max:7200},
+    captions:{type:"choice", label:"Closed captions", choices:["Off", "On"], default:"Off"}
   }
 }, {
   build(box){ box.innerHTML = '<div class="cam" data-keep></div><div class="ovl tl cm"><b></b><span></span></div>'; this.box = box; this.i = -1; this.at = 0; },
@@ -23,7 +24,7 @@ viewTile("cam", {
     this.i = (this.i + 1) % C.length; this.shownAt = Date.now();
     const c = C[this.i];
     box.querySelector(".cam").innerHTML = '<iframe allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube-nocookie.com/embed/' +
-      encodeURIComponent(c.id) + '?autoplay=1&mute=1&controls=0&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1"></iframe>';
+      encodeURIComponent(c.id) + '?autoplay=1&mute=1&controls=0&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&cc_load_policy=' + (this.s.captions === "On" ? 1 : 0) + '"></iframe>';
     box.querySelector(".cm b").textContent = c.title || "Live cam";
     box.querySelector(".cm span").textContent = (c.channel ? c.channel + " · " : "") + "LIVE";
     clearTimeout(this.fade); box.querySelector(".cm").classList.remove("dim");

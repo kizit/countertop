@@ -1,0 +1,1 @@
+- **Live cam taps.** Taps on a live cam now reach the dashboard instead of the video.

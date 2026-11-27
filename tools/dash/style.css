@@ -175,7 +175,7 @@
   .m-stage .cm{transition:opacity 1.5s;background:rgba(0,0,0,.35);padding:10px 14px;border-radius:12px}
   .m-stage .cm.dim{opacity:.0}
   .m-stage .cm span{color:var(--bad);font-size:16px;font-weight:600;letter-spacing:.5px}
-  .m-stage .v-cams{pointer-events:none}
+  .m-stage .v-cam{pointer-events:none}
   .m-stage .sdots{position:absolute;right:20px;top:22px;z-index:4;display:flex;gap:7px}
   .m-stage .sdots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.3)}
   .m-stage .sdots i.on{background:#fff}
